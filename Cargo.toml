@@ -1,0 +1,28 @@
+[package]
+name = "stampede"
+version = "0.1.0"
+edition = "2021"
+#build= "build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+protogen = { path = "protogen" }
+
+protobuf = "3.3.0"
+snap = "1.1.1"
+regex = "1.10.2"
+strum = "0.25.0"
+strum_macros = "0.25.3"
+enum-as-inner = "0.6.0"
+
+[profile.dev]
+opt-level = 0
+
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"

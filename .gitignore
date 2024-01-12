@@ -1,0 +1,5 @@
+.idea
+/target
+/replays
+/protogen
+*.exe
