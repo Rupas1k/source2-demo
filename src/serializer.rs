@@ -1,6 +1,9 @@
 use std::rc::Rc;
-use crate::field::{Decoders, Field, FieldState, FieldType};
+use crate::field::{Field};
+use crate::field_decoder::Decoders;
 use crate::field_path::FieldPath;
+use crate::field_state::FieldState;
+use crate::field_type::FieldType;
 
 #[derive(Clone, Debug)]
 pub struct Serializer {
@@ -18,10 +21,6 @@ impl Serializer {
         }
     }
 
-    // pub fn id(&self) -> String {
-    //     format!("{}({})", self.name, self.ver)
-    // }
-
     pub fn get_name_for_field_path(&self, fp: &FieldPath, pos: i32) -> Vec<String> {
         self.fields[fp.get(pos as usize) as usize].get_name_for_field_path(fp, pos+1)
     }
@@ -30,7 +29,6 @@ impl Serializer {
         self.fields[fp.get(pos as usize) as usize].get_type_for_field_path(fp, pos+1)
     }
 
-    // pub fn get_decoder_for_field_path(&self, fp: &FieldPath, pos: i32) -> (&Decoders, &Field) {
     pub fn get_decoder_for_field_path(&self, fp: &FieldPath, pos: i32) -> &Decoders {
         let i = fp.get(pos as usize);
         if self.fields.len() <= i as usize {
@@ -57,13 +55,9 @@ impl Serializer {
     pub fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldState) -> Vec<FieldPath> {
         let mut results: Vec<FieldPath> = vec![];
         for (i, f) in self.fields.iter().enumerate() {
-            // println!("{:?}", f);
-            // fp.path[fp.last] = i as i32;
             fp.set(fp.last(), i as i64);
             results.extend_from_slice(&f.get_field_paths(fp, st));
         }
-        // println!("{:?}", results.len());
-        // panic!();
         results
     }
 }

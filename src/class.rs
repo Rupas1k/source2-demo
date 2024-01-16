@@ -1,6 +1,8 @@
 use std::rc::Rc;
-use crate::field::{Decoders, Field, FieldState, FieldType};
+use crate::field_decoder::Decoders;
 use crate::field_path::FieldPath;
+use crate::field_state::FieldState;
+use crate::field_type::FieldType;
 use crate::serializer::Serializer;
 
 #[derive(Clone, Debug)]

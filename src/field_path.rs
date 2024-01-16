@@ -157,14 +157,6 @@ impl FieldPath {
         self.inc(self.last(), n)
     }
 
-    // pub fn get_cur(&self) -> i64 {
-    //     self.get(self.last())
-    // }
-
-    // pub fn set_cur(&mut self, v: i64) {
-    //     self.set(self.last(), v)
-    // }
-
     pub fn up(&mut self, n: usize) {
         self.id = FieldPathFormatter::up(&self.id, n);
     }

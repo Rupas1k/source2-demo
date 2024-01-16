@@ -1,5 +1,5 @@
 use std::cell::{RefCell};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 use std::rc::Rc;
 use std::time::Instant;
 use nohash_hasher::IntMap;
@@ -13,11 +13,12 @@ use protogen::usermessages::{EBaseEntityMessages, EBaseUserMessages};
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use crate::class::Class;
-use crate::demo::{PendingMessage};
-use crate::entities::{Entity, EntityOperations};
-use crate::field::{Field, FIELD_PATCHES, FieldModels, FieldPatch, FieldReader, FieldType};
-// use crate::reader::{Reader, ReaderMethods};
-use crate::bit_reader::{Reader, ReaderMethods};
+use crate::entitiy::{Entity, EntityOperation};
+use crate::field::{Field, FieldModels};
+use crate::reader::{Reader, ReaderMethods};
+use crate::field_patch::{FIELD_PATCHES, FieldPatch};
+use crate::field_reader::FieldReader;
+use crate::field_type::FieldType;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTables};
 
@@ -29,25 +30,39 @@ struct OuterMessage {
     buf: Vec<u8>
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub struct PendingMessage {
+    pub tick: u32,
+    pub msg_type: i32,
+    pub buf: Vec<u8>
+}
+
+impl PendingMessage {
+    pub fn new(tick: u32, msg_type: i32, buf: Vec<u8>) -> Self {
+        PendingMessage {
+            tick,
+            msg_type,
+            buf
+        }
+    }
+}
+
+
 
 pub struct Stampede<'a> {
     reader: Reader<'a>,
     field_reader: FieldReader,
     pending_messages: VecDeque<PendingMessage>,
     tick: u32,
-    // net_tick: u32,
     game_build: Option<u32>,
-    // class_base_lines: FxHashMap<i32, Rc<Vec<u8>>>,
     class_base_lines: IntMap<i32, Rc<Vec<u8>>>,
-    // classes_by_id: FxHashMap<i32, Rc<RefCell<Class>>>,
     classes_by_id: IntMap<i32, Rc<RefCell<Class>>>,
     classes_by_name: FxHashMap<String, Rc<RefCell<Class>>>,
     class_id_size: Option<u32>,
     class_info: bool,
 
-    // entities: FxHashMap<i32, Entity>,
     entities: IntMap<i32, Entity>,
-    undone_entities: Vec<(i32, EntityOperations)>,
+    undone_entities: Vec<(i32, EntityOperation)>,
     entity_full_packets: i32,
 
     pointer_types: HashSet<&'a str>,
@@ -79,15 +94,11 @@ impl<'a> Stampede<'a> {
             pending_messages: VecDeque::new(),
             field_reader: FieldReader::new(),
             game_build: None,
-            // class_base_lines: FxHashMap::default(),
             class_base_lines: IntMap::default(),
-            // classes_by_id: FxHashMap::default(),
             classes_by_id: IntMap::default(),
             classes_by_name: FxHashMap::default(),
-            // classes_by_name: FxHashMap::default(),
             class_id_size: None,
             class_info: false,
-            // entities: FxHashMap::default(),
             entities: IntMap::default(),
             undone_entities: Vec::new(),
             entity_full_packets: 0,
@@ -465,7 +476,7 @@ impl<'a> Stampede<'a> {
                 let mut class_id: i32;
                 let mut serial: i32;
                 let mut e: &mut Entity;
-                let mut op: EntityOperations;
+                let mut op: EntityOperation;
 
                 if !packet.is_delta.unwrap() {
                     if self.entity_full_packets > 0 {
@@ -476,7 +487,7 @@ impl<'a> Stampede<'a> {
 
                 for _ in 0..updates {
                     index += r.read_ubit_var() as i32 + 1;
-                    op = EntityOperations::None;
+                    op = EntityOperation::None;
 
                     cmd = r.read_bits(2);
 
@@ -496,20 +507,20 @@ impl<'a> Stampede<'a> {
 
                             self.field_reader.read_fields(&mut r, &e.class.borrow().serializer, &mut e.state);
 
-                            op = EntityOperations::CreatedEntered;
+                            op = EntityOperation::CreatedEntered;
                         } else {
-                            op = EntityOperations::Updated;
+                            op = EntityOperation::Updated;
                             e = self.entities.get_mut(&index).unwrap();
                             if !e.active {
                                 e.active = true;
-                                op = EntityOperations::UpdatedEntered;
+                                op = EntityOperation::UpdatedEntered;
                             }
                             self.field_reader.read_fields(&mut r, &e.class.borrow().serializer, &mut e.state);
                         }
                     } else {
-                        op = EntityOperations::Left;
+                        op = EntityOperation::Left;
                         if cmd & 0x02 != 0 {
-                            op = EntityOperations::DeletedLeft;
+                            op = EntityOperation::DeletedLeft;
                         }
                     }
                     self.undone_entities.push((index, op));
@@ -542,7 +553,7 @@ impl<'a> Stampede<'a> {
     fn process_entities(&mut self) {
         while let Some((index, op)) = self.undone_entities.pop() {
             self.external.borrow_mut().on_entity(&self, &op, self.entities.get(&index).unwrap());
-            if let EntityOperations::DeletedLeft = op {
+            if let EntityOperation::DeletedLeft = op {
                 // println!("{:?}", self.entities.get(&index).unwrap().class.borrow().name);
                 // println!("{:?}", self.entities.get(&index).unwrap().map());
                 self.entities.remove(&index);
@@ -602,7 +613,7 @@ pub trait External {
     fn on_base_entity_message(&self, ctx: &Stampede, p: EBaseEntityMessages, msg: &Vec<u8>) {}
     fn on_base_game_event(&self, ctx: &Stampede, p: EBaseGameEvents, msg: &Vec<u8>) {}
     fn on_dota_user_message(&self, ctx: &Stampede, p: EDotaUserMessages, msg: &Vec<u8>) {}
-    fn on_entity(&self, ctx: &Stampede, ev: &EntityOperations/* EntityEvent */, e: &Entity) {}
+    fn on_entity(&self, ctx: &Stampede, ev: &EntityOperation/* EntityEvent */, e: &Entity) {}
     fn on_tick_start(&mut self, ctx: &Stampede) {}
 }
 

@@ -1,9 +1,8 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{VecDeque};
 use std::rc::Rc;
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
-// use crate::reader::{Reader, ReaderMethods};
-use crate::bit_reader::{Reader, ReaderMethods};
+use crate::reader::{Reader, ReaderMethods};
 
 #[derive(Clone, Debug)]
 pub struct StringTables {
@@ -130,9 +129,7 @@ impl StringTable {
 impl StringTables {
     pub fn new() -> Self {
         StringTables {
-            // tables: FxHashMap::default(),
             tables: IntMap::default(),
-            // name_index: FxHashMap::default(),
             name_index: FxHashMap::default(),
             next_index: 0,
         }

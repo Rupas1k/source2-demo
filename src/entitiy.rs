@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use rustc_hash::{FxHashMap};
 use crate::class::Class;
-use crate::field::{EntityFieldTypes, FieldState, States};
 use crate::field_path::FieldPath;
+use crate::field_state::{FieldState, States};
 
 #[derive(Debug, Clone)]
-pub enum EntityOperations {
+pub enum EntityOperation {
     None            = 0,
     Created         = 1 << 0,
     Updated         = 1 << 1,
@@ -15,12 +15,12 @@ pub enum EntityOperations {
     Entered         = 1 << 3,
     Left            = 1 << 4,
 
-    CreatedEntered  = EntityOperations::Created as isize | EntityOperations::Entered as isize,
-    UpdatedEntered  = EntityOperations::Updated as isize | EntityOperations::Entered as isize,
-    DeletedLeft     = EntityOperations::Deleted as isize | EntityOperations::Left as isize
+    CreatedEntered  = EntityOperation::Created as isize | EntityOperation::Entered as isize,
+    UpdatedEntered  = EntityOperation::Updated as isize | EntityOperation::Entered as isize,
+    DeletedLeft     = EntityOperation::Deleted as isize | EntityOperation::Left as isize
 }
 
-impl EntityOperations {
+impl EntityOperation {
     // fn to_string(&self) -> &str {
     //     match self {
     //         EntityOperations::None => "None",
@@ -80,7 +80,7 @@ impl Entity {
         }
     }
 
-    pub fn get_property_by_name(&self, name: &'static str) -> Option<&EntityFieldTypes> {
+    pub fn get_property_by_name(&self, name: &'static str) -> Option<&EntityFieldType> {
         if let Some(fp) = self.fp_cache.borrow().get(name) {
             return self.get_property_by_field_path(fp);
         }
@@ -93,15 +93,15 @@ impl Entity {
         None
     }
 
-    pub fn get_property_by_field_path(&self, fp: &FieldPath) -> Option<&EntityFieldTypes> {
+    pub fn get_property_by_field_path(&self, fp: &FieldPath) -> Option<&EntityFieldType> {
         self.state.get(fp)
             .as_ref()
             .unwrap()
             .as_value()
     }
 
-    pub fn map(&self) -> HashMap::<String, Option<EntityFieldTypes>> {
-        let mut values = HashMap::<String, Option<EntityFieldTypes>>::new();
+    pub fn map(&self) -> HashMap::<String, Option<EntityFieldType>> {
+        let mut values = HashMap::<String, Option<EntityFieldType>>::new();
         for fp in self.class.borrow().get_field_paths(&mut FieldPath::new(), &self.state) {
             if let Some(v) = self.state.get(&fp).clone() {
                 if let States::Value(vv) = v {
@@ -142,4 +142,85 @@ impl Entity {
     //     }
     //     r
     // }
+}
+
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum EntityFieldType {
+    Boolean(bool),
+    String(String),
+    Signed(i64),
+    Unsigned(u64),
+    Float(f32),
+    Vector2D([f32; 2]),
+    Vector3D([f32; 3]),
+    Vector4D([f32; 4]),
+
+}
+
+impl EntityFieldType {
+    pub fn as_string(&self) -> &str {
+        if let EntityFieldType::String(s) = self {
+            s.as_str()
+        } else {
+            panic!("Tried to read as String, Found {:?}", self);
+        }
+    }
+
+    pub fn as_signed(&self) -> i64 {
+        if let EntityFieldType::Signed(s) = self {
+            *s
+        } else {
+            panic!("Tried to read as Signed, Found {:?}", self);
+        }
+    }
+
+    pub fn as_unsigned(&self) -> u64 {
+        if let EntityFieldType::Unsigned(u) = self {
+            *u
+        } else {
+            panic!("Tried to read as Unsigned, Found {:?}", self);
+        }
+    }
+
+    pub fn as_bool(&self) -> bool {
+        if let EntityFieldType::Boolean(b) = self {
+            *b
+        } else {
+            panic!("Tried to read as Boolean, Found {:?}", self);
+        }
+    }
+
+    pub fn as_float(&self) -> f32 {
+        if let EntityFieldType::Float(f) = self {
+            *f
+        } else {
+            panic!("Tried to read as Float, Found {:?}", self);
+        }
+    }
+
+    pub fn as_vector2d(&self) -> &[f32; 2] {
+        if let EntityFieldType::Vector2D(v) = self {
+            v
+        } else {
+            panic!("Tried to read as Vector2D, Found {:?}", self);
+        }
+    }
+
+    pub fn as_vector3d(&self) -> &[f32; 3] {
+        if let EntityFieldType::Vector3D(v) = self {
+            v
+        } else {
+            panic!("Tried to read as Vector3D, Found {:?}", self);
+        }
+    }
+
+    pub fn as_vector4d(&self) -> &[f32; 4] {
+        if let EntityFieldType::Vector4D(v) = self {
+            v
+        } else {
+            panic!("Tried to read as Vector4D, Found {:?}", self);
+        }
+    }
 }
