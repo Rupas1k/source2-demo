@@ -1,10 +1,14 @@
 use std::collections::{HashMap, VecDeque};
-use crate::reader::{Reader, ReaderMethods};
+use std::rc::Rc;
+use nohash_hasher::IntMap;
+use rustc_hash::FxHashMap;
+// use crate::reader::{Reader, ReaderMethods};
+use crate::bit_reader::{Reader, ReaderMethods};
 
 #[derive(Clone, Debug)]
 pub struct StringTables {
-    pub tables: HashMap<i32, StringTable>,
-    pub name_index: HashMap<String, i32>,
+    pub tables: IntMap<i32, StringTable>,
+    pub name_index: FxHashMap<String, i32>,
     pub next_index: i32,
 }
 
@@ -12,7 +16,7 @@ pub struct StringTables {
 pub struct StringTable {
     pub index: i32,
     pub name: String,
-    pub items: HashMap<i32, StringTableItem>,
+    pub items: IntMap<i32, StringTableItem>,
     pub user_data_fixed_size: bool,
     pub user_data_size: i32,
     pub flags: u32,
@@ -23,11 +27,11 @@ pub struct StringTable {
 pub struct StringTableItem {
     pub index: i32,
     pub key: String,
-    pub value: Vec<u8>,
+    pub value: Rc<Vec<u8>>,
 }
 
 impl StringTableItem {
-    pub fn new(index: i32, key: String, value: Vec<u8>) -> Self {
+    pub fn new(index: i32, key: String, value: Rc<Vec<u8>>) -> Self {
         StringTableItem {
             index,
             key,
@@ -37,7 +41,7 @@ impl StringTableItem {
 }
 
 impl StringTable {
-    pub fn parse(&self, buf: Vec<u8>, num_updates: i32) -> Option<Vec<StringTableItem>> {
+    pub fn parse(&self, buf: &[u8], num_updates: i32) -> Option<Vec<StringTableItem>> {
         let mut items = Vec::<StringTableItem>::new();
         if buf.len() == 0 {
             return Some(items);
@@ -71,7 +75,7 @@ impl StringTable {
                             if pos as usize >= keys.len() {
                                 key += rs.as_str();
                             } else {
-                                let s = keys[pos as usize].clone();
+                                let s = keys[pos as usize].as_str();
                                 if size as usize > s.len() {
                                     key = key + &s + rs.as_str();
                                 } else {
@@ -117,7 +121,7 @@ impl StringTable {
                     value = decoder.decompress_vec(&value).expect("Error");
                 }
             }
-            items.push(StringTableItem::new(index, key, value));
+            items.push(StringTableItem::new(index, key, Rc::new(value)));
         }
         Some(items)
     }
@@ -126,8 +130,10 @@ impl StringTable {
 impl StringTables {
     pub fn new() -> Self {
         StringTables {
-            tables: HashMap::new(),
-            name_index: HashMap::new(),
+            // tables: FxHashMap::default(),
+            tables: IntMap::default(),
+            // name_index: FxHashMap::default(),
+            name_index: FxHashMap::default(),
             next_index: 0,
         }
     }

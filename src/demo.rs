@@ -44,17 +44,17 @@ impl PendingMessage {
         }
     }
 
-    fn priority(&self) -> i8 {
-        match self.msg_type {
-            x if x == NET_Messages::net_Tick.value()
-                || x == SVC_Messages::svc_CreateStringTable.value()
-                || x == SVC_Messages::svc_UpdateStringTable.value()
-                || x == NET_Messages::net_SpawnGroup_Load.value() => { -10 }
-            x if x == SVC_Messages::svc_PacketEntities.value() => { 5 }
-            x if x == EBaseGameEvents::GE_Source1LegacyGameEvent.value() => { 10 }
-            _ => { 0 }
-        }
-    }
+    // fn priority(&self) -> i8 {
+    //     match self.msg_type {
+    //         x if x == NET_Messages::net_Tick.value()
+    //             || x == SVC_Messages::svc_CreateStringTable.value()
+    //             || x == SVC_Messages::svc_UpdateStringTable.value()
+    //             || x == NET_Messages::net_SpawnGroup_Load.value() => { -10 }
+    //         x if x == SVC_Messages::svc_PacketEntities.value() => { 5 }
+    //         x if x == EBaseGameEvents::GE_Source1LegacyGameEvent.value() => { 10 }
+    //         _ => { 0 }
+    //     }
+    // }
 }
 
 // #[derive(Debug)]

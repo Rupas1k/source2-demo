@@ -1,8 +1,10 @@
-use std::cell::{Ref, RefCell};
+use std::cell::{RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
+use rustc_hash::{FxHashMap};
 use crate::class::Class;
-use crate::field::{EntityFieldTypes, Field, FieldPath, FieldState, States};
+use crate::field::{EntityFieldTypes, FieldState, States};
+use crate::field_path::FieldPath;
 
 #[derive(Debug, Clone)]
 pub enum EntityOperations {
@@ -19,37 +21,37 @@ pub enum EntityOperations {
 }
 
 impl EntityOperations {
-    fn to_string(&self) -> &str {
-        match self {
-            EntityOperations::None => "None",
-            EntityOperations::Created => "Created",
-            EntityOperations::Updated => "Updated",
-            EntityOperations::Deleted => "Deleted",
-            EntityOperations::Entered => "Entered",
-            EntityOperations::Left => "Left",
-            EntityOperations::CreatedEntered => "Created+Entered",
-            EntityOperations::UpdatedEntered => "Updated+Entered",
-            EntityOperations::DeletedLeft => "Deleted+Left",
-        }
-    }
+    // fn to_string(&self) -> &str {
+    //     match self {
+    //         EntityOperations::None => "None",
+    //         EntityOperations::Created => "Created",
+    //         EntityOperations::Updated => "Updated",
+    //         EntityOperations::Deleted => "Deleted",
+    //         EntityOperations::Entered => "Entered",
+    //         EntityOperations::Left => "Left",
+    //         EntityOperations::CreatedEntered => "Created+Entered",
+    //         EntityOperations::UpdatedEntered => "Updated+Entered",
+    //         EntityOperations::DeletedLeft => "Deleted+Left",
+    //     }
+    // }
 }
 
 #[derive(Debug, Clone)]
 struct FpCache {
-    cache: HashMap<String, FieldPath>
+    cache: FxHashMap<&'static str, FieldPath>
 }
 
 impl FpCache {
     pub fn new() -> Self{
-        FpCache { cache: HashMap::<String, FieldPath>::new() }
+        FpCache { cache: FxHashMap::<&str, FieldPath>::default() }
     }
 
     pub fn get(&self, name: &str) -> Option<&FieldPath> {
         self.cache.get(name)
     }
 
-    pub fn set(&mut self, name: &str, fp: FieldPath) {
-        self.cache.insert(name.to_string(), fp);
+    pub fn set(&mut self, name: &'static str, fp: FieldPath) {
+        self.cache.insert(name, fp);
     }
 }
 
@@ -78,7 +80,7 @@ impl Entity {
         }
     }
 
-    pub fn get_property_by_name(&self, name: &str) -> Option<EntityFieldTypes> {
+    pub fn get_property_by_name(&self, name: &'static str) -> Option<&EntityFieldTypes> {
         if let Some(fp) = self.fp_cache.borrow().get(name) {
             return self.get_property_by_field_path(fp);
         }
@@ -89,16 +91,13 @@ impl Entity {
             return self.get_property_by_field_path(&fp);
         }
         None
-
-
     }
 
-    pub fn get_property_by_field_path(&self, fp: &FieldPath) -> Option<EntityFieldTypes> {
-        if let Some(v) = self.state.get(fp).unwrap().as_value() {
-            Some(v.clone())
-        } else {
-            None
-        }
+    pub fn get_property_by_field_path(&self, fp: &FieldPath) -> Option<&EntityFieldTypes> {
+        self.state.get(fp)
+            .as_ref()
+            .unwrap()
+            .as_value()
     }
 
     pub fn map(&self) -> HashMap::<String, Option<EntityFieldTypes>> {

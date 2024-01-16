@@ -1,5 +1,5 @@
-use crate::qfloat::QFloatFlags::{EncodeInteger, EncodeZero};
-use crate::reader::{Reader, ReaderMethods};
+// use crate::reader::{Reader, ReaderMethods};
+use crate::bit_reader::{Reader, ReaderMethods};
 
 enum QFloatFlags {
     RoundDown       = 1 << 0,
@@ -10,7 +10,7 @@ enum QFloatFlags {
 
 #[derive(Debug)]
 pub struct QFloatDecoder {
-    no_scale:       bool,
+    // no_scale:       bool,
     bit_count:      u32,
     low:            Option<f32>,
     high:           Option<f32>,
@@ -25,7 +25,7 @@ impl QFloatDecoder {
     pub fn new(bit_count: i32, mut flags: Option<i32>, mut low_value: Option<f32>, mut high_value: Option<f32>) -> Self {
         if bit_count == 0 || bit_count >= 32 {
             return QFloatDecoder {
-                no_scale: true,
+                // no_scale: true,
                 bit_count: 32,
                 low: None,
                 high: None,
@@ -49,7 +49,7 @@ impl QFloatDecoder {
         }
 
         let mut decoder = QFloatDecoder {
-            no_scale: false,
+            // no_scale: false,
             bit_count: bit_count as u32,
             offset: Some(0.0),
             low: low_value,
@@ -62,14 +62,13 @@ impl QFloatDecoder {
         decoder.validate_flags();
 
         let mut steps = (1 << decoder.bit_count) as u32;
-        let mut range = 0f32;
 
         if decoder.flags.unwrap() & (QFloatFlags::RoundDown as u32) != 0 {
-            range = decoder.high.unwrap() - decoder.low.unwrap();
+            let range = decoder.high.unwrap() - decoder.low.unwrap();
             decoder.offset = Some(range / (steps as f32));
             decoder.high = Some(decoder.high.unwrap() - decoder.offset.unwrap());
         } else if decoder.flags.unwrap() & (QFloatFlags::RoundUp as u32) != 0 {
-            range = decoder.high.unwrap() - decoder.low.unwrap();
+            let range = decoder.high.unwrap() - decoder.low.unwrap();
             decoder.offset = Some(range / (steps as f32));
             decoder.low = Some(decoder.low.unwrap() + decoder.offset.unwrap());
         }
@@ -165,7 +164,7 @@ impl QFloatDecoder {
         self.high_low_mul = Some(0.0);
         let range = self.high.unwrap() - self.low.unwrap();
 
-        let mut high = match self.bit_count {
+        let high = match self.bit_count {
             32 => 0xFFFFFFFEu32,
             x => (1 << x) - 1
         } as u32;

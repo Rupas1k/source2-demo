@@ -1,17 +1,20 @@
-use std::cell::RefCell;
 use std::cmp::max;
 use regex::Regex;
 use std::collections::HashMap;
+use std::hash::BuildHasherDefault;
 use std::rc::Rc;
-use protobuf::Message;
 use protogen::netmessages::{CSVCMsg_FlattenedSerializer, ProtoFlattenedSerializerField_t};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use enum_as_inner::EnumAsInner;
+use nohash_hasher::{NoHashHasher, BuildNoHashHasher, IntMap};
+use rustc_hash::{FxHashMap, FxHasher};
+use crate::field_path::FieldPath;
 
 use crate::huffman_tree::{build_huffman_tree, EHTree};
 use crate::qfloat::QFloatDecoder;
-use crate::reader::{Reader, ReaderMethods};
+// use crate::reader::{Reader, ReaderMethods};
+use crate::bit_reader::{Reader, ReaderMethods};
 use crate::serializer::Serializer;
 
 #[derive(Clone, Debug)]
@@ -88,29 +91,29 @@ impl FieldType {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct FieldPath {
-    pub path: [i32; 7],
-    pub last: usize,
-    pub done: bool,
-}
-
-impl FieldPath {
-    pub fn new() -> Self {
-        FieldPath {
-            path: [-1, 0, 0, 0, 0, 0, 0],
-            last: 0,
-            done: false,
-        }
-    }
-
-    pub fn pop(&mut self, n: usize) {
-        for _ in 0..n {
-            self.path[self.last] = 0;
-            self.last -= 1;
-        }
-    }
-}
+// #[derive(Debug, Clone)]
+// pub struct FieldPath {
+//     pub path: [i32; 7],
+//     pub last: usize,
+//     pub done: bool,
+// }
+//
+// impl FieldPath {
+//     pub fn new() -> Self {
+//         FieldPath {
+//             path: [-1, 0, 0, 0, 0, 0, 0],
+//             last: 0,
+//             done: false,
+//         }
+//     }
+//
+//     pub fn pop(&mut self, n: usize) {
+//         for _ in 0..n {
+//             self.path[self.last] = 0;
+//             self.last -= 1;
+//         }
+//     }
+// }
 
 #[derive(Debug, EnumIter)]
 pub enum FieldOp {
@@ -160,230 +163,372 @@ impl FieldOp {
     pub fn execute(&self, r: &mut Reader, fp: &mut FieldPath) {
         match &self {
             FieldOp::PlusOne => {
-                fp.path[fp.last] += 1;
+                // fp.path[fp.last] += 1;
+                fp.inc_cur(1)
             }
             FieldOp::PlusTwo => {
-                fp.path[fp.last] += 2;
+                // fp.path[fp.last] += 2;
+                fp.inc_cur(2)
             }
             FieldOp::PlusThree => {
-                fp.path[fp.last] += 3;
+                // fp.path[fp.last] += 3;
+                fp.inc_cur(3)
+
             }
             FieldOp::PlusFour => {
-                fp.path[fp.last] += 4;
+                // fp.path[fp.last] += 4;
+                fp.inc_cur(4)
             }
             FieldOp::PlusN => {
-                fp.path[fp.last] += r.read_ubit_var_fieldpath() + 5;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath() + 5;
+                fp.inc_cur((r.read_ubit_var_fieldpath() + 5) as i64)
             }
             FieldOp::PushOneLeftDeltaZeroRightZero => {
-                fp.last += 1;
-                fp.path[fp.last] = 0;
+                // fp.last += 1;
+                // fp.path[fp.last] = 0;
+                fp.down()
             }
             FieldOp::PushOneLeftDeltaZeroRightNonZero => {
-                fp.last += 1;
-                fp.path[fp.last] = r.read_ubit_var_fieldpath();
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_ubit_var_fieldpath();
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushOneLeftDeltaOneRightZero => {
-                fp.path[fp.last] += 1;
-                fp.last += 1;
-                fp.path[fp.last] = 0;
+                // fp.path[fp.last] += 1;
+                // fp.last += 1;
+                // fp.path[fp.last] = 0;
+                fp.inc_cur(1);
+                fp.down();
             }
             FieldOp::PushOneLeftDeltaOneRightNonZero => {
-                fp.path[fp.last] += 1;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_ubit_var_fieldpath();
+                // fp.path[fp.last] += 1;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_ubit_var_fieldpath();
+                fp.inc_cur(1);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushOneLeftDeltaNRightZero => {
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                fp.last += 1;
-                fp.path[fp.last] = 0;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.last += 1;
+                // fp.path[fp.last] = 0;
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
+                fp.down();
             }
             FieldOp::PushOneLeftDeltaNRightNonZero => {
-                fp.path[fp.last] += r.read_ubit_var_fieldpath() + 2;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_ubit_var_fieldpath() + 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath() + 2;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_ubit_var_fieldpath() + 1;
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64 + 2);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64 + 1);
             }
             FieldOp::PushOneLeftDeltaNRightNonZeroPack6Bits => {
-                fp.path[fp.last] += r.read_bits(3) as i32 + 2;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(3) as i32 + 1;
+                // fp.path[fp.last] += r.read_bits(3) as i32 + 2;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(3) as i32 + 1;
+                fp.inc_cur(r.read_bits(3) as i64 + 2);
+                fp.down();
+                fp.inc_cur(r.read_bits(3) as i64 + 1);
             }
             FieldOp::PushOneLeftDeltaNRightNonZeroPack8Bits => {
-                fp.path[fp.last] += r.read_bits(4) as i32 + 2;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(4) as i32 + 1;
+                // fp.path[fp.last] += r.read_bits(4) as i32 + 2;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(4) as i32 + 1;
+                fp.inc_cur(r.read_bits(4) as i64 + 2);
+                fp.down();
+                fp.inc_cur(r.read_bits(4) as i64 + 1);
             }
             FieldOp::PushTwoLeftDeltaZero => {
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushTwoPack5LeftDeltaZero => {
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
             }
             FieldOp::PushThreeLeftDeltaZero => {
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushThreePack5LeftDeltaZero => {
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
             }
             FieldOp::PushTwoLeftDeltaOne => {
-                fp.path[fp.last] += 1;
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.path[fp.last] += 1;
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                fp.inc_cur(1);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushTwoPack5LeftDeltaOne => {
-                fp.path[fp.last] += 1;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.path[fp.last] += 1;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                fp.inc_cur(1);
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
             }
             FieldOp::PushThreeLeftDeltaOne => {
-                fp.path[fp.last] += 1;
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.path[fp.last] += 1;
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                fp.inc_cur(1);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushThreePack5LeftDeltaOne => {
-                fp.path[fp.last] += 1;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.path[fp.last] += 1;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                fp.inc_cur(1);
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
             }
             FieldOp::PushTwoLeftDeltaN => {
-                fp.path[fp.last] += r.read_ubit_var() as i32 + 2;
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.path[fp.last] += r.read_ubit_var() as i32 + 2;
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                fp.inc_cur(r.read_ubit_var() as i64 + 2);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushTwoPack5LeftDeltaN => {
-                fp.path[fp.last] += r.read_ubit_var() as i32 + 2;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.path[fp.last] += r.read_ubit_var() as i32 + 2;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                fp.inc_cur(r.read_ubit_var() as i64 + 2);
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
             }
             FieldOp::PushThreeLeftDeltaN => {
-                fp.path[fp.last] += r.read_ubit_var() as i32 + 2;
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                fp.last += 1;
-                fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.path[fp.last] += r.read_ubit_var() as i32 + 2;
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // fp.last += 1;
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                fp.inc_cur(r.read_ubit_var() as i64 + 2);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
+                fp.down();
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushThreePack5LeftDeltaN => {
-                fp.path[fp.last] += r.read_ubit_var() as i32 + 2;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
-                fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.path[fp.last] += r.read_ubit_var() as i32 + 2;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                // fp.last += 1;
+                // fp.path[fp.last] = r.read_bits(5) as i32;
+                fp.inc_cur(r.read_ubit_var() as i64 + 2);
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
+                fp.down();
+                fp.inc_cur(r.read_bits(5) as i64);
             }
             FieldOp::PushN => {
+                // let n = r.read_ubit_var() as i32;
+                // fp.path[fp.last] += r.read_ubit_var() as i32;
+                // for _ in 0..n {
+                //     fp.last += 1;
+                //     fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                // }
                 let n = r.read_ubit_var() as i32;
-                fp.path[fp.last] += r.read_ubit_var() as i32;
+                fp.inc_cur(r.read_ubit_var() as i64);
                 for _ in 0..n {
-                    fp.last += 1;
-                    fp.path[fp.last] += r.read_ubit_var_fieldpath();
+                    fp.down();
+                    fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
                 }
             }
             FieldOp::PushNAndNonTopological => {
-                for i in 0..=fp.last {
+                // for i in 0..=fp.last {
+                //     if r.read_bool() {
+                //         fp.path[i] += r.read_var_i32() + 1;
+                //     }
+                // }
+                // let count = r.read_ubit_var() as usize;
+                // for _ in 0..count {
+                //     fp.last += 1;
+                //     fp.path[fp.last] = r.read_ubit_var_fieldpath();
+                // }
+                for i in 0..=fp.last() {
                     if r.read_bool() {
-                        fp.path[i] += r.read_var_i32() + 1;
+                        fp.inc(i, r.read_var_i32() as i64 + 1);
                     }
                 }
                 let count = r.read_ubit_var() as usize;
                 for _ in 0..count {
-                    fp.last += 1;
-                    fp.path[fp.last] = r.read_ubit_var_fieldpath();
+                    fp.down();
+                    fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
                 }
             }
             FieldOp::PopOnePlusOne => {
-                fp.pop(1);
-                fp.path[fp.last] += 1;
+                // fp.pop(1);
+                // fp.path[fp.last] += 1;
+                fp.up(1);
+                fp.inc_cur(1);
             }
 
             FieldOp::PopOnePlusN => {
-                fp.pop(1);
-                fp.path[fp.last] += r.read_ubit_var_fieldpath() + 1;
+                // fp.pop(1);
+                // fp.path[fp.last] += r.read_ubit_var_fieldpath() + 1;
+                fp.up(1);
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64 + 1);
             }
             FieldOp::PopAllButOnePlusOne => {
-                fp.pop(fp.last);
-                fp.path[0] += 1;
+                // fp.pop(fp.last);
+                // fp.path[0] += 1;
+                fp.up(fp.last());
+                fp.inc_cur(1);
             }
             FieldOp::PopAllButOnePlusN => {
-                fp.pop(fp.last);
-                fp.path[0] += r.read_ubit_var_fieldpath() + 1;
+                // fp.pop(fp.last);
+                // fp.path[0] += r.read_ubit_var_fieldpath() + 1;
+                fp.up(fp.last());
+                fp.inc_cur(r.read_ubit_var_fieldpath() as i64 + 1);
             }
             FieldOp::PopAllButOnePlusNPack3Bits => {
-                fp.pop(fp.last);
-                fp.path[0] += r.read_bits(3) as i32 + 1;
+                // fp.pop(fp.last);
+                // fp.path[0] += r.read_bits(3) as i32 + 1;
+                fp.up(fp.last());
+                fp.inc_cur(r.read_bits(3) as i64 + 1);
             }
             FieldOp::PopAllButOnePlusNPack6Bits => {
-                fp.pop(fp.last);
-                fp.path[0] += r.read_bits(6) as i32 + 1;
+                // fp.pop(fp.last);
+                // fp.path[0] += r.read_bits(6) as i32 + 1;
+                fp.up(fp.last());
+                fp.inc_cur(r.read_bits(6) as i64 + 1);
             }
             FieldOp::PopNPlusOne => {
-                fp.pop(r.read_ubit_var_fieldpath() as usize);
-                fp.path[fp.last] += 1;
+                // fp.pop(r.read_ubit_var_fieldpath() as usize);
+                // fp.path[fp.last] += 1;
+                fp.up(r.read_ubit_var_fieldpath() as usize);
+                fp.inc_cur(1);
             }
             FieldOp::PopNPlusN => {
-                fp.pop(r.read_ubit_var_fieldpath() as usize);
-                fp.path[fp.last] += r.read_var_i32();
+                // fp.pop(r.read_ubit_var_fieldpath() as usize);
+                // fp.path[fp.last] += r.read_var_i32();
+                fp.up(r.read_ubit_var_fieldpath() as usize);
+                fp.inc_cur(r.read_var_i32() as i64);
             }
             FieldOp::PopNAndNonTopographical => {
-                fp.pop(r.read_ubit_var_fieldpath() as usize);
-                for i in 0..=fp.last {
+                // fp.pop(r.read_ubit_var_fieldpath() as usize);
+                // for i in 0..=fp.last {
+                //     if r.read_bool() {
+                //         fp.path[i] += r.read_var_i32();
+                //     }
+                // }
+                fp.up(r.read_ubit_var_fieldpath() as usize);
+                for i in 0..=fp.last() {
                     if r.read_bool() {
-                        fp.path[i] += r.read_var_i32();
+                        fp.inc(i, r.read_var_i32() as i64);
                     }
                 }
             }
             FieldOp::NonTopoComplex => {
-                for i in 0..=fp.last {
+                // for i in 0..=fp.last {
+                //     if r.read_bool() {
+                //         fp.path[i] += r.read_var_i32();
+                //     }
+                // }
+                for i in 0..=fp.last() {
                     if r.read_bool() {
-                        fp.path[i] += r.read_var_i32();
+                        fp.inc(i, r.read_var_i32() as i64);
                     }
                 }
             }
             FieldOp::NonTopoPenultimatePluseOne => {
-                fp.path[fp.last - 1] += 1;
+                // fp.path[fp.last - 1] += 1;
+                fp.inc(fp.last() - 1, 1);
             }
             FieldOp::NonTopoComplexPack4Bits => {
-                for i in 0..=fp.last {
+                // for i in 0..=fp.last {
+                //     if r.read_bool() {
+                //         fp.path[i] += r.read_bits(4) as i32 - 7;
+                //     }
+                // }
+                for i in 0..=fp.last() {
                     if r.read_bool() {
-                        fp.path[i] += r.read_bits(4) as i32 - 7;
+                        fp.inc(i, r.read_bits(4) as i64 - 7);
                     }
                 }
             }
             FieldOp::FieldPathEncodeFinish => {
-                fp.done = true;
+                // fp.done = true;
             }
         }
     }
@@ -435,14 +580,18 @@ impl FieldOp {
 
 pub struct FieldReader {
     // reader: Reader,
-    table: HashMap<usize, FieldOp>,
+    // table: HashMap<usize, FieldOp, BuildNoHashHasher<usize>>,
+    table: IntMap<usize, FieldOp>,
+    // table: FxHashMap<usize, FieldOp>,
     tree: EHTree,
 }
 
 impl FieldReader {
     pub fn new() -> Self {
         let tree = build_huffman_tree(FieldOp::iter().map(|op| op.weight() as i32).collect()).unwrap();
-        let mut table = HashMap::new();
+        // let mut table = NoHashHasher::default();
+        // let mut table = HashMap::with_capacity_and_hasher(2, BuildNoHashHasher::default());
+        let mut table = IntMap::default();
         table.extend(FieldOp::iter().enumerate());
         FieldReader {
             // reader,
@@ -451,44 +600,74 @@ impl FieldReader {
         }
     }
 
+
     pub fn read_field_paths(&self, reader: &mut Reader) -> Vec<FieldPath> {
-        let mut fp = FieldPath::new();
-        let mut paths: Vec<FieldPath> = Vec::new();
-        let mut node = &self.tree;
-        let mut next = &self.tree;
-        // println!("{:?}", self.tree);
-        // println!("{:?}", self.table.len());
-        while !fp.done {
-            // println!("{:?}", fp);
-            next = match reader.read_bool() {
-                true => node.right(),
-                false => node.left(),
-            };
-            // println!("{:?}", next);
-            match next {
-                EHTree::Leaf { value, .. } => {
-                    node = &self.tree;
-                    self.table
-                        .get(&(*value as usize))
-                        .unwrap()
-                        .execute(reader, &mut fp);
-                    if !fp.done {
+            let mut fp = FieldPath::new();
+            let mut paths: Vec<FieldPath> = Vec::new();
+            let mut node = &self.tree;
+            let mut next = &self.tree;
+            loop {
+                next = match reader.read_bool() {
+                    true => node.right(),
+                    false => node.left(),
+                };
+                match next {
+                    EHTree::Leaf { value, .. } => {
+                        node = &self.tree;
+                        let op = &self.table[&(*value as usize)];
+                        op.execute(reader, &mut fp);
+                        if let FieldOp::FieldPathEncodeFinish = op {
+                            break
+                        }
                         paths.push(fp.clone());
-                        // fp = FieldPath::new();
+                    }
+                    EHTree::Node { .. } => {
+                        node = next;
                     }
                 }
-                EHTree::Node { .. } => {
-                    node = next;
-                }
             }
-        }
-        // println!("{:?}", paths);
-        paths
+            // println!("{:?}", paths);
+            paths
     }
+    // pub fn read_field_paths(&self, reader: &mut Reader) -> Vec<FieldPath> {
+    //     let mut fp = FieldPath::new();
+    //     let mut paths: Vec<FieldPath> = Vec::new();
+    //     let mut node = &self.tree;
+    //     let mut next = &self.tree;
+    //     // println!("{:?}", self.tree);
+    //     // println!("{:?}", self.table.len());
+    //     while !fp.done {
+    //         // println!("{:?}", fp);
+    //         next = match reader.read_bool() {
+    //             true => node.right(),
+    //             false => node.left(),
+    //         };
+    //         // println!("{:?}", next);
+    //         match next {
+    //             EHTree::Leaf { value, .. } => {
+    //                 node = &self.tree;
+    //                 self.table
+    //                     .get(&(*value as usize))
+    //                     .unwrap()
+    //                     .execute(reader, &mut fp);
+    //                 if !fp.done {
+    //                     paths.push(fp.clone());
+    //                     // fp = FieldPath::new();
+    //                 }
+    //             }
+    //             EHTree::Node { .. } => {
+    //                 node = next;
+    //             }
+    //         }
+    //     }
+    //     // println!("{:?}", paths);
+    //     paths
+    // }
 
     pub fn read_fields(&self, reader: &mut Reader, s: &Serializer, st: &mut FieldState) {
         let fps = self.read_field_paths(reader);
         for fp in fps {
+            // let (decoder, field) = s.get_decoder_for_field_path(&fp, 0);
             let decoder = s.get_decoder_for_field_path(&fp, 0);
             let val = decoder.decode(reader);
             st.set(&fp, val);
@@ -516,46 +695,46 @@ impl FieldState {
         }
     }
 
-    pub fn get(&self, fp: &FieldPath) -> Option<States> {
-        let mut current_state = self.clone();
+    pub fn get(&self, fp: &FieldPath) -> &Option<States> {
+        let mut current_state = self;
         let mut z = 0;
-        for i in 0..=fp.last {
-            z = fp.path[i];
+        for i in 0..=fp.last() {
+            z = fp.get(i) as i32;
             if (current_state.state.len() as i32) < z + 2 {
-                return None
+                return &None
             }
-            if i == fp.last {
-                return current_state.state[z as usize].clone();
+            if i == fp.last() {
+                return &current_state.state[z as usize];
             }
             current_state = match &current_state.state[z as usize].as_ref().unwrap() {
-                States::FieldState(state) => { state.clone() },
+                States::FieldState(state) => { state },
                 _ => {
-                    return None
+                    return &None
                 }
             };
         }
-        return None
+        return &None
     }
 
     // pub fn set(&mut self, fp: &FieldPath, v: DecodeResults) {
     pub fn set(&mut self, fp: &FieldPath, v: EntityFieldTypes) {
         let mut x = self;
-        for i in 0..=fp.last {
-            let z = fp.path[i];
+        for i in 0..=fp.last() {
+            let z = fp.get(i) as i32;
             let y = x.state.len() as i32;
             if y < z + 2 {
                 let m = max(z + 2, y * 2);
                 x.state.resize_with(m as usize, || None);
             }
-            if i == fp.last {
+            if i == fp.last() {
                 if x.state[z as usize].as_ref().is_none() {
-                    x.state[z as usize] = Some(States::Value(v.clone()));
+                    x.state[z as usize] = Some(States::Value(v));
                     return
                 }
                 match x.state[z as usize].as_ref().unwrap(){
                     States::FieldState(_) => {},
                     _ => {
-                        x.state[z as usize] = Some(States::Value(v.clone()));
+                        x.state[z as usize] = Some(States::Value(v));
                     }
                 }
                 return
@@ -633,8 +812,8 @@ pub struct Field {
     pub bit_count: Option<i32>,
     pub low_value: Option<f32>,
     pub high_value: Option<f32>,
-    pub field_type: Option<FieldType>,
-    pub serializer: Option<Rc<RefCell<Serializer>>>,
+    pub field_type: Option<Rc<FieldType>>,
+    pub serializer: Option<Rc<Serializer>>,
     pub value: Option<i32>,
     pub model: FieldModels,
 
@@ -655,10 +834,6 @@ impl Field {
         if send_node == "(root)" {
             send_node = String::new();
         }
-        // if resolve(f.var_name_sym()) == "m_flAnimTime" {
-        //     println!("{}", resolve(f.field_serializer_name_sym()));
-        //     panic!();
-        // }
 
         Field {
             parent: None,
@@ -688,25 +863,25 @@ impl Field {
         match self.model {
             FieldModels::Simple => {}
             FieldModels::FixedArray => {
-                if fp.last == pos as usize {
-                    x.push(format!("{:04}", fp.path[pos as usize]));
+                if fp.last() == pos as usize {
+                    x.push(format!("{:04}", fp.get(pos as usize)));
                 }
             }
             FieldModels::FixedTable => {
-                if fp.last >= pos as usize {
-                    x.extend_from_slice(&self.serializer.as_ref().unwrap().borrow().get_name_for_field_path(fp, pos));
+                if fp.last() >= pos as usize {
+                    x.extend_from_slice(&self.serializer.as_ref().unwrap().get_name_for_field_path(fp, pos));
                 }
             }
             FieldModels::VariableArray => {
-                if fp.last == pos as usize {
-                    x.push(format!("{:04}", fp.path[pos as usize]));
+                if fp.last() == pos as usize {
+                    x.push(format!("{:04}", fp.get(pos as usize)));
                 }
             }
             FieldModels::VariableTable => {
-                if fp.last != (pos - 1) as usize {
-                    x.push(format!("{:04}", fp.path[pos as usize]));
-                    if fp.last != pos as usize {
-                        x.extend_from_slice(&self.serializer.as_ref().unwrap().borrow().get_name_for_field_path(fp, pos + 1))
+                if fp.last() != (pos - 1) as usize {
+                    x.push(format!("{:04}", fp.get(pos as usize)));
+                    if fp.last() != pos as usize {
+                        x.extend_from_slice(&self.serializer.as_ref().unwrap().get_name_for_field_path(fp, pos + 1))
                     }
                 }
             }
@@ -714,77 +889,59 @@ impl Field {
         x
     }
 
-    pub fn get_field_for_field_path(&self, fp: &FieldPath, pos: i32) -> Field {
-        match self.model {
-            FieldModels::FixedTable => {
-                if fp.last as i32 != pos - 1 {
-                    return self.serializer.as_ref().unwrap().borrow().get_field_for_field_path(fp, pos);
-                }
-                self.clone()
-            }
-            FieldModels::VariableTable => {
-                if fp.last as i32 >= pos + 1 {
-                    return self.serializer.as_ref().unwrap().borrow().get_field_for_field_path(fp, pos+1);
-                }
-                return self.clone()
-            }
-            _ => return self.clone()
-        }
-    }
-
-    pub fn get_type_for_field_path(&self, fp: &FieldPath, pos: i32) -> FieldType {
+    pub fn get_type_for_field_path(&self, fp: &FieldPath, pos: i32) -> &FieldType {
         match self.model {
             FieldModels::Simple => {}
             FieldModels::FixedArray => {
-                return self.field_type.as_ref().unwrap().clone()
+                return self.field_type.as_ref().unwrap()
             }
             FieldModels::FixedTable => {
-                if fp.last as i32 != pos - 1 {
-                    return self.serializer.as_ref().unwrap().borrow().get_type_for_field_path(fp, pos);
+                if fp.last() as i32 != pos - 1 {
+                    return self.serializer.as_ref().unwrap().get_type_for_field_path(fp, pos);
                 }
             }
             FieldModels::VariableArray => {
-                if fp.last as i32 == pos {
-                    return *self.field_type.as_ref().unwrap().generic.as_ref().unwrap().clone();
+                if fp.last() as i32 == pos {
+                    return self.field_type.as_ref().unwrap().generic.as_ref().unwrap();
                 }
             }
             FieldModels::VariableTable => {
-                if fp.last as i32 >= pos + 1 {
-                    return self.serializer.as_ref().unwrap().borrow().get_type_for_field_path(fp, pos + 1);
+                if fp.last() as i32 >= pos + 1 {
+                    return self.serializer.as_ref().unwrap().get_type_for_field_path(fp, pos + 1);
                 }
             }
         };
-        self.field_type.as_ref().unwrap().clone()
+        self.field_type.as_ref().unwrap()
     }
 
-    pub fn get_decoder_for_field_path(&self, fp: &FieldPath, pos: i32) -> Decoders {
+    pub fn get_decoder_for_field_path(&self, fp: &FieldPath, pos: i32) -> &Decoders {
         match self.model {
             FieldModels::Simple => {}
             FieldModels::FixedArray => {
-                return self.decoder.as_ref().unwrap().clone();
+                return self.decoder.as_ref().unwrap();
             }
             FieldModels::FixedTable => {
-                if fp.last as i32 == pos - 1{
-                    return self.base_decoder.as_ref().unwrap().clone();
+                if fp.last() as i32 == pos - 1{
+                    return self.base_decoder.as_ref().unwrap();
                 }
-                return self.serializer.as_ref().unwrap().borrow().get_decoder_for_field_path(fp, pos)
+                return self.serializer.as_ref().unwrap().get_decoder_for_field_path(fp, pos)
             }
             FieldModels::VariableArray => {
-                if fp.last as i32 == pos {
-                    return self.child_decoder.as_ref().unwrap().clone();
+                if fp.last() as i32 == pos {
+                    return self.child_decoder.as_ref().unwrap();
                 }
-                return self.base_decoder.as_ref().unwrap().clone();
+                return self.base_decoder.as_ref().unwrap();
             }
             FieldModels::VariableTable => {
-                if fp.last as i32 >= pos + 1 {
-                    return self.serializer.as_ref().unwrap().borrow().get_decoder_for_field_path(fp, pos+1);
+                if fp.last() as i32 >= pos + 1 {
+                    return self.serializer.as_ref().unwrap().get_decoder_for_field_path(fp, pos+1);
                 }
-                return self.base_decoder.as_ref().unwrap().clone();
+                return self.base_decoder.as_ref().unwrap();
             }
         }
         // println!("{:?}", self.decoder);
         // println!("{:?}", self);
-        self.decoder.as_ref().unwrap().clone()
+        self.decoder.as_ref().unwrap()
     }
 
     pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: String) -> bool {
@@ -794,21 +951,22 @@ impl Field {
             }
             FieldModels::FixedArray => {
                 if name.len() != 4 { panic!("wrong size") }
-                fp.path[fp.last] = name.parse::<i32>().unwrap();
+                fp.set(fp.last(), name.parse::<i64>().unwrap());
                 return true;
             }
             FieldModels::FixedTable => {
-                return self.serializer.as_ref().unwrap().borrow().get_field_path_for_name(fp, &name);
+                return self.serializer.as_ref().unwrap().get_field_path_for_name(fp, &name);
             }
             FieldModels::VariableArray => {
                 if name.len() != 4 { panic!("wrong size") }
-                fp.path[fp.last] = name.parse::<i32>().unwrap();
+                fp.set(fp.last(), name.parse::<i64>().unwrap());
             }
             FieldModels::VariableTable => {
                 if name.len() != 6 { panic!("wrong size") }
-                fp.path[fp.last] = name[0..4].parse::<i32>().unwrap();
-                fp.last += 1;
-                return self.serializer.as_ref().unwrap().borrow().get_field_path_for_name(fp, &name[5..].to_string())
+                fp.set(fp.last(), name[0..4].parse::<i64>().unwrap());
+                // fp.last += 1;
+                fp.down();
+                return self.serializer.as_ref().unwrap().get_field_path_for_name(fp, &name[5..].to_string())
             }
         }
         false
@@ -829,14 +987,14 @@ impl Field {
                 if let Some(x) = st.get(fp) {
                     match x {
                         States::FieldState(s) => {
-                            fp.last += 1;
+                            fp.down();
                             for (i, v) in s.state.iter().enumerate() {
                                 if v.is_some() {
-                                    fp.path[fp.last] = i as i32;
+                                    fp.set(fp.last(), i as i64);
                                     vec.push(fp.clone());
                                 }
                             }
-                            fp.last -=1;
+                            fp.up(1);
                         }
                         _ => {}
                     }
@@ -847,10 +1005,10 @@ impl Field {
                     match x {
                         States::FieldState(v) => {
                             // println!("{:?}", &v);
-                            fp.last += 1;
-                            vec.extend_from_slice(&self.serializer.as_ref().unwrap().borrow().get_field_paths(fp, &v));
+                            fp.down();
+                            vec.extend_from_slice(&self.serializer.as_ref().unwrap().get_field_paths(fp, &v));
                             // println!("{:?}", vec);
-                            fp.last -= 1;
+                            fp.up(1);
                         }
                         _ => {}
                     }
@@ -862,12 +1020,12 @@ impl Field {
                     Some(sub) => {
                         match sub {
                             States::FieldState(x) => {
-                                fp.last += 1;
+                                fp.down();
                                 for (i, v) in x.state.iter().enumerate() {
-                                    fp.path[fp.last] = i as i32;
+                                    fp.set(fp.last(), i as i64);
                                     vec.push(fp.clone());
                                 }
-                                fp.last -= 1;
+                                fp.up(1);
                             }
                             _ => {}
                         }
@@ -879,21 +1037,20 @@ impl Field {
                 if let Some(sub) = st.get(fp) {
                     match sub {
                         States::FieldState(x) => {
-                            fp.last += 2;
+                            fp.down();
+                            fp.down();
                             for (i, v) in x.state.iter().enumerate() {
                                 if v.is_some() {
                                     match v.as_ref().unwrap().clone() {
                                         States::FieldState(vv) => {
-                                            fp.path[fp.last - 1] = i as i32;
-                                            vec.extend_from_slice(&self.serializer.as_ref().unwrap().borrow().get_field_paths(fp, &vv));
-                                            // println!("{:?}", self.model);
-                                            // println!("{:?}", vec);
+                                            fp.set(fp.last() - 1, i as i64);
+                                            vec.extend_from_slice(&self.serializer.as_ref().unwrap().get_field_paths(fp, &vv));
                                         }
                                         _ => {}
                                     }
                                 }
                             }
-                            fp.last -= 2;
+                            fp.up(2);
                         }
                         _ => {}
                     }
@@ -927,11 +1084,10 @@ impl Field {
     }
 
     pub fn set_model(&mut self, model: FieldModels) {
-        self.model = model.clone();
-        let temp_decoder= Decoders::from_field(self, false);
-        match model {
+        self.model = model;
+        match self.model {
             FieldModels::FixedArray => {
-                self.decoder = Some(temp_decoder);
+                self.decoder = Some(Decoders::from_field(self, false));
             }
             FieldModels::FixedTable => {
                 self.base_decoder = Some(Decoders::Boolean)
@@ -947,7 +1103,7 @@ impl Field {
                 self.base_decoder = Some(Decoders::Unsigned);
             }
             FieldModels::Simple => {
-                self.decoder = Some(temp_decoder);
+                self.decoder = Some(Decoders::from_field(self, false));
             }
         }
     }
@@ -1022,7 +1178,7 @@ pub enum Decoders {
 //     QuantizedFloat(f32)
 // }
 
-#[derive(Debug, Clone, PartialEq, EnumAsInner)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum EntityFieldTypes {
     Boolean(bool),
     String(String),
@@ -1032,6 +1188,73 @@ pub enum EntityFieldTypes {
     Vector2D([f32; 2]),
     Vector3D([f32; 3]),
     Vector4D([f32; 4]),
+
+}
+
+impl EntityFieldTypes {
+    pub fn as_string(&self) -> &str {
+        if let EntityFieldTypes::String(s) = self {
+            s.as_str()
+        } else {
+            panic!("Tried to read as String, Found {:?}", self);
+        }
+    }
+
+    pub fn as_signed(&self) -> i64 {
+        if let EntityFieldTypes::Signed(s) = self {
+            *s
+        } else {
+            panic!("Tried to read as Signed, Found {:?}", self);
+        }
+    }
+
+    pub fn as_unsigned(&self) -> u64 {
+        if let EntityFieldTypes::Unsigned(u) = self {
+            *u
+        } else {
+            panic!("Tried to read as Unsigned, Found {:?}", self);
+        }
+    }
+
+    pub fn as_bool(&self) -> bool {
+        if let EntityFieldTypes::Boolean(b) = self {
+            *b
+        } else {
+            panic!("Tried to read as Boolean, Found {:?}", self);
+        }
+    }
+
+    pub fn as_float(&self) -> f32 {
+        if let EntityFieldTypes::Float(f) = self {
+            *f
+        } else {
+            panic!("Tried to read as Float, Found {:?}", self);
+        }
+    }
+
+    pub fn as_vector2d(&self) -> &[f32; 2] {
+        if let EntityFieldTypes::Vector2D(v) = self {
+            v
+        } else {
+            panic!("Tried to read as Vector2D, Found {:?}", self);
+        }
+    }
+
+    pub fn as_vector3d(&self) -> &[f32; 3] {
+        if let EntityFieldTypes::Vector3D(v) = self {
+            v
+        } else {
+            panic!("Tried to read as Vector3D, Found {:?}", self);
+        }
+    }
+
+    pub fn as_vector4d(&self) -> &[f32; 4] {
+        if let EntityFieldTypes::Vector4D(v) = self {
+            v
+        } else {
+            panic!("Tried to read as Vector4D, Found {:?}", self);
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -1084,6 +1307,7 @@ impl Decoders {
         }
     }
 
+    // pub fn decode(&self, reader: &mut Reader, fv: &Field) -> EntityFieldTypes {
     pub fn decode(&self, reader: &mut Reader) -> EntityFieldTypes {
         match self {
             Decoders::VectorNormal => {
@@ -1264,7 +1488,7 @@ pub static FIELD_PATCHES: [FieldPatch; 4] = [
             | "m_angRotation"
             | "m_ragAngles"
             | "m_vLightDirection" => {
-                f.encoder = if f.parent.as_ref().unwrap().as_str() == "CBodyComponentBaseAnimatingOverlay" {
+                f.encoder = if f.parent.as_ref().unwrap() == &"CBodyComponentBaseAnimatingOverlay" {
                     "qangle_pitch_yaw".to_string()
                 } else {
                     "QAngle".to_string()
