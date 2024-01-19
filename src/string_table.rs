@@ -2,7 +2,7 @@ use std::collections::{VecDeque};
 use std::rc::Rc;
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
-use crate::reader::{Reader, ReaderMethods};
+use crate::reader::Reader;
 
 #[derive(Clone, Debug)]
 pub struct StringTables {
@@ -92,7 +92,7 @@ impl StringTable {
                     };
                 }
 
-                if keys.len() == 32 {
+                if keys.len() >= 32 {
                     keys.pop_front();
                 }
                 keys.push_back(key.clone());

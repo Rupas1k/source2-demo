@@ -1,5 +1,5 @@
 use strum_macros::EnumIter;
-use crate::reader::{Reader, ReaderMethods};
+use crate::reader::Reader;
 use crate::field_path::FieldPath;
 
 #[derive(Debug, EnumIter)]
@@ -41,7 +41,7 @@ pub enum FieldOp {
     PopNPlusN,
     PopNAndNonTopographical,
     NonTopoComplex,
-    NonTopoPenultimatePluseOne,
+    NonTopoPenultimatePlusOne,
     NonTopoComplexPack4Bits,
     FieldPathEncodeFinish,
 }
@@ -398,7 +398,7 @@ impl FieldOp {
                     }
                 }
             }
-            FieldOp::NonTopoPenultimatePluseOne => {
+            FieldOp::NonTopoPenultimatePlusOne => {
                 // fp.path[fp.last - 1] += 1;
                 fp.inc(fp.last() - 1, 1);
             }
@@ -458,9 +458,55 @@ impl FieldOp {
             FieldOp::PopNPlusN => 0,
             FieldOp::PopNAndNonTopographical => 1,
             FieldOp::NonTopoComplex => 76,
-            FieldOp::NonTopoPenultimatePluseOne => 271,
+            FieldOp::NonTopoPenultimatePlusOne => 271,
             FieldOp::NonTopoComplexPack4Bits => 99,
             FieldOp::FieldPathEncodeFinish => 25474,
         };
+    }
+
+    pub fn from_position(position: i32) -> Self {
+        match position {
+            0 => FieldOp::PlusOne,
+            1 => FieldOp::PlusTwo,
+            2 => FieldOp::PlusThree,
+            3 => FieldOp::PlusFour,
+            4 => FieldOp::PlusN,
+            5 => FieldOp::PushOneLeftDeltaZeroRightZero,
+            6 => FieldOp::PushOneLeftDeltaZeroRightNonZero,
+            7 => FieldOp::PushOneLeftDeltaOneRightZero,
+            8 => FieldOp::PushOneLeftDeltaOneRightNonZero,
+            9 => FieldOp::PushOneLeftDeltaNRightZero,
+            10 => FieldOp::PushOneLeftDeltaNRightNonZero,
+            11 => FieldOp::PushOneLeftDeltaNRightNonZeroPack6Bits,
+            12 => FieldOp::PushOneLeftDeltaNRightNonZeroPack8Bits,
+            13 => FieldOp::PushTwoLeftDeltaZero,
+            14 => FieldOp::PushTwoPack5LeftDeltaZero,
+            15 => FieldOp::PushThreeLeftDeltaZero,
+            16 => FieldOp::PushThreePack5LeftDeltaZero,
+            17 => FieldOp::PushTwoLeftDeltaOne,
+            18 => FieldOp::PushTwoPack5LeftDeltaOne,
+            19 => FieldOp::PushThreeLeftDeltaOne,
+            20 => FieldOp::PushThreePack5LeftDeltaOne,
+            21 => FieldOp::PushTwoLeftDeltaN,
+            22 => FieldOp::PushTwoPack5LeftDeltaN,
+            23 => FieldOp::PushThreeLeftDeltaN,
+            24 => FieldOp::PushThreePack5LeftDeltaN,
+            25 => FieldOp::PushN,
+            26 => FieldOp::PushNAndNonTopological,
+            27 => FieldOp::PopOnePlusOne,
+            28 => FieldOp::PopOnePlusN,
+            29 => FieldOp::PopAllButOnePlusOne,
+            30 => FieldOp::PopAllButOnePlusN,
+            31 => FieldOp::PopAllButOnePlusNPack3Bits,
+            32 => FieldOp::PopAllButOnePlusNPack6Bits,
+            33 => FieldOp::PopNPlusOne,
+            34 => FieldOp::PopNPlusN,
+            35 => FieldOp::PopNAndNonTopographical,
+            36 => FieldOp::NonTopoComplex,
+            37 => FieldOp::NonTopoPenultimatePlusOne,
+            38 => FieldOp::NonTopoComplexPack4Bits,
+            39 => FieldOp::FieldPathEncodeFinish,
+            _ => panic!(),
+        }
     }
 }

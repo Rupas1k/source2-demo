@@ -71,8 +71,6 @@ pub fn build_huffman_tree(freqs: Vec<i32>) -> Option<EHTree> {
 
     let mut trees = BinaryHeap::new();
 
-    // let mut trees: Vec<EHTree> = Vec::new();
-
     for (v, w) in freqs.iter().enumerate() {
         let weight = if *w == 0 { 1 } else { *w };
         trees.push(EHTree::Leaf {
@@ -84,8 +82,6 @@ pub fn build_huffman_tree(freqs: Vec<i32>) -> Option<EHTree> {
     let mut n = 40;
 
     while trees.len() > 1 {
-        // trees.sort_by_key(|tree| -tree.weight());
-        // println!("{:?}", trees);
         let a = trees.pop().unwrap();
         let b = trees.pop().unwrap();
 

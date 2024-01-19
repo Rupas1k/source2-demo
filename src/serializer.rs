@@ -7,7 +7,7 @@ use crate::field_type::FieldType;
 
 #[derive(Clone, Debug)]
 pub struct Serializer {
-    pub name: String,
+    pub name: Box<str>,
     pub ver: i32,
     pub fields: Vec<Rc<Field>>
 }
@@ -15,7 +15,7 @@ pub struct Serializer {
 impl Serializer {
     pub fn new (name: String, ver: i32) -> Self {
         Serializer {
-            name,
+            name: name.into_boxed_str(),
             ver,
             fields: vec![]
         }
@@ -39,14 +39,14 @@ impl Serializer {
 
     pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> bool {
         for (i, f) in self.fields.iter().enumerate() {
-            if name == f.var_name {
+            if name == f.var_name.as_ref() {
                 fp.set(fp.last(), i as i64);
                 return true;
             }
             if name.starts_with(&format!("{}.", f.var_name)) {
                 fp.set(fp.last(), i as i64);
                 fp.down();
-                return f.get_field_path_for_name(fp, name[f.var_name.len() + 1..].to_string());
+                return f.get_field_path_for_name(fp, &name[(f.var_name.len() + 1)..]);
             }
         }
         false

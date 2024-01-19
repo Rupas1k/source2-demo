@@ -1,5 +1,3 @@
-
-
 // #[derive(Debug)]
 // pub struct FieldPathFormatter {
 //     bits_per_component: [i64; 7],
@@ -88,8 +86,6 @@
 pub struct FieldPathFormatter {}
 
 impl FieldPathFormatter {
-    // pub const BITS_PER_COMPONENT: [i64; 7] = [11, 12, 11, 8, 7, 4, 4];
-    // pub const MAX_FP_LEN: usize = 7;
     pub const CLEAR_MASK: [i64; 6] = [9218868437227405312, 9223371487098961920, 9223372036720558080, 9223372036854513664, 9223372036854774784, 9223372036854775776];
     pub const PRESENT_BIT: [i64; 6] = [2251799813685248, 274877906944, 67108864, 131072, 512, 16];
     pub const VALUE_SHIFT: [i64; 7] = [52, 39, 27, 18, 10, 5, 0];
@@ -104,6 +100,7 @@ impl FieldPathFormatter {
 
     pub fn get(id: &i64, i: usize) -> i64 {
         ((id & Self::VALUE_MASK[i]) >> Self::VALUE_SHIFT[i]) - Self::OFFSET[i]
+        // ((id >> Self::VALUE_SHIFT[i]) & Self::VALUE_MASK[i]) - Self::OFFSET[i]
     }
 
     pub fn down(id: &i64) -> i64 {
@@ -121,43 +118,63 @@ impl FieldPathFormatter {
     }
 }
 
+// Manta's implementation of field path is actually performs better than clarity's because it doesn't spend time on performing bit operations
+// Both [i32; 7] and i64 are allocated on stack
+
 #[derive(Clone, Debug)]
 pub struct FieldPath {
-    pub id: i64
+    // pub id: i64
+    path: [i32; 7],
+    last: usize
 }
 
 impl FieldPath {
     pub fn new() -> Self {
+        // FieldPath {
+        //     id: 0
+        // }
         FieldPath {
-            id: 0
+            path: [-1, 0, 0, 0, 0, 0, 0],
+            last: 0
         }
     }
 
     pub fn get(&self, i: usize) -> i64 {
-        FieldPathFormatter::get(&self.id, i)
+        // FieldPathFormatter::get(&self.id, i)
+        self.path[i] as i64
     }
 
     pub fn set(&mut self, i: usize, v: i64) {
-        self.id = FieldPathFormatter::set(&self.id, i, v)
+        // self.id = FieldPathFormatter::set(&self.id, i, v)
+        self.path[i] = v as i32
     }
 
     pub fn down(&mut self) {
-        self.id = FieldPathFormatter::down(&self.id);
+        // self.id = FieldPathFormatter::down(&self.id);
+        self.last += 1;
+        self.path[self.last] = 0
     }
 
     pub fn last(&self) -> usize{
-        FieldPathFormatter::last(&self.id)
+        self.last
+        // FieldPathFormatter::last(&self.id)
     }
 
     pub fn inc(&mut self, i: usize, n: i64) {
-        self.set(i, self.get(i) + n)
+        // self.set(i, self.get(i) + n)
+        self.path[i] += n as i32
     }
 
     pub fn inc_cur(&mut self, n: i64) {
-        self.inc(self.last(), n)
+        // self.inc(self.last(), n)
+        self.path[self.last] += n as i32;
     }
 
     pub fn up(&mut self, n: usize) {
-        self.id = FieldPathFormatter::up(&self.id, n);
+        // self.id = FieldPathFormatter::up(&self.id, n);
+        for _ in 0..n {
+            self.path[self.last] = 0;
+            self.last -= 1;
+        }
     }
 }

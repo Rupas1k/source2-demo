@@ -4,71 +4,53 @@ pub struct Reader<'a> {
     pub buf: LittleEndianReader<'a>,
 }
 
-pub trait ReaderMethods<'a> {
-    fn new(buf: &'a [u8]) -> Self;
-    fn remain_bytes(&mut self) -> u32;
-    fn remain_bits(&mut self) -> u32;
-    fn read_bits(&mut self, amount: u32) -> u32;
-    fn read_next_byte(&mut self) -> u8;
-    fn read_byte(&mut self) -> u8;
-    fn read_bytes(&mut self, amount: u32) -> Vec<u8>;
-    fn read_bool(&mut self) -> bool;
-    fn read_var_u32(&mut self) -> u32;
-    fn read_var_u64(&mut self) -> u64;
-    fn read_var_i32(&mut self) -> i32;
-    fn read_ubit_var(&mut self) -> u32;
-    fn read_ubit_var_fp(&mut self) -> u32;
-    fn read_ubit_var_fieldpath(&mut self) -> i32;
-    fn read_normal(&mut self) -> f32;
-    fn read_3bit_normal(&mut self) -> [f32; 3];
-    fn read_le_u64(&mut self) -> u64;
-    fn read_string(&mut self) -> Option<String>;
-    fn read_coordinate(&mut self) -> f32;
-    fn read_angle(&mut self, n: u32) -> f32;
-    fn read_string_n(&mut self, n: u32) -> String;
-    fn read_bits_as_bytes(&mut self, n: u32) -> Vec<u8>;
-}
-
-
-impl<'a> ReaderMethods<'a> for Reader<'a> {
-    fn new(buf: &'a [u8]) -> Self {
+impl<'a> Reader<'a> {
+    pub fn new(buf: &'a [u8]) -> Self {
         let buf = LittleEndianReader::new(buf);
         Reader {
             buf,
         }
     }
 
-    fn remain_bytes(&mut self) -> u32 {
+    pub fn remain_bytes(&mut self) -> u32 {
         self.buf.bytes_remaining() as u32
     }
 
-    fn remain_bits(&mut self) -> u32 {
-        self.buf.bits_remaining().unwrap() as u32
+    pub fn remain_bits(&mut self) -> u32 {
+        unsafe { self.buf.bits_remaining().unwrap_unchecked() as u32 }
     }
 
-    fn read_bits(&mut self, amount: u32) -> u32 {
-        self.buf.read_bits(amount).unwrap() as u32
+    pub fn read_bits(&mut self, amount: u32) -> u32 {
+        unsafe {self.buf.read_bits(amount).unwrap_unchecked() as u32 }
     }
 
-    fn read_next_byte(&mut self) -> u8 {
-        self.buf.read_u8().unwrap()
+    pub fn read_next_byte(&mut self) -> u8 {
+        unsafe { self.buf.read_u8().unwrap_unchecked() }
     }
 
-    fn read_byte(&mut self) -> u8 {
+    pub fn read_byte(&mut self) -> u8 {
         self.read_next_byte()
     }
 
-    fn read_bytes(&mut self, amount: u32) -> Vec<u8> {
+    pub fn read_bytes(&mut self, amount: u32) -> Vec<u8> {
         let mut bytes = vec![0; amount as usize];
         self.buf.read_bytes(&mut bytes);
         bytes
     }
 
-    fn read_bool(&mut self) -> bool {
-        self.read_bits(1) == 1
+    pub fn read_bool(&mut self) -> bool {
+        unsafe {self.buf.read_bit().unwrap_unchecked()}
     }
 
-    fn read_var_u32(&mut self) -> u32 {
+    pub fn read_bit(&mut self) -> u8 {
+        unsafe { self.buf.read_bit().unwrap_unchecked() as u8 }
+    }
+
+    pub fn read_f32(&mut self) -> f32 {
+        unsafe { self.buf.read_f32().unwrap_unchecked() }
+    }
+
+    pub fn read_var_u32(&mut self) -> u32 {
         let mut x: u32 = 0;
         let mut y: u32 = 0;
         loop {
@@ -84,7 +66,7 @@ impl<'a> ReaderMethods<'a> for Reader<'a> {
         x
     }
 
-    fn read_var_u64(&mut self) -> u64 {
+    pub fn read_var_u64(&mut self) -> u64 {
         let mut x: u64 = 0;
         let mut y: u64 = 0;
 
@@ -98,7 +80,7 @@ impl<'a> ReaderMethods<'a> for Reader<'a> {
         }
     }
 
-    fn read_var_i32(&mut self) -> i32 {
+    pub fn read_var_i32(&mut self) -> i32 {
         let ux = self.read_var_u32();
         let mut x = (ux >> 1) as i32;
         if ux & 1 != 0 {
@@ -107,7 +89,7 @@ impl<'a> ReaderMethods<'a> for Reader<'a> {
         x
     }
 
-    fn read_ubit_var(&mut self) -> u32 {
+    pub fn read_ubit_var(&mut self) -> u32 {
         let mut bits = self.read_bits(6) as u32;
         bits = match bits & 0x30 {
             0x10 => {
@@ -124,7 +106,7 @@ impl<'a> ReaderMethods<'a> for Reader<'a> {
         bits
     }
 
-    fn read_ubit_var_fp (&mut self) -> u32 {
+    pub fn read_ubit_var_fp (&mut self) -> u32 {
         if self.read_bool() {
             return self.read_bits(2);
         }
@@ -140,11 +122,11 @@ impl<'a> ReaderMethods<'a> for Reader<'a> {
         self.read_bits(31)
     }
 
-    fn read_ubit_var_fieldpath(&mut self) -> i32 {
+    pub fn read_ubit_var_fieldpath(&mut self) -> i32 {
         self.read_ubit_var_fp() as i32
     }
 
-    fn read_normal(&mut self) -> f32 {
+    pub fn read_normal(&mut self) -> f32 {
         let is_neg = self.read_bool();
         let len = self.read_bits(11) as f32;
         let normal = len * (1.0 / (1<<11) as f32 - 1.0);
@@ -154,7 +136,7 @@ impl<'a> ReaderMethods<'a> for Reader<'a> {
         }
     }
 
-    fn read_3bit_normal(&mut self) -> [f32; 3] {
+    pub fn read_3bit_normal(&mut self) -> [f32; 3] {
         let mut vec = [0.0f32; 3];
         vec[0] = match self.read_bool() {
             true => self.read_normal(),
@@ -175,11 +157,13 @@ impl<'a> ReaderMethods<'a> for Reader<'a> {
         vec
     }
 
-    fn read_le_u64(&mut self) -> u64 {
-        u64::from_le_bytes((&self.read_bytes(8)[..8]).try_into().unwrap())
+    pub fn read_le_u64(&mut self) -> u64 {
+        unsafe {
+            u64::from_le_bytes((&self.read_bytes(8)[..8]).try_into().unwrap_unchecked())
+        }
     }
 
-    fn read_string(&mut self) -> Option<String> {
+    pub fn read_string(&mut self) -> Option<String> {
         let mut buf: Vec<u8> = vec![];
         loop {
             if self.buf.bytes_remaining() == 0 {
@@ -191,10 +175,12 @@ impl<'a> ReaderMethods<'a> for Reader<'a> {
             }
             buf.push(b);
         }
-        Some(String::from_utf8_lossy(&buf).to_string())
+        unsafe {
+            Some(String::from_utf8_unchecked(buf).to_string())
+        }
     }
 
-    fn read_coordinate(&mut self) -> f32 {
+    pub fn read_coordinate(&mut self) -> f32 {
         let mut value = 0f32;
 
         let mut int_val = self.read_bits(1);
@@ -220,21 +206,23 @@ impl<'a> ReaderMethods<'a> for Reader<'a> {
         value
     }
 
-    fn read_angle(&mut self, n: u32) -> f32 {
+    pub fn read_angle(&mut self, n: u32) -> f32 {
         (self.read_bits(n) as f32) * 360.0 / (1 << n) as f32
     }
 
-    fn read_string_n(&mut self, n: u32) -> String {
-        String::from_utf8_lossy(self.read_bytes(n).as_slice()).parse().unwrap()
+    pub fn read_string_n(&mut self, n: u32) -> String {
+        unsafe { String::from_utf8_unchecked(self.read_bytes(n)).parse().unwrap_unchecked() }
     }
 
-    fn read_bits_as_bytes(&mut self, n: u32) -> Vec<u8> {
+    pub fn read_bits_as_bytes(&mut self, n: u32) -> Vec<u8> {
         let bytes = n / 8;
         let bits = n % 8;
         let mut tmp = vec![0; bytes as usize];
         self.buf.read_bytes(&mut tmp);
         if bits > 0 {
-            tmp.push(self.buf.read_bits(bits).unwrap() as u8);
+            unsafe {
+                tmp.push(self.buf.read_bits(bits).unwrap_unchecked() as u8);
+            }
         }
         tmp
     }

@@ -8,7 +8,7 @@ use crate::serializer::Serializer;
 #[derive(Clone, Debug)]
 pub struct Class {
     pub id:         i32,
-    pub name:       String,
+    pub name:       Box<str>,
     pub serializer: Rc<Serializer>,
 }
 
@@ -16,7 +16,7 @@ impl Class {
     pub fn new(id: i32, name: String, serializer: Rc<Serializer>) -> Self {
         Class{
             id,
-            name,
+            name: name.into_boxed_str(),
             serializer,
         }
     }

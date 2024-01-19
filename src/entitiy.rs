@@ -1,7 +1,7 @@
-use std::cell::{RefCell};
-use std::collections::HashMap;
+use std::cell::{Ref, RefCell};
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-use rustc_hash::{FxHashMap};
+use rustc_hash::{FxHashMap, FxHashSet};
 use crate::class::Class;
 use crate::field_path::FieldPath;
 use crate::field_state::{FieldState, States};
@@ -38,20 +38,20 @@ impl EntityOperation {
 
 #[derive(Debug, Clone)]
 struct FpCache {
-    cache: FxHashMap<&'static str, FieldPath>
+    cache: FxHashMap<String, FieldPath>
 }
 
 impl FpCache {
     pub fn new() -> Self{
-        FpCache { cache: FxHashMap::<&str, FieldPath>::default() }
+        FpCache { cache: FxHashMap::<String, FieldPath>::default() }
     }
 
     pub fn get(&self, name: &str) -> Option<&FieldPath> {
         self.cache.get(name)
     }
 
-    pub fn set(&mut self, name: &'static str, fp: FieldPath) {
-        self.cache.insert(name, fp);
+    pub fn set(&mut self, name: &str, fp: FieldPath) {
+        self.cache.insert(name.to_string(), fp);
     }
 }
 
@@ -63,8 +63,8 @@ pub struct Entity {
     pub active:     bool,
     pub state:      FieldState,
     // pub fp_cache:   HashMap<String, FieldPath>,
-    fp_cache: Rc<RefCell<FpCache>>
-    // pub fp_no_op:   HashMap<String, bool>
+    fp_cache: Rc<RefCell<FpCache>>,
+    fp_no_op_cache:   Rc<RefCell<FxHashSet<String>>>
 }
 
 impl Entity {
@@ -76,26 +76,33 @@ impl Entity {
             active: true,
             state: FieldState::new(8),
             fp_cache: Rc::new(RefCell::new(FpCache::new())),
-            // fp_no_op: HashMap::new(),
+            fp_no_op_cache: Rc::new(RefCell::new(FxHashSet::default())),
         }
     }
 
-    pub fn get_property_by_name(&self, name: &'static str) -> Option<&EntityFieldType> {
+    pub fn get_property_by_name(&self, name: &str) -> Option<&EntityFieldType> {
+        if self.fp_no_op_cache.borrow().contains(name) {
+            return None;
+        }
         if let Some(fp) = self.fp_cache.borrow().get(name) {
+            // println!("123");
             return self.get_property_by_field_path(fp);
         }
+
+
 
         let mut fp = FieldPath::new();
         if self.class.borrow().get_field_path_for_name(&mut fp, name) {
             self.fp_cache.borrow_mut().set(name, fp.clone());
             return self.get_property_by_field_path(&fp);
+        } else {
+            self.fp_no_op_cache.borrow_mut().insert(name.to_string());
         }
         None
     }
 
     pub fn get_property_by_field_path(&self, fp: &FieldPath) -> Option<&EntityFieldType> {
         self.state.get(fp)
-            .as_ref()
             .unwrap()
             .as_value()
     }
@@ -103,9 +110,9 @@ impl Entity {
     pub fn map(&self) -> HashMap::<String, Option<EntityFieldType>> {
         let mut values = HashMap::<String, Option<EntityFieldType>>::new();
         for fp in self.class.borrow().get_field_paths(&mut FieldPath::new(), &self.state) {
-            if let Some(v) = self.state.get(&fp).clone() {
+            if let Some(v) = self.state.get(&fp) {
                 if let States::Value(vv) = v {
-                    values.insert(self.class.borrow().get_name_for_field_path(&fp).to_string(), Some(vv));
+                    values.insert(self.class.borrow().get_name_for_field_path(&fp).to_string(), Some(vv.clone()));
                 }
             } else {
                 values.insert(self.class.borrow().get_name_for_field_path(&fp).to_string(), None);
@@ -159,6 +166,8 @@ pub enum EntityFieldType {
 
 }
 
+
+// TODO: Use macro?
 impl EntityFieldType {
     pub fn as_string(&self) -> &str {
         if let EntityFieldType::String(s) = self {

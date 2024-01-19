@@ -18,12 +18,14 @@ enum-as-inner = "0.6.0"
 bitter = "0.6.1"
 rustc-hash = "1.1.0"
 nohash-hasher = "0.2.0"
+mimalloc = "0.1.39"
+lazy_static = "1.4.0"
 
 [profile.dev]
 opt-level = 0
 
-
 [profile.release]
+#debug=true
 opt-level = 3
 lto = "fat"
 codegen-units = 1

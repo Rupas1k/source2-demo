@@ -21,25 +21,23 @@ impl FieldState {
         }
     }
 
-    pub fn get(&self, fp: &FieldPath) -> &Option<States> {
+    pub fn get(&self, fp: &FieldPath) -> Option<&States> {
         let mut current_state = self;
         let mut z = 0;
         for i in 0..=fp.last() {
             z = fp.get(i) as i32;
             if (current_state.state.len() as i32) < z + 2 {
-                return &None
+                return None
             }
             if i == fp.last() {
-                return &current_state.state[z as usize];
+                return current_state.state[z as usize].as_ref();
             }
-            current_state = match &current_state.state[z as usize].as_ref().unwrap() {
-                States::FieldState(state) => { state },
-                _ => {
-                    return &None
-                }
-            };
+            current_state = &current_state.state[z as usize].as_ref()
+                .unwrap()
+                .as_field_state()
+                .unwrap()
         }
-        return &None
+        return None
     }
 
     // pub fn set(&mut self, fp: &FieldPath, v: DecodeResults) {
@@ -48,20 +46,18 @@ impl FieldState {
         for i in 0..=fp.last() {
             let z = fp.get(i) as i32;
             let y = x.state.len() as i32;
-            if y < z + 2 {
-                let m = max(z + 2, y * 2);
-                x.state.resize_with(m as usize, || None);
+            // if y < z + 2 {
+            if y <= z {
+                x.state.resize_with(max(z + 2, y * 2) as usize, || None);
             }
+
             if i == fp.last() {
                 if x.state[z as usize].as_ref().is_none() {
                     x.state[z as usize] = Some(States::Value(v));
                     return
                 }
-                match x.state[z as usize].as_ref().unwrap(){
-                    States::FieldState(_) => {},
-                    _ => {
-                        x.state[z as usize] = Some(States::Value(v));
-                    }
+                if let States::Value(_) = x.state[z as usize].as_ref().unwrap() {
+                    x.state[z as usize] = Some(States::Value(v));
                 }
                 return
             }
@@ -70,20 +66,12 @@ impl FieldState {
             if x.state[z as usize].is_none() {
                 x.state[z as usize] = Some(States::FieldState(FieldState::new(8)));
             } else {
-                match x.state[z as usize].as_ref().unwrap() {
-                    States::FieldState(_) => {},
-                    _ => {
-                        x.state[z as usize] = Some(States::FieldState(FieldState::new(8)));
-                    }
+                if let States::Value(_) = x.state[z as usize].as_ref().unwrap() {
+                    x.state[z as usize] = Some(States::FieldState(FieldState::new(8)));
                 }
             }
 
-
-            x = match x.state[z as usize].as_mut().unwrap() {
-                States::FieldState(state) => state,
-                _ => panic!()
-            }
-            // self.state = &self.state[z as usize].clone();
+            x = x.state[z as usize].as_mut().unwrap().as_field_state_mut().unwrap();
         }
     }
 }
