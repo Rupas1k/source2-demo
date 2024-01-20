@@ -32,12 +32,17 @@ impl FieldState {
             if i == fp.last() {
                 return current_state.state[z as usize].as_ref();
             }
-            current_state = &current_state.state[z as usize].as_ref()
-                .unwrap()
-                .as_field_state()
-                .unwrap()
+            if let States::FieldState(x) = current_state.state[z as usize].as_ref().unwrap() {
+                current_state = x;
+                continue
+            }
+            return None;
+            // current_state = &current_state.state[z as usize].as_ref()
+            //     .unwrap()
+            //     .as_field_state()
+            //     .unwrap()
         }
-        return None
+        None
     }
 
     // pub fn set(&mut self, fp: &FieldPath, v: DecodeResults) {
@@ -65,10 +70,8 @@ impl FieldState {
 
             if x.state[z as usize].is_none() {
                 x.state[z as usize] = Some(States::FieldState(FieldState::new(8)));
-            } else {
-                if let States::Value(_) = x.state[z as usize].as_ref().unwrap() {
-                    x.state[z as usize] = Some(States::FieldState(FieldState::new(8)));
-                }
+            } else if let States::Value(_) = x.state[z as usize].as_ref().unwrap() {
+                x.state[z as usize] = Some(States::FieldState(FieldState::new(8)));
             }
 
             x = x.state[z as usize].as_mut().unwrap().as_field_state_mut().unwrap();

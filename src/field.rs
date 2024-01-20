@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use protogen::netmessages::{CSVCMsg_FlattenedSerializer, ProtoFlattenedSerializerField_t};
+use proto::{CsvcMsgFlattenedSerializer, ProtoFlattenedSerializerFieldT};
 use crate::field_path::FieldPath;
 use crate::field_decoder::Decoders;
 use crate::field_state::{FieldState, States};
@@ -27,7 +27,7 @@ pub struct Field {
 }
 
 impl Field {
-    pub fn new(ser: CSVCMsg_FlattenedSerializer, f: ProtoFlattenedSerializerField_t) -> Self {
+    pub fn new(ser: CsvcMsgFlattenedSerializer, f: ProtoFlattenedSerializerFieldT) -> Self {
         let resolve = |p: Option<i32>| {
             if p.is_none() {
                 return "".to_string().into_boxed_str();
@@ -103,7 +103,7 @@ impl Field {
                 }
             }
             FieldModels::VariableTable => {
-                if fp.last() as i32 >= pos + 1 {
+                if fp.last() as i32 > pos {
                     return self.serializer.as_ref().unwrap().get_type_for_field_path(fp, pos + 1);
                 }
             }
@@ -130,7 +130,7 @@ impl Field {
                 return self.base_decoder.as_ref().unwrap();
             }
             FieldModels::VariableTable => {
-                if fp.last() as i32 >= pos + 1 {
+                if fp.last() as i32 > pos {
                     return self.serializer.as_ref().unwrap().get_decoder_for_field_path(fp, pos + 1);
                 }
                 return self.base_decoder.as_ref().unwrap();
@@ -150,7 +150,7 @@ impl Field {
                 return true;
             }
             FieldModels::FixedTable => {
-                return self.serializer.as_ref().unwrap().get_field_path_for_name(fp, &name);
+                return self.serializer.as_ref().unwrap().get_field_path_for_name(fp, name);
             }
             FieldModels::VariableArray => {
                 if name.len() != 4 { panic!("wrong size") }
@@ -187,14 +187,14 @@ impl Field {
             FieldModels::FixedTable => {
                 if let Some(States::FieldState(v)) = st.get(fp) {
                     fp.down();
-                    vec.extend_from_slice(&self.serializer.as_ref().unwrap().get_field_paths(fp, &v));
+                    vec.extend_from_slice(&self.serializer.as_ref().unwrap().get_field_paths(fp, v));
                     fp.up(1);
                 }
             }
             FieldModels::VariableArray => {
                 if let Some(States::FieldState(x)) = st.get(fp) {
                     fp.down();
-                    for (i, v) in x.state.iter().enumerate() {
+                    for (i, _) in x.state.iter().enumerate() {
                         fp.set(fp.last(), i as i64);
                         vec.push(fp.clone());
                     }
@@ -208,7 +208,7 @@ impl Field {
                     for (i, v) in x.state.iter().enumerate() {
                         if let Some(States::FieldState(vv)) = v.as_ref() {
                             fp.set(fp.last() - 1, i as i64);
-                            vec.extend_from_slice(&self.serializer.as_ref().unwrap().get_field_paths(fp, &vv));
+                            vec.extend_from_slice(&self.serializer.as_ref().unwrap().get_field_paths(fp, vv));
                         }
                     }
                     fp.up(2);

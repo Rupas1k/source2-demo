@@ -15,4 +15,29 @@ mod field_state;
 mod field_reader;
 mod field_type;
 mod combat_log;
-// mod proto;
+
+
+pub mod prelude {
+    pub use prost::Message;
+
+    pub use crate::parser::{
+        Parser,
+        Observer,
+    };
+
+    pub use crate::entitiy::{
+        Entity,
+        EntityEvent,
+        EntityFieldType
+    };
+
+    pub use crate::combat_log::CombatLog;
+}
+
+pub use proto;
+
+#[cfg(not(feature = "default_alloc"))]
+use mimalloc::MiMalloc;
+#[cfg(not(feature = "default_alloc"))]
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;

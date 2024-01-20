@@ -420,7 +420,7 @@ impl FieldOp {
         }
     }
     pub fn weight(&self) -> u32 {
-        return match self {
+        match self {
             FieldOp::PlusOne => 36271,
             FieldOp::PlusTwo => 10334,
             FieldOp::PlusThree => 1375,
@@ -461,7 +461,7 @@ impl FieldOp {
             FieldOp::NonTopoPenultimatePlusOne => 271,
             FieldOp::NonTopoComplexPack4Bits => 99,
             FieldOp::FieldPathEncodeFinish => 25474,
-        };
+        }
     }
 
     pub fn from_position(position: i32) -> Self {

@@ -90,7 +90,7 @@ impl<'a> Reader<'a> {
     }
 
     pub fn read_ubit_var(&mut self) -> u32 {
-        let mut bits = self.read_bits(6) as u32;
+        let mut bits = self.read_bits(6);
         bits = match bits & 0x30 {
             0x10 => {
                 (bits & 0xF) | (self.read_bits(4) << 4)

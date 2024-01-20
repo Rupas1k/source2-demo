@@ -4,19 +4,18 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use nohash_hasher::IntMap;
-use protobuf::{Enum, Message};
-use protogen::demo::{CDemoClassInfo, CDemoFullPacket, CDemoPacket, CDemoSendTables, EDemoCommands};
-use protogen::dota_shared_enums::CMsgDOTACombatLogEntry;
-use protogen::dota_usermessages::{EDotaUserMessages};
-use protogen::gameevents::EBaseGameEvents;
-use protogen::netmessages::{CSVCMsg_CreateStringTable, CSVCMsg_FlattenedSerializer, CSVCMsg_PacketEntities, CSVCMsg_ServerInfo, CSVCMsg_UpdateStringTable, SVC_Messages};
-use protogen::networkbasetypes::*;
-use protogen::usermessages::{EBaseEntityMessages, EBaseUserMessages};
+use prost::Message;
+use proto::{CDemoClassInfo, CDemoFullPacket, CDemoPacket, CDemoSendTables, EDemoCommands, NetMessages};
+use proto::CMsgDotaCombatLogEntry;
+use proto::{EDotaUserMessages};
+use proto::EBaseGameEvents;
+use proto::{CsvcMsgCreateStringTable, CsvcMsgFlattenedSerializer, CsvcMsgPacketEntities, CsvcMsgServerInfo, CsvcMsgUpdateStringTable, SvcMessages};
+use proto::{EBaseEntityMessages, EBaseUserMessages};
 use regex::Regex;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use crate::class::Class;
 use crate::combat_log::CombatLog;
-use crate::entitiy::{Entity, EntityOperation};
+use crate::entitiy::{Entity, EntityEvent};
 use crate::field::{Field, FieldModels};
 use crate::reader::Reader;
 use crate::field_patch::{FIELD_PATCHES, FieldPatch};
@@ -30,14 +29,14 @@ use crate::string_table::{StringTable, StringTables};
 struct OuterMessage {
     tick: u32,
     msg_type: EDemoCommands,
-    buf: Vec<u8>
+    buf: Vec<u8>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct PendingMessage {
     pub tick: u32,
     pub msg_type: i32,
-    pub buf: Vec<u8>
+    pub buf: Vec<u8>,
 }
 
 impl PendingMessage {
@@ -45,12 +44,12 @@ impl PendingMessage {
         PendingMessage {
             tick,
             msg_type,
-            buf
+            buf,
         }
     }
 }
 
-pub struct Stampede<'a, T> {
+pub struct Parser<'a, T> {
     reader: Reader<'a>,
     field_reader: FieldReader,
     pending_messages: VecDeque<PendingMessage>,
@@ -63,26 +62,26 @@ pub struct Stampede<'a, T> {
     class_info: bool,
 
     entities: IntMap<i32, Entity>,
-    undone_entities: Vec<(i32, EntityOperation)>,
+    undone_entities: Vec<(i32, isize)>,
     entity_full_packets: i32,
 
-    pointer_types: HashSet<&'a str>,
+    pointer_types: FxHashSet<&'a str>,
 
     serializers: FxHashMap<Box<str>, Rc<Serializer>>,
     pub string_tables: StringTables,
 
-    combat_log: VecDeque<CMsgDOTACombatLogEntry>,
+    combat_log: VecDeque<CMsgDotaCombatLogEntry>,
 
-    pub visitor: Arc<Mutex<Option<T>>>,
+    pub observer: Arc<Mutex<Option<T>>>,
 
-    pub parser_start: Instant
+    pub parser_start: Instant,
 }
 
-impl<'a, T: Visitor + 'a> Stampede<'a, T> {
+impl<'a, T: Observer + 'a> Parser<'a, T> {
     pub fn new(buf: &'a [u8], external: T) -> Self {
 
         // TODO: Move it somewhere else
-        let pointer_types: HashSet<&str> = [
+        let pointer_types: FxHashSet<&str> = [
             "PhysicsRagdollPose_t",
             "CBodyComponent",
             "CEntityIdentity",
@@ -96,9 +95,9 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
             "CDOTAGameRules",
         ].iter().cloned().collect();
 
-        Stampede {
+        Parser {
             reader: Reader::new(buf),
-            visitor: Arc::new(Mutex::new(Some(external))),
+            observer: Arc::new(Mutex::new(Some(external))),
             pending_messages: VecDeque::new(),
             field_reader: FieldReader::new(),
             game_build: None,
@@ -119,80 +118,80 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
 
             tick: 0,
 
-            parser_start: Instant::now()
+            parser_start: Instant::now(),
         }
     }
 
-    fn on_packet(&mut self, cmd: EDemoCommands, msg: Vec<u8>) {
+    fn on_packet(&mut self, cmd: EDemoCommands, msg: &[u8]) {
         match cmd {
-            EDemoCommands::DEM_SendTables => { self.send_tables(&msg) }
-            EDemoCommands::DEM_ClassInfo => { self.class_info(&msg) }
-            EDemoCommands::DEM_Packet | EDemoCommands::DEM_SignonPacket => { self.dem_packet(&msg) }
-            EDemoCommands::DEM_FullPacket => { self.full_packet(&msg) }
+            EDemoCommands::DemSendTables => { self.send_tables(msg) }
+            EDemoCommands::DemClassInfo => { self.class_info(msg) }
+            EDemoCommands::DemPacket | EDemoCommands::DemSignonPacket => { self.dem_packet(msg) }
+            EDemoCommands::DemFullPacket => { self.full_packet(msg) }
             _ => {}
         }
-        self.visitor.lock()
+        self.observer.lock()
             .unwrap()
-            .as_ref()
+            .as_mut()
             .unwrap()
-            .on_packet(self, cmd, &msg);
+            .on_packet(self, cmd, msg);
     }
 
-    fn on_net_message(&mut self, p: NET_Messages, msg: &Vec<u8>) {
-        self.visitor.lock()
+    fn on_net_message(&mut self, p: NetMessages, msg: &[u8]) {
+        self.observer.lock()
             .unwrap()
-            .as_ref()
+            .as_mut()
             .unwrap()
             .on_net_message(self, p, msg);
     }
 
-    fn on_svc_message(&mut self, p: SVC_Messages, msg: &Vec<u8>) {
+    fn on_svc_message(&mut self, p: SvcMessages, msg: &[u8]) {
         match p {
-            SVC_Messages::svc_ServerInfo        => { self.server_info(&msg) }
-            SVC_Messages::svc_CreateStringTable => { self.create_string_table(&msg) }
-            SVC_Messages::svc_UpdateStringTable => { self.update_string_table(&msg) }
-            SVC_Messages::svc_PacketEntities    => { self.packet_entities(&msg )}
+            SvcMessages::SvcServerInfo => { self.server_info(msg) }
+            SvcMessages::SvcCreateStringTable => { self.create_string_table(msg) }
+            SvcMessages::SvcUpdateStringTable => { self.update_string_table(msg) }
+            SvcMessages::SvcPacketEntities => { self.packet_entities(msg) }
             _ => {}
         }
-        self.visitor.lock()
+        self.observer.lock()
             .unwrap()
-            .as_ref()
+            .as_mut()
             .unwrap()
             .on_svc_message(self, p, msg);
     }
 
-    fn on_base_user_message(&mut self, p: EBaseUserMessages, msg: &Vec<u8>) {
-        self.visitor.lock()
+    fn on_base_user_message(&mut self, p: EBaseUserMessages, msg: &[u8]) {
+        self.observer.lock()
             .unwrap()
-            .as_ref()
+            .as_mut()
             .unwrap()
             .on_base_user_message(self, p, msg);
     }
 
-    fn on_base_entity_message(&mut self, p: EBaseEntityMessages, msg: &Vec<u8>) {
-        self.visitor.lock()
+    fn on_base_entity_message(&mut self, p: EBaseEntityMessages, msg: &[u8]) {
+        self.observer.lock()
             .unwrap()
-            .as_ref()
+            .as_mut()
             .unwrap()
             .on_base_entity_message(self, p, msg);
     }
 
-    fn on_base_game_event(&mut self, p: EBaseGameEvents, msg: &Vec<u8>) {
-        self.visitor.lock()
+    fn on_base_game_event(&mut self, p: EBaseGameEvents, msg: &[u8]) {
+        self.observer.lock()
             .unwrap()
-            .as_ref()
+            .as_mut()
             .unwrap()
             .on_base_game_event(self, p, msg);
     }
 
-    fn on_dota_user_message(&mut self, p: EDotaUserMessages, msg: &Vec<u8>) {
-        if p == EDotaUserMessages::DOTA_UM_CombatLogDataHLTV {
-            let entry = CMsgDOTACombatLogEntry::parse_from_bytes(&msg).unwrap();
+    fn on_dota_user_message(&mut self, p: EDotaUserMessages, msg: &[u8]) {
+        if p == EDotaUserMessages::DotaUmCombatLogDataHltv {
+            let entry = CMsgDotaCombatLogEntry::decode(msg).unwrap();
             self.combat_log.push_back(entry);
         }
-        self.visitor.lock()
+        self.observer.lock()
             .unwrap()
-            .as_ref()
+            .as_mut()
             .unwrap()
             .on_dota_user_message(self, p, msg);
     }
@@ -201,32 +200,25 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
         let reader = &mut self.reader;
         let _ = reader.read_bytes(16);
         let start = Instant::now();
-        loop {
-            match self.read_outer_message() {
-                Some(message) => {
-                    self.on_tick_start();
-                    self.on_packet(message.msg_type, message.buf);
-                    self.on_tick_end();
-                }
-                None => {
-                    break;
-                }
-            }
+        while let Some(message) = self.read_outer_message() {
+            self.on_tick_start();
+            self.on_packet(message.msg_type, message.buf.as_slice());
+            self.on_tick_end();
         }
         println!("{:?}", start.elapsed());
-        self.visitor.lock()
+        self.observer.lock()
             .unwrap()
             .take()
             .unwrap()
     }
 
-    fn send_tables(&mut self, msg: &Vec<u8>) {
-        let send_tables = CDemoSendTables::parse_from_bytes(&msg).unwrap();
+    fn send_tables(&mut self, msg: &[u8]) {
+        let send_tables = CDemoSendTables::decode(msg).unwrap();
         let mut r = Reader::new(send_tables.data());
         let amount = r.read_var_u32();
         let buf = r.read_bytes(amount);
 
-        let fs = CSVCMsg_FlattenedSerializer::parse_from_bytes(&buf).unwrap();
+        let fs = CsvcMsgFlattenedSerializer::decode(buf.as_slice()).unwrap();
 
         let mut patches: Vec<&FieldPatch> = vec![];
         for patch in &FIELD_PATCHES {
@@ -272,7 +264,6 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
                     }
                     fields.insert(*i, Rc::new(field));
                 }
-                // serializer.fields.push(fields[i].clone());
                 serializer.fields.push(Rc::clone(&fields[i]));
             }
             let ser_name = serializer.name.clone();
@@ -283,8 +274,8 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
         }
     }
 
-    fn class_info(&mut self, msg: &Vec<u8>) {
-        let info = CDemoClassInfo::parse_from_bytes(&msg).unwrap();
+    fn class_info(&mut self, msg: &[u8]) {
+        let info = CDemoClassInfo::decode(msg).unwrap();
         for class in info.classes.iter() {
             let class_id = class.class_id.unwrap();
             let network_name = class.network_name.as_ref().unwrap().clone();
@@ -297,8 +288,8 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
     }
 
 
-    fn dem_packet(&mut self, msg: &Vec<u8>) {
-        let packet = CDemoPacket::parse_from_bytes(&msg).unwrap();
+    fn dem_packet(&mut self, msg: &[u8]) {
+        let packet = CDemoPacket::decode(msg).unwrap();
         let mut packet_reader = Reader::new(packet.data());
         while packet_reader.remain_bytes() > 0 {
             let t = packet_reader.read_ubit_var() as i32;
@@ -311,16 +302,15 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
     }
 
 
-    fn full_packet(&mut self, msg: &Vec<u8>) {
-        let packet = CDemoFullPacket::parse_from_bytes(&msg).unwrap();
-        // self.on_packet(EDemoCommands::DEM_StringTables, packet.string_table.unwrap().write_to_bytes().unwrap());
-        self.on_packet(EDemoCommands::DEM_Packet, packet.packet.unwrap().write_to_bytes().unwrap());
+    fn full_packet(&mut self, msg: &[u8]) {
+        let packet = CDemoFullPacket::decode(msg).unwrap();
+        self.on_packet(EDemoCommands::DemPacket, packet.packet.unwrap().encode_to_vec().as_slice());
     }
 
     pub fn update_instance_baseline(&mut self) {
         if self.class_info {
             if let Some(st) = self.string_tables.get_table_by_name("instancebaseline") {
-                for (_, item) in st.items.iter() {
+                for item in st.items.values() {
                     let class_id = item.key.parse::<i32>().unwrap();
                     self.class_base_lines.insert(class_id, Rc::clone(&item.value));
                 }
@@ -336,10 +326,10 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
         }
 
         let raw_command = reader.read_var_u32() as i32;
-        let msg_type = EDemoCommands::from_i32(raw_command & !EDemoCommands::DEM_IsCompressed.value()).unwrap();
-        let msg_compressed = (raw_command & EDemoCommands::DEM_IsCompressed.value()) == EDemoCommands::DEM_IsCompressed.value();
+        let msg_type = EDemoCommands::from_i32(raw_command & !(EDemoCommands::DemIsCompressed as i32)).unwrap();
+        let msg_compressed = (raw_command & EDemoCommands::DemIsCompressed as i32) == EDemoCommands::DemIsCompressed as i32;
         let tick = match reader.read_var_u32() {
-            x if x == 4294967295 => 0,
+            4294967295 => 0,
             x => x,
         };
 
@@ -362,7 +352,7 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
 
     fn process_messages(&mut self) {
         while let Some(message) = self.pending_messages.pop_front() {
-            if let Some(msg) = NET_Messages::from_i32(message.msg_type) {
+            if let Some(msg) = NetMessages::from_i32(message.msg_type) {
                 self.on_net_message(msg, &message.buf);
             }
 
@@ -378,7 +368,7 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
                 self.on_base_entity_message(msg, &message.buf);
             }
 
-            if let Some(msg) = SVC_Messages::from_i32(message.msg_type) {
+            if let Some(msg) = SvcMessages::from_i32(message.msg_type) {
                 self.on_svc_message(msg, &message.buf);
             }
 
@@ -388,8 +378,8 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
         }
     }
 
-    fn packet_entities(&mut self, msg: &Vec<u8>) {
-        let packet = CSVCMsg_PacketEntities::parse_from_bytes(&msg).unwrap();
+    fn packet_entities(&mut self, msg: &[u8]) {
+        let packet = CsvcMsgPacketEntities::decode(msg).unwrap();
         let packet_entity = packet.entity_data.unwrap();
 
         let mut r = Reader::new(packet_entity.as_slice());
@@ -400,7 +390,7 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
         let mut class_id: i32;
         let mut serial: i32;
         let mut e: &mut Entity;
-        let mut op: EntityOperation;
+        let mut op: isize;
 
         if !packet.is_delta.unwrap() {
             if self.entity_full_packets > 0 {
@@ -411,7 +401,7 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
 
         for _ in 0..updates {
             index += r.read_ubit_var() as i32 + 1;
-            op = EntityOperation::None;
+            // op = EntityOperation::None;
 
             cmd = r.read_bits(2);
 
@@ -431,20 +421,20 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
 
                     self.field_reader.read_fields(&mut r, &e.class.borrow().serializer, &mut e.state);
 
-                    op = EntityOperation::CreatedEntered;
+                    op = EntityEvent::Created as isize | EntityEvent::Entered as isize;
                 } else {
-                    op = EntityOperation::Updated;
+                    op = EntityEvent::Updated as isize;
                     e = self.entities.get_mut(&index).unwrap();
                     if !e.active {
                         e.active = true;
-                        op = EntityOperation::UpdatedEntered;
+                        op |= EntityEvent::Entered as isize;
                     }
                     self.field_reader.read_fields(&mut r, &e.class.borrow().serializer, &mut e.state);
                 }
             } else {
-                op = EntityOperation::Left;
+                op = EntityEvent::Left as isize;
                 if cmd & 0x02 != 0 {
-                    op = EntityOperation::DeletedLeft;
+                    op |= EntityEvent::Deleted as isize;
                 }
             }
             self.undone_entities.push((index, op));
@@ -452,21 +442,20 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
         self.process_entities();
     }
 
-    fn update_string_table(&mut self, msg: &Vec<u8>) {
-        let st = CSVCMsg_UpdateStringTable::parse_from_bytes(&msg).unwrap();
+    fn update_string_table(&mut self, msg: &[u8]) {
+        let st = CsvcMsgUpdateStringTable::decode(msg).unwrap();
         let t = match self.string_tables.tables.get_mut(&st.table_id.unwrap()) {
             Some(x) => x,
             None => panic!()
         };
 
-        // let items = &mut t.parse(st.string_data().to_vec(), st.num_changed_entries());
         match t.parse(st.string_data.unwrap().as_slice(), st.num_changed_entries.unwrap()) {
             Some(items) => {
                 for item in items {
                     let index = item.index;
                     match t.items.get_mut(&index) {
                         Some(x) => {
-                            if item.key != "" && item.key != x.key {
+                            if !item.key.is_empty() && item.key != x.key {
                                 x.key = item.key;
                             }
                             if item.value.len() > 0 {
@@ -486,13 +475,12 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
         }
     }
 
-    fn create_string_table(&mut self, msg: &Vec<u8>) {
-        let mut st = CSVCMsg_CreateStringTable::parse_from_bytes(&msg).unwrap();
+    fn create_string_table(&mut self, msg: &[u8]) {
+        let mut st = CsvcMsgCreateStringTable::decode(msg).unwrap();
 
         let mut t = StringTable {
             index: self.string_tables.next_index,
             name: st.name.unwrap().to_string(),
-            // items: FxHashMap::default(),
             items: IntMap::default(),
             user_data_fixed_size: st.user_data_fixed_size.unwrap(),
             user_data_size: st.user_data_size.unwrap(),
@@ -515,25 +503,21 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
 
 
         let name = t.name.clone();
-        match t.parse(buf.as_slice(), st.num_entries.unwrap()) {
-            Some(items) => {
-                for item in items {
-                    t.items.insert(item.index, item);
-                }
-
-                self.string_tables.name_index.insert(name.clone(), t.index);
-                self.string_tables.tables.insert(t.index, t);
-
+        if let Some(items) = t.parse(buf.as_slice(), st.num_entries.unwrap()) {
+            for item in items {
+                t.items.insert(item.index, item);
             }
-            None => {}
+
+            self.string_tables.name_index.insert(name.clone(), t.index);
+            self.string_tables.tables.insert(t.index, t);
         }
         if name == "instancebaseline" {
             self.update_instance_baseline();
         }
     }
 
-    fn server_info(&mut self, msg: &Vec<u8>) {
-        let info = CSVCMsg_ServerInfo::parse_from_bytes(&msg).unwrap();
+    fn server_info(&mut self, msg: &[u8]) {
+        let info = CsvcMsgServerInfo::decode(msg).unwrap();
         self.class_id_size = Some((f64::log2(info.max_classes() as f64) + 1.0) as u32);
 
         let game_build_regexp = Regex::new(r"/dota_v(\d+)/").unwrap();
@@ -553,34 +537,47 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
 
     fn process_entities(&mut self) {
         while let Some((index, op)) = self.undone_entities.pop() {
-            self.visitor.lock()
-                .unwrap()
-                .as_ref()
-                .unwrap()
-                .on_entity(&self, &op, &self.entities[&index]);
-            if let EntityOperation::DeletedLeft = op {
+            let mut observer = self.observer.lock().unwrap();
+            if op & EntityEvent::Created as isize != 0 {
+                observer.as_mut().unwrap().on_entity(self, EntityEvent::Created, &self.entities[&index]);
+            }
+            if op & EntityEvent::Entered as isize != 0 {
+                observer.as_mut().unwrap().on_entity(self, EntityEvent::Entered, &self.entities[&index]);
+            }
+            if op & EntityEvent::Updated as isize != 0 {
+                observer.as_mut().unwrap().on_entity(self, EntityEvent::Updated, &self.entities[&index]);
+            }
+            if op & EntityEvent::Left as isize != 0 {
+                observer.as_mut().unwrap().on_entity(self, EntityEvent::Left, &self.entities[&index]);
+            }
+            if op & EntityEvent::Deleted as isize != 0 {
+                observer.as_mut().unwrap().on_entity(self, EntityEvent::Deleted, &self.entities[&index]);
+            }
+
+            if op & EntityEvent::Deleted as isize != 0 {
                 self.entities.remove(&index);
             }
         }
     }
 
     pub fn on_tick_start(&mut self) {
-        self.visitor.lock()
+        self.observer.lock()
             .unwrap()
             .as_mut()
             .unwrap()
             .on_tick_start(self);
     }
+
     pub fn on_tick_end(&mut self) {
         while let Some(entry) = self.combat_log.pop_front() {
             let log = CombatLog {
                 names: self.string_tables.get_table_by_name("CombatLogNames").unwrap(),
-                log: entry
+                log: entry,
             };
             self.on_combat_log(log);
         }
 
-        self.visitor.lock()
+        self.observer.lock()
             .unwrap()
             .as_mut()
             .unwrap()
@@ -588,11 +585,11 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
     }
 
     pub fn on_combat_log(&self, entry: CombatLog) {
-        self.visitor.lock()
+        self.observer.lock()
             .unwrap()
             .as_mut()
             .unwrap()
-            .on_combat_log(&self, &entry);
+            .on_combat_log(self, &entry);
     }
 
     pub fn get_entity_by_id(&self, id: i32) -> Option<&Entity> {
@@ -601,7 +598,7 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
 
     pub fn get_entities_by_class_name(&self, name: &str) -> Vec<&Entity> {
         let mut result = Vec::<&Entity>::new();
-        for (_, entity) in &self.entities {
+        for entity in self.entities.values() {
             if entity.class.borrow().name.as_ref() == name {
                 result.push(entity);
             }
@@ -610,43 +607,79 @@ impl<'a, T: Visitor + 'a> Stampede<'a, T> {
     }
 
     pub fn get_first_entity_by_class_name(&self, name: &str) -> Option<&Entity> {
-        for (_, entity) in self.entities.iter() {
-            if entity.class.borrow().name.as_ref() == name {
-                return Some(entity)
-            }
-        }
-        None
+        self.entities.values().find(|&entity| entity.class.borrow().name.as_ref() == name)
     }
 
     pub fn get_class_by_name(&self, name: &str) -> Option<Rc<RefCell<Class>>> {
-        if let Some(class) = self.classes_by_name.get(name) {
-            Some(Rc::clone(&class))
-        } else {
-            None
-        }
+        self.classes_by_name.get(name).map(Rc::clone)
     }
 
     pub fn get_class_by_id(&self, id: i32) -> Option<Rc<RefCell<Class>>> {
-        if let Some(class) = self.classes_by_id.get(&id) {
-            Some(Rc::clone(&class))
-        } else {
-            None
-        }
+        self.classes_by_id.get(&id).map(Rc::clone)
     }
 }
 
-pub trait Visitor: Sized {
-    fn on_packet(&self, ctx: &Stampede<Self>, p: EDemoCommands, msg: &Vec<u8>) {}
-    fn on_net_message(&self, ctx: &Stampede<Self>, p: NET_Messages, msg: &Vec<u8>) {}
-    fn on_svc_message(&self, ctx: &Stampede<Self>, p: SVC_Messages, msg: &Vec<u8>) {}
-    fn on_base_user_message(&self, ctx: &Stampede<Self>, p: EBaseUserMessages, msg: &Vec<u8>) {}
-    fn on_base_entity_message(&self, ctx: &Stampede<Self>, p: EBaseEntityMessages, msg: &Vec<u8>) {}
-    fn on_base_game_event(&self, ctx: &Stampede<Self>, p: EBaseGameEvents, msg: &Vec<u8>) {}
-    fn on_dota_user_message(&self, ctx: &Stampede<Self>, p: EDotaUserMessages, msg: &Vec<u8>) {}
-    fn on_entity(&self, ctx: &Stampede<Self>, ev: &EntityOperation, e: &Entity) {}
-    fn on_tick_start(&mut self, ctx: &Stampede<Self>) {}
-    fn on_tick_end(&mut self, ctx: &Stampede<Self>) {}
-    fn on_combat_log(&mut self, ctx: &Stampede<Self>, combat_log: &CombatLog) {}
+pub trait Observer: Sized {
+    // Raw data
+
+    /// Function that will be called each time DemoCommand is received.
+    /// Provides reference to the parser instance, enum variant of demo command and raw data
+    /// ```
+    /// use stampede::prelude::*;
+    /// use stampede::proto::*;
+    ///
+    /// struct MyObserver {
+    ///     packet_amount: u32
+    /// }
+    ///
+    /// impl Observer for MyObserver {
+    ///     fn on_packet(&mut self, ctx: &Parser<Self>, p: EDemoCommands, msg: &[u8]) {
+    ///         if p == EDemoCommands::DemPacket {
+    ///             let packet = CDemoPacket::decode(msg)?;
+    ///             self.packet_amount += 1;
+    ///         }
+    ///     }
+    ///
+    ///     fn epilogue(&mut self, ctx: &Parser<Self>) {
+    ///         println!("Total packets: {}", self.packet_amount);
+    ///     }
+    /// }
+    /// ```
+    fn on_packet(&mut self, ctx: &Parser<Self>, cmd: EDemoCommands, msg: &[u8]) {}
+
+    // on_message?
+    fn on_net_message(&mut self, ctx: &Parser<Self>, emsg: NetMessages, msg: &[u8]) {}
+    fn on_svc_message(&mut self, ctx: &Parser<Self>, emsg: SvcMessages, msg: &[u8]) {}
+    fn on_base_user_message(&mut self, ctx: &Parser<Self>, emsg: EBaseUserMessages, msg: &[u8]) {}
+    fn on_base_entity_message(&mut self, ctx: &Parser<Self>, emsg: EBaseEntityMessages, msg: &[u8]) {}
+    fn on_base_game_event(&mut self, ctx: &Parser<Self>, emsg: EBaseGameEvents, msg: &[u8]) {}
+    fn on_dota_user_message(&mut self, ctx: &Parser<Self>, emsg: EDotaUserMessages, msg: &[u8]) {}
+
+    fn on_tick_start(&mut self, ctx: &Parser<Self>) {}
+    fn on_tick_end(&mut self, ctx: &Parser<Self>) {}
+
+    /// Function that will be called each time Entity state is changed.
+    /// Provides reference to the parser instance, enum variant of action and reference to the targeted entity
+    /// ```
+    /// use stampede::prelude::*;
+    /// use stampede::proto::*;
+    ///
+    /// struct MyObserver {
+    ///     packet_amount: u32
+    /// }
+    ///
+    /// impl Observer for MyObserver {
+    ///
+    /// }
+    /// ```
+    fn on_entity(&mut self, ctx: &Parser<Self>, event: EntityEvent, e: &Entity) {}
+
+    fn on_combat_log(&mut self, ctx: &Parser<Self>, combat_log: &CombatLog) {}
+
+    // TODO: on_game_event
+    fn on_game_event(&mut self, ctx: &Parser<Self>, combat_log: &CombatLog) {}
+
+    fn epilogue(&mut self, ctx: &Parser<Self>) {}
 }
 
-
+pub enum ParseError {}

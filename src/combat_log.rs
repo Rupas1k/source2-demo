@@ -1,14 +1,14 @@
-use protogen::dota_shared_enums::{CMsgDOTACombatLogEntry, DOTA_COMBATLOG_TYPES};
+use proto::{CMsgDotaCombatLogEntry, DotaCombatlogTypes};
 use crate::string_table::StringTable;
 
 pub struct CombatLog<'a> {
     pub(crate) names: &'a StringTable,
-    pub(crate) log: CMsgDOTACombatLogEntry
+    pub(crate) log: CMsgDotaCombatLogEntry
 }
 
 impl<'a> CombatLog<'a> {
-    pub fn type_(&self) -> DOTA_COMBATLOG_TYPES {
-        self.log.type_()
+    pub fn type_(&self) -> DotaCombatlogTypes {
+        self.log.r#type()
     }
 
     pub fn target_name(&self) -> Option<&str> {

@@ -51,9 +51,9 @@ impl FieldReader {
     pub fn read_fields(&self, reader: &mut Reader, s: &Serializer, st: &mut FieldState) {
         let fps = self.read_field_paths(reader);
         for fp in fps.iter() {
-            let decoder = s.get_decoder_for_field_path(&fp, 0);
+            let decoder = s.get_decoder_for_field_path(fp, 0);
             let val = decoder.decode(reader);
-            st.set(&fp, val);
+            st.set(fp, val);
         }
     }
 }

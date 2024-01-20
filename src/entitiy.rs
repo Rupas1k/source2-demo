@@ -1,26 +1,25 @@
 use std::cell::{Ref, RefCell};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::rc::Rc;
 use rustc_hash::{FxHashMap, FxHashSet};
 use crate::class::Class;
 use crate::field_path::FieldPath;
 use crate::field_state::{FieldState, States};
 
-#[derive(Debug, Clone)]
-pub enum EntityOperation {
-    None            = 0,
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum EntityEvent {
     Created         = 1 << 0,
     Updated         = 1 << 1,
     Deleted         = 1 << 2,
     Entered         = 1 << 3,
     Left            = 1 << 4,
 
-    CreatedEntered  = EntityOperation::Created as isize | EntityOperation::Entered as isize,
-    UpdatedEntered  = EntityOperation::Updated as isize | EntityOperation::Entered as isize,
-    DeletedLeft     = EntityOperation::Deleted as isize | EntityOperation::Left as isize
+    // CreatedEntered  = EntityOperation::Created as isize | EntityOperation::Entered as isize,
+    // UpdatedEntered  = EntityOperation::Updated as isize | EntityOperation::Entered as isize,
+    // DeletedLeft     = EntityOperation::Deleted as isize | EntityOperation::Left as isize
 }
 
-impl EntityOperation {
+impl EntityEvent {
     // fn to_string(&self) -> &str {
     //     match self {
     //         EntityOperations::None => "None",
@@ -62,7 +61,6 @@ pub struct Entity {
     pub class:      Rc<RefCell<Class>>,
     pub active:     bool,
     pub state:      FieldState,
-    // pub fp_cache:   HashMap<String, FieldPath>,
     fp_cache: Rc<RefCell<FpCache>>,
     fp_no_op_cache:   Rc<RefCell<FxHashSet<String>>>
 }
@@ -107,8 +105,8 @@ impl Entity {
             .as_value()
     }
 
-    pub fn map(&self) -> HashMap::<String, Option<EntityFieldType>> {
-        let mut values = HashMap::<String, Option<EntityFieldType>>::new();
+    pub fn map(&self) -> FxHashMap::<String, Option<EntityFieldType>> {
+        let mut values = FxHashMap::<String, Option<EntityFieldType>>::default();
         for fp in self.class.borrow().get_field_paths(&mut FieldPath::new(), &self.state) {
             if let Some(v) = self.state.get(&fp) {
                 if let States::Value(vv) = v {
@@ -153,6 +151,7 @@ impl Entity {
 
 
 
+// I tried not to overcomplicate this thing so there is only one type for each numeric type
 #[derive(Debug, Clone, PartialEq)]
 pub enum EntityFieldType {
     Boolean(bool),

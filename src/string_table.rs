@@ -42,7 +42,7 @@ impl StringTableItem {
 impl StringTable {
     pub fn parse(&self, buf: &[u8], num_updates: i32) -> Option<Vec<StringTableItem>> {
         let mut items = Vec::<StringTableItem>::new();
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return Some(items);
         }
 
@@ -76,7 +76,7 @@ impl StringTable {
                             } else {
                                 let s = keys[pos as usize].as_str();
                                 if size as usize > s.len() {
-                                    key = key + &s + rs.as_str();
+                                    key = key + s + rs.as_str();
                                 } else {
                                     key = key + &s[0..(size as usize)] + rs.as_str();
                                 }
