@@ -1,7 +1,6 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::time::Instant;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use crate::class::{Class, Classes};
@@ -160,15 +159,12 @@ impl<'a> Parser<'a> {
     pub fn process(&mut self) {
         let reader = &mut self.reader;
         let _ = reader.read_bytes(16);
-        let start = Instant::now();
         while let Some(message) = self.read_outer_message() {
             self.on_tick_start();
             self.on_packet(message.msg_type, message.buf.as_slice());
             self.on_tick_end();
         }
-        // self.observers.epilogue(self);
         self.observers.iter().for_each(|obs| obs.borrow_mut().epilogue(self));
-        println!("{:?}", start.elapsed());
     }
 
     fn send_tables(&mut self, msg: &[u8]) {
