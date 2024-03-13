@@ -3,4 +3,5 @@
 /protogen
 *.exe
 *.proto
+*.lock
 *.dem
