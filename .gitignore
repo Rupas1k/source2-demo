@@ -1,6 +1,6 @@
 .idea
 /target
-/replays
 /protogen
 *.exe
 *.proto
+*.dem
