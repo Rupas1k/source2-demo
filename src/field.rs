@@ -1,10 +1,10 @@
-use std::rc::Rc;
-use proto::{CsvcMsgFlattenedSerializer, ProtoFlattenedSerializerFieldT};
-use crate::field_path::FieldPath;
 use crate::field_decoder::Decoders;
+use crate::field_path::FieldPath;
 use crate::field_state::{FieldState, States};
 use crate::field_type::FieldType;
 use crate::serializer::Serializer;
+use proto::{CsvcMsgFlattenedSerializer, ProtoFlattenedSerializerFieldT};
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub struct Field {
@@ -60,25 +60,37 @@ impl Field {
         match self.model {
             FieldModels::Simple => {}
             FieldModels::FixedArray => {
-                if fp.last() == pos as usize {
-                    x.push(format!("{:04}", fp.get(pos as usize)));
+                if fp.last == pos as usize {
+                    x.push(format!("{:04}", fp.path[pos as usize]));
                 }
             }
             FieldModels::FixedTable => {
-                if fp.last() >= pos as usize {
-                    x.extend_from_slice(&self.serializer.as_ref().unwrap().get_name_for_field_path(fp, pos));
+                if fp.last >= pos as usize {
+                    x.extend_from_slice(
+                        &self
+                            .serializer
+                            .as_ref()
+                            .unwrap()
+                            .get_name_for_field_path(fp, pos),
+                    );
                 }
             }
             FieldModels::VariableArray => {
-                if fp.last() == pos as usize {
-                    x.push(format!("{:04}", fp.get(pos as usize)));
+                if fp.last == pos as usize {
+                    x.push(format!("{:04}", fp.path[pos as usize]));
                 }
             }
             FieldModels::VariableTable => {
-                if fp.last() != (pos - 1) as usize {
-                    x.push(format!("{:04}", fp.get(pos as usize)));
-                    if fp.last() != pos as usize {
-                        x.extend_from_slice(&self.serializer.as_ref().unwrap().get_name_for_field_path(fp, pos + 1))
+                if fp.last != (pos - 1) as usize {
+                    x.push(format!("{:04}", fp.path[pos as usize]));
+                    if fp.last != pos as usize {
+                        x.extend_from_slice(
+                            &self
+                                .serializer
+                                .as_ref()
+                                .unwrap()
+                                .get_name_for_field_path(fp, pos + 1),
+                        )
                     }
                 }
             }
@@ -93,18 +105,26 @@ impl Field {
                 return self.field_type.as_ref().unwrap();
             }
             FieldModels::FixedTable => {
-                if fp.last() as i32 != pos - 1 {
-                    return self.serializer.as_ref().unwrap().get_type_for_field_path(fp, pos);
+                if fp.last as i32 != pos - 1 {
+                    return self
+                        .serializer
+                        .as_ref()
+                        .unwrap()
+                        .get_type_for_field_path(fp, pos);
                 }
             }
             FieldModels::VariableArray => {
-                if fp.last() as i32 == pos {
+                if fp.last as i32 == pos {
                     return self.field_type.as_ref().unwrap().generic.as_ref().unwrap();
                 }
             }
             FieldModels::VariableTable => {
-                if fp.last() as i32 > pos {
-                    return self.serializer.as_ref().unwrap().get_type_for_field_path(fp, pos + 1);
+                if fp.last as i32 > pos {
+                    return self
+                        .serializer
+                        .as_ref()
+                        .unwrap()
+                        .get_type_for_field_path(fp, pos + 1);
                 }
             }
         };
@@ -118,20 +138,28 @@ impl Field {
                 return self.decoder.as_ref().unwrap();
             }
             FieldModels::FixedTable => {
-                if fp.last() as i32 == pos - 1 {
+                if fp.last as i32 == pos - 1 {
                     return self.base_decoder.as_ref().unwrap();
                 }
-                return self.serializer.as_ref().unwrap().get_decoder_for_field_path(fp, pos);
+                return self
+                    .serializer
+                    .as_ref()
+                    .unwrap()
+                    .get_decoder_for_field_path(fp, pos);
             }
             FieldModels::VariableArray => {
-                if fp.last() as i32 == pos {
+                if fp.last as i32 == pos {
                     return self.child_decoder.as_ref().unwrap();
                 }
                 return self.base_decoder.as_ref().unwrap();
             }
             FieldModels::VariableTable => {
-                if fp.last() as i32 > pos {
-                    return self.serializer.as_ref().unwrap().get_decoder_for_field_path(fp, pos + 1);
+                if fp.last as i32 > pos {
+                    return self
+                        .serializer
+                        .as_ref()
+                        .unwrap()
+                        .get_decoder_for_field_path(fp, pos + 1);
                 }
                 return self.base_decoder.as_ref().unwrap();
             }
@@ -145,22 +173,36 @@ impl Field {
                 panic!("not supported")
             }
             FieldModels::FixedArray => {
-                if name.len() != 4 { panic!("wrong size") }
-                fp.set(fp.last(), name.parse::<i64>().unwrap());
+                if name.len() != 4 {
+                    panic!("wrong size")
+                }
+                fp.path[fp.last] = name.parse::<i32>().unwrap();
                 return true;
             }
             FieldModels::FixedTable => {
-                return self.serializer.as_ref().unwrap().get_field_path_for_name(fp, name);
+                return self
+                    .serializer
+                    .as_ref()
+                    .unwrap()
+                    .get_field_path_for_name(fp, name);
             }
             FieldModels::VariableArray => {
-                if name.len() != 4 { panic!("wrong size") }
-                fp.set(fp.last(), name.parse::<i64>().unwrap());
+                if name.len() != 4 {
+                    panic!("wrong size")
+                }
+                fp.path[fp.last] = name.parse::<i32>().unwrap();
             }
             FieldModels::VariableTable => {
-                if name.len() != 6 { panic!("wrong size") }
-                fp.set(fp.last(), name[0..4].parse::<i64>().unwrap());
-                fp.down();
-                return self.serializer.as_ref().unwrap().get_field_path_for_name(fp, &name[5..]);
+                if name.len() <= 6 {
+                    panic!("wrong size")
+                }
+                fp.path[fp.last] = name[0..4].parse::<i32>().unwrap();
+                fp.last += 1;
+                return self
+                    .serializer
+                    .as_ref()
+                    .unwrap()
+                    .get_field_path_for_name(fp, &name[5..]);
             }
         }
         false
@@ -174,44 +216,47 @@ impl Field {
             }
             FieldModels::FixedArray => {
                 if let Some(States::FieldState(s)) = st.get(fp) {
-                    fp.down();
+                    fp.last += 1;
                     for (i, v) in s.state.iter().enumerate() {
                         if v.is_some() {
-                            fp.set(fp.last(), i as i64);
+                            fp.path[fp.last] = i as i32;
                             vec.push(fp.clone());
                         }
                     }
-                    fp.up(1);
+                    fp.pop(1);
                 }
             }
             FieldModels::FixedTable => {
                 if let Some(States::FieldState(v)) = st.get(fp) {
-                    fp.down();
-                    vec.extend_from_slice(&self.serializer.as_ref().unwrap().get_field_paths(fp, v));
-                    fp.up(1);
+                    fp.last += 1;
+                    vec.extend_from_slice(
+                        &self.serializer.as_ref().unwrap().get_field_paths(fp, v),
+                    );
+                    fp.pop(1);
                 }
             }
             FieldModels::VariableArray => {
                 if let Some(States::FieldState(x)) = st.get(fp) {
-                    fp.down();
+                    fp.last += 1;
                     for (i, _) in x.state.iter().enumerate() {
-                        fp.set(fp.last(), i as i64);
+                        fp.path[fp.last] = i as i32;
                         vec.push(fp.clone());
                     }
-                    fp.up(1);
+                    fp.pop(1);
                 }
             }
             FieldModels::VariableTable => {
                 if let Some(States::FieldState(x)) = st.get(fp) {
-                    fp.down();
-                    fp.down();
+                    fp.last += 2;
                     for (i, v) in x.state.iter().enumerate() {
                         if let Some(States::FieldState(vv)) = v.as_ref() {
-                            fp.set(fp.last() - 1, i as i64);
-                            vec.extend_from_slice(&self.serializer.as_ref().unwrap().get_field_paths(fp, vv));
+                            fp.path[fp.last - 1] = i as i32;
+                            vec.extend_from_slice(
+                                &self.serializer.as_ref().unwrap().get_field_paths(fp, vv),
+                            );
                         }
                     }
-                    fp.up(2);
+                    fp.pop(2);
                 }
             }
         }
@@ -224,9 +269,7 @@ impl Field {
             FieldModels::FixedArray => {
                 self.decoder = Some(Decoders::from_field(self, false));
             }
-            FieldModels::FixedTable => {
-                self.base_decoder = Some(Decoders::Boolean)
-            }
+            FieldModels::FixedTable => self.base_decoder = Some(Decoders::Boolean),
             FieldModels::VariableArray => {
                 if self.field_type.as_ref().unwrap().generic.is_none() {
                     panic!("No generic")
@@ -254,7 +297,7 @@ pub enum FieldModels {
     FixedArray,
     FixedTable,
     VariableArray,
-    VariableTable
+    VariableTable,
 }
 
 impl FieldModels {
@@ -264,7 +307,7 @@ impl FieldModels {
             FieldModels::FixedArray => "fixed-table",
             FieldModels::FixedTable => "variable-array",
             FieldModels::VariableArray => "variable-table",
-            FieldModels::VariableTable => "simple"
+            FieldModels::VariableTable => "simple",
         }
     }
 }

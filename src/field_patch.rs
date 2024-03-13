@@ -1,5 +1,5 @@
-use std::convert::AsRef;
 use crate::field::Field;
+use std::convert::AsRef;
 
 pub struct FieldPatch {
     min_build: u32,

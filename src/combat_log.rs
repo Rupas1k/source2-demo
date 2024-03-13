@@ -1,9 +1,10 @@
-use proto::{CMsgDotaCombatLogEntry, DotaCombatlogTypes};
 use crate::string_table::StringTable;
+use proto::{CMsgDotaCombatLogEntry, DotaCombatlogTypes};
 
+#[derive(Debug)]
 pub struct CombatLog<'a> {
     pub(crate) names: &'a StringTable,
-    pub(crate) log: CMsgDotaCombatLogEntry
+    pub(crate) log: CMsgDotaCombatLogEntry,
 }
 
 impl<'a> CombatLog<'a> {
@@ -14,7 +15,7 @@ impl<'a> CombatLog<'a> {
     pub fn target_name(&self) -> Option<&str> {
         if let Some(id) = self.log.target_name {
             if let Some(name) = self.names.items.get(&(id as i32)) {
-                return Some(name.key.as_str())
+                return Some(name.key.as_str());
             }
         }
         None
@@ -23,7 +24,7 @@ impl<'a> CombatLog<'a> {
     pub fn target_source_name(&self) -> Option<&str> {
         if let Some(id) = self.log.target_source_name {
             if let Some(name) = self.names.items.get(&(id as i32)) {
-                return Some(name.key.as_str())
+                return Some(name.key.as_str());
             }
         }
         None
@@ -32,7 +33,7 @@ impl<'a> CombatLog<'a> {
     pub fn attacker_name(&self) -> Option<&str> {
         if let Some(id) = self.log.attacker_name {
             if let Some(name) = self.names.items.get(&(id as i32)) {
-                return Some(name.key.as_str())
+                return Some(name.key.as_str());
             }
         }
         None
@@ -41,7 +42,7 @@ impl<'a> CombatLog<'a> {
     pub fn damage_source_name(&self) -> Option<&str> {
         if let Some(id) = self.log.damage_source_name {
             if let Some(name) = self.names.items.get(&(id as i32)) {
-                return Some(name.key.as_str())
+                return Some(name.key.as_str());
             }
         }
         None
@@ -50,7 +51,7 @@ impl<'a> CombatLog<'a> {
     pub fn inflictor_name(&self) -> Option<&str> {
         if let Some(id) = self.log.inflictor_name {
             if let Some(name) = self.names.items.get(&(id as i32)) {
-                return Some(name.key.as_str())
+                return Some(name.key.as_str());
             }
         }
         None

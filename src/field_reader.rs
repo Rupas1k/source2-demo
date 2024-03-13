@@ -1,10 +1,10 @@
-use strum::IntoEnumIterator;
-use crate::reader::Reader;
 use crate::field_op::FieldOp;
 use crate::field_path::FieldPath;
 use crate::field_state::FieldState;
 use crate::huffman_tree::{build_huffman_tree, EHTree};
+use crate::reader::Reader;
 use crate::serializer::Serializer;
+use strum::IntoEnumIterator;
 
 pub struct FieldReader {
     tree: EHTree,
@@ -12,13 +12,12 @@ pub struct FieldReader {
 
 impl FieldReader {
     pub fn new() -> Self {
-        let tree = build_huffman_tree(FieldOp::iter().map(|op| op.weight() as i32).collect()).unwrap();
-        FieldReader {
-            tree,
-        }
+        let tree =
+            build_huffman_tree(FieldOp::iter().map(|op| op.weight() as i32).collect()).unwrap();
+        FieldReader { tree }
     }
 
-    pub fn read_field_paths(&self, reader: &mut Reader) -> Vec<FieldPath> {
+    pub(crate) fn read_field_paths(&self, reader: &mut Reader) -> Vec<FieldPath> {
         let mut fp = FieldPath::new();
         let mut paths: Vec<FieldPath> = Vec::new();
         let mut node = &self.tree;
@@ -36,7 +35,7 @@ impl FieldReader {
                     let op = FieldOp::from_position(*value);
                     op.execute(reader, &mut fp);
                     if let FieldOp::FieldPathEncodeFinish = op {
-                        break
+                        break;
                     }
                     paths.push(fp.clone());
                 }
@@ -48,7 +47,7 @@ impl FieldReader {
         paths
     }
 
-    pub fn read_fields(&self, reader: &mut Reader, s: &Serializer, st: &mut FieldState) {
+    pub(crate) fn read_fields(&self, reader: &mut Reader, s: &Serializer, st: &mut FieldState) {
         let fps = self.read_field_paths(reader);
         for fp in fps.iter() {
             let decoder = s.get_decoder_for_field_path(fp, 0);

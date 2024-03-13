@@ -1,6 +1,5 @@
-use std::collections::BinaryHeap;
 use std::cmp::Ordering;
-
+use std::collections::BinaryHeap;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum EHTree {
@@ -15,7 +14,6 @@ pub enum EHTree {
         right: Box<EHTree>,
     },
 }
-
 
 impl Ord for EHTree {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -32,37 +30,41 @@ impl PartialOrd for EHTree {
     }
 }
 
-
 impl EHTree {
     pub fn weight(&self) -> i32 {
         match self {
-            EHTree::Leaf { weight, .. } |
-            EHTree::Node { weight, .. } => *weight,
+            EHTree::Leaf { weight, .. } | EHTree::Node { weight, .. } => *weight,
         }
     }
 
     pub fn value(&self) -> i32 {
         match self {
-            EHTree::Leaf { value, .. } |
-            EHTree::Node { value, .. } => *value
+            EHTree::Leaf { value, .. } | EHTree::Node { value, .. } => *value,
         }
     }
 
     pub fn left(&self) -> &EHTree {
         match self {
-            EHTree::Node { left, .. } => { return left; },
-            _ => { panic!("") }
+            EHTree::Node { left, .. } => {
+                return left;
+            }
+            _ => {
+                panic!("")
+            }
         };
     }
 
     pub fn right(&self) -> &EHTree {
         match self {
-            EHTree::Node { right, .. } => { return right; },
-            _ => { panic!("") }
+            EHTree::Node { right, .. } => {
+                return right;
+            }
+            _ => {
+                panic!("")
+            }
         };
     }
 }
-
 
 pub fn build_huffman_tree(freqs: Vec<i32>) -> Option<EHTree> {
     if freqs.is_empty() {
