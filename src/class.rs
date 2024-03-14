@@ -5,8 +5,8 @@ use crate::field_type::FieldType;
 use crate::serializer::Serializer;
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
-use std::cell::{Ref, RefCell, RefMut};
-use std::rc::{Rc, Weak};
+use std::cell::{Ref, RefCell};
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Classes {
@@ -16,12 +16,6 @@ pub struct Classes {
     pub(crate) class_id_size: Option<u32>,
     pub(crate) class_info: bool,
 }
-
-// impl Default for Classes {
-//     fn default() -> Self {
-//         Self::new()
-//     }
-// }
 
 impl Classes {
     pub(crate) fn new() -> Self {

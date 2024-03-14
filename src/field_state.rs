@@ -25,7 +25,7 @@ impl FieldState {
         let mut current_state = self;
         let mut z = 0;
         for i in 0..=fp.last {
-            z = fp.path[i] as i32;
+            z = fp.path[i];
             if (current_state.state.len() as i32) < z + 2 {
                 return None;
             }
@@ -37,15 +37,10 @@ impl FieldState {
                 continue;
             }
             return None;
-            // current_state = &current_state.state[z as usize].as_ref()
-            //     .unwrap()
-            //     .as_field_state()
-            //     .unwrap()
         }
         None
     }
 
-    // pub fn set(&mut self, fp: &FieldPath, v: DecodeResults) {
     pub fn set(&mut self, fp: &FieldPath, v: EntityFieldType) {
         let mut x = self;
         for i in 0..=fp.last {

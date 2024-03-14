@@ -22,7 +22,7 @@ lazy_static = "1.4.0"
 prost = "0.12.3"
 
 [profile.dev]
-opt-level = 0
+#opt-level = 0
 
 [profile.release]
 #debug=true
@@ -33,5 +33,7 @@ opt-level = 0
 #strip = "symbols"
 
 [features]
-default_alloc = []
-entities = []
+default = ["mimalloc"]
+mimalloc = []
+#combat_log = []
+#entities = []

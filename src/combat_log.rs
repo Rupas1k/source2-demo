@@ -13,48 +13,48 @@ impl<'a> CombatLog<'a> {
     }
 
     pub fn target_name(&self) -> Option<&str> {
-        if let Some(id) = self.log.target_name {
-            if let Some(name) = self.names.items.get(&(id as i32)) {
-                return Some(name.key.as_str());
-            }
-        }
-        None
+        self.log.target_name.and_then(|id| {
+            self.names
+                .items
+                .get(&(id as i32))
+                .map(|name| name.key.as_str())
+        })
     }
 
     pub fn target_source_name(&self) -> Option<&str> {
-        if let Some(id) = self.log.target_source_name {
-            if let Some(name) = self.names.items.get(&(id as i32)) {
-                return Some(name.key.as_str());
-            }
-        }
-        None
+        self.log.target_source_name.and_then(|id| {
+            self.names
+                .items
+                .get(&(id as i32))
+                .map(|name| name.key.as_str())
+        })
     }
 
     pub fn attacker_name(&self) -> Option<&str> {
-        if let Some(id) = self.log.attacker_name {
-            if let Some(name) = self.names.items.get(&(id as i32)) {
-                return Some(name.key.as_str());
-            }
-        }
-        None
+        self.log.attacker_name.and_then(|id| {
+            self.names
+                .items
+                .get(&(id as i32))
+                .map(|name| name.key.as_str())
+        })
     }
 
     pub fn damage_source_name(&self) -> Option<&str> {
-        if let Some(id) = self.log.damage_source_name {
-            if let Some(name) = self.names.items.get(&(id as i32)) {
-                return Some(name.key.as_str());
-            }
-        }
-        None
+        self.log.damage_source_name.and_then(|id| {
+            self.names
+                .items
+                .get(&(id as i32))
+                .map(|name| name.key.as_str())
+        })
     }
 
     pub fn inflictor_name(&self) -> Option<&str> {
-        if let Some(id) = self.log.inflictor_name {
-            if let Some(name) = self.names.items.get(&(id as i32)) {
-                return Some(name.key.as_str());
-            }
-        }
-        None
+        self.log.inflictor_name.and_then(|id| {
+            self.names
+                .items
+                .get(&(id as i32))
+                .map(|name| name.key.as_str())
+        })
     }
 
     pub fn attacker_illusion(&self) -> Option<bool> {

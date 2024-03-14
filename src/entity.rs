@@ -1,7 +1,6 @@
-use std::fmt;
-use std::fmt::{format, Write};
 use crate::class::Class;
 use crate::field_path::FieldPath;
+use crate::field_state::FieldState;
 use crate::field_state::States;
 use nohash_hasher::IntMap;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -9,7 +8,6 @@ use std::cell::{Ref, RefCell};
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
-use crate::field_state::FieldState;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum EntityEvent {
@@ -55,42 +53,35 @@ impl Entities {
         self.get_by_index(Entities::index_for_handle(handle))
     }
     pub fn get_by_class_id(&self, id: i32) -> Option<&Entity> {
-        self.entities.values().find(|&entity| entity.class.borrow().id == id)
+        self.entities
+            .values()
+            .find(|&entity| entity.class.borrow().id == id)
     }
     pub fn get_by_class_name(&self, name: &str) -> Option<&Entity> {
-        self.entities.values().find(|&entity| entity.class.borrow().name.as_ref() == name)
+        self.entities
+            .values()
+            .find(|&entity| entity.class.borrow().name.as_ref() == name)
     }
 
     pub fn get_all_by_class_id(&self, id: i32) -> Vec<&Entity> {
-        let mut entities = vec![];
-        for entity in self.entities.values() {
-            if entity.class.borrow().id == id {
-                entities.push(entity);
-            }
-        }
-        entities
+        self.entities
+            .values()
+            .filter(|entity| entity.class.borrow().id == id)
+            .collect::<Vec<&Entity>>()
     }
 
     pub fn get_all_by_class_name(&self, name: &str) -> Vec<&Entity> {
-        let mut entities = vec![];
-        for entity in self.entities.values() {
-            if entity.class.borrow().name.as_ref() == name {
-                entities.push(entity);
-            }
-        }
-        entities
+        self.entities
+            .values()
+            .filter(|entity| entity.class.borrow().name.as_ref() == name)
+            .collect::<Vec<&Entity>>()
     }
 
     pub fn get_all_by_predicate(&self, predicate: &dyn Fn(&Entity) -> bool) -> Vec<&Entity> {
-        let mut result = Vec::<&Entity>::new();
-
-        for entity in self.entities.values() {
-            if predicate(entity) {
-                result.push(entity)
-            }
-        }
-
-        result
+        self.entities
+            .values()
+            .filter(|entity| predicate(entity))
+            .collect::<Vec<&Entity>>()
     }
 }
 
@@ -245,24 +236,69 @@ impl Display for Entity {
         table += &format!("+-------------------------------------+-------------------------------------+-------------------------------------+\n");
 
         // Add rows for each field
-        for fp in self.class.borrow().get_field_paths(&mut FieldPath::new(), &self.state) {
-            let t = self.class.borrow().get_type_for_field_path(&fp).base.clone();
+        for fp in self
+            .class
+            .borrow()
+            .get_field_paths(&mut FieldPath::new(), &self.state)
+        {
+            let t = self
+                .class
+                .borrow()
+                .get_type_for_field_path(&fp)
+                .base
+                .clone();
             let name = self.class.borrow().get_name_for_field_path(&fp);
             let value = match self.state.get(&fp) {
-                Some(States::Value(v)) => {
-                    match t.as_str() {
-                        "bool" => format!("(bool) {}", v.as_bool()),
-                        "char" | "CUtlString" | "CUtlSymbolLarge" => format!("(String) \"{}\"", v.as_string()),
-                        "int8" | "int16" | "int32" | "int64" => format!("(i32) {}", v.as_signed()),
-                        "uint8" | "uint16" | "uint32" | "uint64" | "CStrongHandle" | "color32" | "CGameSceneNodeHandle" | "Color" | "CUtlStringToken" | "CHandle" | "CEntityHandle" | "CBodyComponent" | "CPhysicsComponent" | "CRenderComponent" => format!("(u64) {}", v.as_unsigned()),
-                        "float32" | "GameTime_t" | "CNetworkedQuantizedFloat" => format!("(f32) {}", v.as_float()),
-                        "Vector2D" => format!("[{}]", v.as_vector2d().iter().map(|&x| x.to_string()).collect::<Vec<String>>().join(" ")),
-                        "Vector3D" | "Vector" | "QAngle" => format!("[{}]", v.as_vector3d().iter().map(|&x| x.to_string()).collect::<Vec<String>>().join(" ")),
-                        "Vector4D" => format!("[{}]", v.as_vector4d().iter().map(|&x| x.to_string()).collect::<Vec<String>>().join(" ")),
-                        _ => format!("(u32) {}", v.as_unsigned())
+                Some(States::Value(v)) => match t.as_str() {
+                    "bool" => format!("(bool) {}", v.as_bool()),
+                    "char" | "CUtlString" | "CUtlSymbolLarge" => {
+                        format!("(String) \"{}\"", v.as_string())
                     }
+                    "int8" | "int16" | "int32" | "int64" => format!("(i32) {}", v.as_signed()),
+                    "uint8"
+                    | "uint16"
+                    | "uint32"
+                    | "uint64"
+                    | "CStrongHandle"
+                    | "color32"
+                    | "CGameSceneNodeHandle"
+                    | "Color"
+                    | "CUtlStringToken"
+                    | "CHandle"
+                    | "CEntityHandle"
+                    | "CBodyComponent"
+                    | "CPhysicsComponent"
+                    | "CRenderComponent" => format!("(u64) {}", v.as_unsigned()),
+                    "float32" | "GameTime_t" | "CNetworkedQuantizedFloat" => {
+                        format!("(f32) {}", v.as_float())
+                    }
+                    "Vector2D" => format!(
+                        "[{}]",
+                        v.as_vector2d()
+                            .iter()
+                            .map(|&x| x.to_string())
+                            .collect::<Vec<String>>()
+                            .join(" ")
+                    ),
+                    "Vector3D" | "Vector" | "QAngle" => format!(
+                        "[{}]",
+                        v.as_vector3d()
+                            .iter()
+                            .map(|&x| x.to_string())
+                            .collect::<Vec<String>>()
+                            .join(" ")
+                    ),
+                    "Vector4D" => format!(
+                        "[{}]",
+                        v.as_vector4d()
+                            .iter()
+                            .map(|&x| x.to_string())
+                            .collect::<Vec<String>>()
+                            .join(" ")
+                    ),
+                    _ => format!("(u32) {}", v.as_unsigned()),
                 },
-                _ => "None".to_string()
+                _ => "None".to_string(),
             };
             table += &format!("| {:<35} | {:<35} | {:<35} |\n", name, t, value);
         }
@@ -286,7 +322,6 @@ pub enum EntityFieldType {
     Vector3D([f32; 3]),
     Vector4D([f32; 4]),
 }
-
 
 impl EntityFieldType {
     pub fn as_string(&self) -> &str {

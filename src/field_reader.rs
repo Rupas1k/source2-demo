@@ -1,4 +1,4 @@
-use crate::field_op::FieldOp;
+use crate::field_path::FieldOp;
 use crate::field_path::FieldPath;
 use crate::field_state::FieldState;
 use crate::huffman_tree::{build_huffman_tree, EHTree};

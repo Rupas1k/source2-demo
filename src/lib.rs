@@ -3,8 +3,6 @@ mod combat_log;
 mod entity;
 mod field;
 mod field_decoder;
-mod field_op;
-mod field_patch;
 mod field_path;
 mod field_reader;
 mod field_state;

@@ -1,7 +1,6 @@
 use crate::reader::Reader;
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
-use std::collections::VecDeque;
 use std::rc::Rc;
 
 #[derive(Clone, Debug)]
@@ -12,7 +11,7 @@ pub struct StringTables {
 }
 
 impl StringTables {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         StringTables {
             tables: IntMap::default(),
             name_index: FxHashMap::default(),
@@ -79,7 +78,7 @@ impl StringTable {
 
             if has_key {
                 let use_history = r.read_bool();
-                let delta_zero = if delta_pos > 32 { delta_pos & 31 } else {0};
+                let delta_zero = if delta_pos > 32 { delta_pos & 31 } else { 0 };
                 if use_history {
                     let pos = (delta_zero + r.read_bits(5)) & 31;
                     let size = r.read_bits(5);
@@ -87,7 +86,9 @@ impl StringTable {
                     if delta_pos < pos || keys[pos as usize].len() < size as usize {
                         key = r.read_string().unwrap();
                     } else {
-                        key = key + &keys[pos as usize][..(size as usize)] + &r.read_string().unwrap();
+                        key = key
+                            + &keys[pos as usize][..(size as usize)]
+                            + &r.read_string().unwrap();
                     }
                     // match r.read_string() {
                     //     Some(rs) => {

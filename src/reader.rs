@@ -7,7 +7,7 @@ pub(crate) struct Reader<'a> {
 impl<'a> Reader<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
         Reader {
-            le_reader: LittleEndianReader::new(buf)
+            le_reader: LittleEndianReader::new(buf),
         }
     }
 

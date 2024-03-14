@@ -1,26 +1,28 @@
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::collections::VecDeque;
+use lazy_static::lazy_static;
+use nohash_hasher::IntMap;
+use prost::Message;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::cell::RefCell;
+use std::collections::VecDeque;
+use std::rc::Rc;
+
 use crate::class::{Class, Classes};
 use crate::entity::{Entities, Entity, EntityEvent};
 use crate::field::{Field, FieldModels};
-use crate::field_patch::{FieldPatch, FIELD_PATCHES};
+use crate::field::{FieldPatch, FIELD_PATCHES};
 use crate::field_reader::FieldReader;
 use crate::field_type::FieldType;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTables};
-use lazy_static::lazy_static;
-use nohash_hasher::IntMap;
-use prost::Message;
-use proto::{
-    CsvcMsgCreateStringTable, CsvcMsgFlattenedSerializer, CsvcMsgPacketEntities, CsvcMsgServerInfo,
-    CsvcMsgUpdateStringTable, SvcMessages, CDemoClassInfo, CDemoFullPacket, CDemoPacket, CDemoSendTables, CnetMsgTick, EDemoCommands,
-    NetMessages, EDotaUserMessages, EBaseGameEvents, EBaseEntityMessages, EBaseUserMessages
-};
 
+use proto::{
+    CDemoClassInfo, CDemoFullPacket, CDemoPacket, CDemoSendTables, CnetMsgTick,
+    CsvcMsgCreateStringTable, CsvcMsgFlattenedSerializer, CsvcMsgPacketEntities, CsvcMsgServerInfo,
+    CsvcMsgUpdateStringTable, EBaseEntityMessages, EBaseGameEvents, EBaseUserMessages,
+    EDemoCommands, EDotaUserMessages, NetMessages, SvcMessages,
+};
 
 // #[cfg(feature = "combat_log")]
 use crate::combat_log::CombatLog;
@@ -110,7 +112,9 @@ impl<'a> Parser<'a> {
             _ => {}
         }
 
-        self.observers.iter().for_each(|obs| obs.borrow_mut().on_packet(self, cmd, msg))
+        self.observers
+            .iter()
+            .for_each(|obs| obs.borrow_mut().on_packet(self, cmd, msg))
     }
 
     fn on_net_message(&mut self, p: NetMessages, msg: &[u8]) {
@@ -119,8 +123,9 @@ impl<'a> Parser<'a> {
             self.net_tick = t.tick();
         }
 
-        self.observers.iter().for_each(|obs| obs.borrow_mut().on_net_message(self, p, msg))
-
+        self.observers
+            .iter()
+            .for_each(|obs| obs.borrow_mut().on_net_message(self, p, msg))
     }
 
     fn on_svc_message(&mut self, p: SvcMessages, msg: &[u8]) {
@@ -131,20 +136,27 @@ impl<'a> Parser<'a> {
             SvcMessages::SvcPacketEntities => self.packet_entities(msg),
             _ => {}
         }
-        self.observers.iter().for_each(|obs| obs.borrow_mut().on_svc_message(self, p, msg))
+        self.observers
+            .iter()
+            .for_each(|obs| obs.borrow_mut().on_svc_message(self, p, msg))
     }
 
     fn on_base_user_message(&mut self, p: EBaseUserMessages, msg: &[u8]) {
-        self.observers.iter().for_each(|obs| obs.borrow_mut().on_base_user_message(self, p, msg))
+        self.observers
+            .iter()
+            .for_each(|obs| obs.borrow_mut().on_base_user_message(self, p, msg))
     }
 
     fn on_base_entity_message(&mut self, p: EBaseEntityMessages, msg: &[u8]) {
-        self.observers.iter().for_each(|obs| obs.borrow_mut().on_base_entity_message(self, p, msg))
-
+        self.observers
+            .iter()
+            .for_each(|obs| obs.borrow_mut().on_base_entity_message(self, p, msg))
     }
 
     fn on_base_game_event(&mut self, p: EBaseGameEvents, msg: &[u8]) {
-        self.observers.iter().for_each(|obs| obs.borrow_mut().on_base_game_event(self, p, msg))
+        self.observers
+            .iter()
+            .for_each(|obs| obs.borrow_mut().on_base_game_event(self, p, msg))
     }
 
     fn on_dota_user_message(&mut self, p: EDotaUserMessages, msg: &[u8]) {
@@ -153,7 +165,9 @@ impl<'a> Parser<'a> {
             let entry = CMsgDotaCombatLogEntry::decode(msg).unwrap();
             self.combat_log.push_back(entry);
         }
-        self.observers.iter().for_each(|obs| obs.borrow_mut().on_dota_user_message(self, p, msg))
+        self.observers
+            .iter()
+            .for_each(|obs| obs.borrow_mut().on_dota_user_message(self, p, msg))
     }
 
     pub fn process(&mut self) {
@@ -164,7 +178,9 @@ impl<'a> Parser<'a> {
             self.on_packet(message.msg_type, message.buf.as_slice());
             self.on_tick_end();
         }
-        self.observers.iter().for_each(|obs| obs.borrow_mut().epilogue(self));
+        self.observers
+            .iter()
+            .for_each(|obs| obs.borrow_mut().epilogue(self));
     }
 
     fn send_tables(&mut self, msg: &[u8]) {
@@ -175,12 +191,16 @@ impl<'a> Parser<'a> {
 
         let fs = CsvcMsgFlattenedSerializer::decode(buf.as_slice()).unwrap();
 
-        let mut patches: Vec<&FieldPatch> = vec![];
-        for patch in &FIELD_PATCHES {
-            if patch.should_apply(self.game_build.unwrap()) {
-                patches.push(patch);
-            }
-        }
+        let patches = FIELD_PATCHES
+            .iter()
+            .filter(|patch| patch.should_apply(self.game_build.unwrap()))
+            .collect::<Vec<&FieldPatch>>();
+        // let mut patches: Vec<&FieldPatch> = vec![];
+        // for patch in &FIELD_PATCHES {
+        //     if patch.should_apply(self.game_build.unwrap()) {
+        //         patches.push(patch);
+        //     }
+        // }
 
         let mut fields = FxHashMap::<i32, Rc<Field>>::default();
         let mut field_types = FxHashMap::<String, Rc<FieldType>>::default();
@@ -307,8 +327,11 @@ impl<'a> Parser<'a> {
         }
 
         let raw_command = reader.read_var_u32() as i32;
-        let msg_type = EDemoCommands::from_i32(raw_command & !(EDemoCommands::DemIsCompressed as i32)).unwrap();
-        let msg_compressed = (raw_command & EDemoCommands::DemIsCompressed as i32) == EDemoCommands::DemIsCompressed as i32;
+        let msg_type =
+            EDemoCommands::from_i32(raw_command & !(EDemoCommands::DemIsCompressed as i32))
+                .unwrap();
+        let msg_compressed = (raw_command & EDemoCommands::DemIsCompressed as i32)
+            == EDemoCommands::DemIsCompressed as i32;
         let tick = match reader.read_var_u32() {
             4294967295 => 0,
             x => x,
@@ -533,59 +556,49 @@ impl<'a> Parser<'a> {
     fn process_entities(&mut self) {
         while let Some((index, op)) = self.entities.undone_entities.pop_front() {
             if op & EntityEvent::Created as isize != 0 {
-                self.observers
-                    .iter()
-                    .for_each(|obs| obs
-                        .borrow_mut()
-                        .on_entity(
-                            self,
-                            EntityEvent::Created,
-                            &self.entities.entities[&index])
+                self.observers.iter().for_each(|obs| {
+                    obs.borrow_mut().on_entity(
+                        self,
+                        EntityEvent::Created,
+                        &self.entities.entities[&index],
                     )
+                })
             }
             if op & EntityEvent::Entered as isize != 0 {
-                self.observers
-                    .iter()
-                    .for_each(|obs| obs
-                        .borrow_mut()
-                        .on_entity(
-                            self,
-                            EntityEvent::Entered,
-                            &self.entities.entities[&index])
+                self.observers.iter().for_each(|obs| {
+                    obs.borrow_mut().on_entity(
+                        self,
+                        EntityEvent::Entered,
+                        &self.entities.entities[&index],
                     )
+                })
             }
             if op & EntityEvent::Updated as isize != 0 {
-                self.observers
-                    .iter()
-                    .for_each(|obs| obs
-                        .borrow_mut()
-                        .on_entity(
-                            self,
-                            EntityEvent::Entered,
-                            &self.entities.entities[&index])
+                self.observers.iter().for_each(|obs| {
+                    obs.borrow_mut().on_entity(
+                        self,
+                        EntityEvent::Entered,
+                        &self.entities.entities[&index],
                     )
+                })
             }
             if op & EntityEvent::Left as isize != 0 {
-                self.observers
-                    .iter()
-                    .for_each(|obs| obs
-                        .borrow_mut()
-                        .on_entity(
-                            self,
-                            EntityEvent::Left,
-                            &self.entities.entities[&index])
+                self.observers.iter().for_each(|obs| {
+                    obs.borrow_mut().on_entity(
+                        self,
+                        EntityEvent::Left,
+                        &self.entities.entities[&index],
                     )
+                })
             }
             if op & EntityEvent::Deleted as isize != 0 {
-                self.observers
-                    .iter()
-                    .for_each(|obs| obs
-                        .borrow_mut()
-                        .on_entity(
-                            self,
-                            EntityEvent::Deleted,
-                            &self.entities.entities[&index])
+                self.observers.iter().for_each(|obs| {
+                    obs.borrow_mut().on_entity(
+                        self,
+                        EntityEvent::Deleted,
+                        &self.entities.entities[&index],
                     )
+                })
             }
 
             if op & EntityEvent::Deleted as isize != 0 {
@@ -595,29 +608,31 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn on_tick_start(&mut self) {
-        self.observers.iter().for_each(|obs| obs.borrow_mut().on_tick_start(self))
+        self.observers
+            .iter()
+            .for_each(|obs| obs.borrow_mut().on_tick_start(self))
     }
 
     pub(crate) fn on_tick_end(&mut self) {
         // #[cfg(feature = "combat_log")]
         while let Some(entry) = self.combat_log.pop_front() {
             let log = CombatLog {
-                names: self
-                    .string_tables
-                    .get_by_name("CombatLogNames")
-                    .unwrap(),
+                names: self.string_tables.get_by_name("CombatLogNames").unwrap(),
                 log: entry,
             };
             self.on_combat_log(&log);
         }
 
-        self.observers.iter().for_each(|obs| obs.borrow_mut().on_tick_end(self))
+        self.observers
+            .iter()
+            .for_each(|obs| obs.borrow_mut().on_tick_end(self))
     }
 
     // #[cfg(feature = "combat_log")]
     pub(crate) fn on_combat_log(&self, entry: &CombatLog) {
-        self.observers.iter().for_each(|obs| obs.borrow_mut().on_combat_log(self, entry))
-
+        self.observers
+            .iter()
+            .for_each(|obs| obs.borrow_mut().on_combat_log(self, entry))
     }
 }
 

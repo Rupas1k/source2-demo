@@ -45,24 +45,20 @@ impl EHTree {
 
     pub fn left(&self) -> &EHTree {
         match self {
-            EHTree::Node { left, .. } => {
-                return left;
-            }
+            EHTree::Node { left, .. } => left,
             _ => {
                 panic!("")
             }
-        };
+        }
     }
 
     pub fn right(&self) -> &EHTree {
         match self {
-            EHTree::Node { right, .. } => {
-                return right;
-            }
+            EHTree::Node { right, .. } => right,
             _ => {
                 panic!("")
             }
-        };
+        }
     }
 }
 

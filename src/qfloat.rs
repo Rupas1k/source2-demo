@@ -20,7 +20,6 @@ pub(crate) struct QFloatDecoder {
 }
 
 impl QFloatDecoder {
-    // default low = 0.0 high = 1.0 flags = 0
     pub(crate) fn new(
         bit_count: i32,
         mut flags: Option<i32>,
