@@ -23,6 +23,8 @@ pub mod prelude {
 
     pub use crate::parser::{Observer, Parser};
 
+    pub use crate::string_table::{StringTable, StringTableItem};
+
     pub use crate::entity::{Entity, EntityEvent, EntityFieldType};
 
     pub use crate::combat_log::CombatLog;

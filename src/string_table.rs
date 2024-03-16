@@ -1,29 +1,32 @@
+use std::cell::{Ref, RefCell};
+use std::ops::Deref;
 use crate::reader::Reader;
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 #[derive(Clone, Debug)]
 pub struct StringTables {
-    pub tables: IntMap<i32, StringTable>,
-    pub name_index: FxHashMap<String, i32>,
-    pub next_index: i32,
+    pub(crate) tables: IntMap<i32, Rc<RefCell<StringTable>>>,
+    pub(crate) names_to_table: FxHashMap<Box<str>, Rc<RefCell<StringTable>>>,
+    pub(crate) next_index: i32,
 }
 
 impl StringTables {
     pub(crate) fn new() -> Self {
         StringTables {
             tables: IntMap::default(),
-            name_index: FxHashMap::default(),
+            names_to_table: FxHashMap::default(),
             next_index: 0,
         }
     }
 
-    pub fn get_by_name(&self, name: &str) -> Option<&StringTable> {
-        match self.name_index.get(name) {
-            Some(i) => Some(&self.tables[i]),
-            None => None,
-        }
+    pub fn get_by_id(&self, id: &i32) -> Option<Ref<StringTable>> {
+        self.tables.get(id).map(|table| table.borrow())
+    }
+
+    pub fn get_by_name(&self, name: &str) -> Option<Ref<StringTable>> {
+        self.names_to_table.get(name).map(|table| table.borrow())
     }
 }
 

@@ -5,7 +5,8 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::rc::Rc;
+use std::ops::{Deref, DerefMut};
+use std::rc::{Rc, Weak};
 
 use crate::class::{Class, Classes};
 use crate::entity::{Entities, Entity, EntityEvent};
@@ -461,36 +462,41 @@ impl<'a> Parser<'a> {
 
     fn update_string_table(&mut self, msg: &[u8]) {
         let st = CsvcMsgUpdateStringTable::decode(msg).unwrap();
-        let t = match self.string_tables.tables.get_mut(&st.table_id.unwrap()) {
-            Some(x) => x,
-            None => panic!(),
-        };
+        // let t = match self.string_tables.tables.get_mut(&st.table_id.unwrap()) {
+        //     Some(x) => x,
+        //     None => panic!(),
+        // };
+        let x = {
+            let mut t = self.string_tables.tables.get(&st.table_id.unwrap()).unwrap().borrow_mut();
 
-        match t.parse(
-            st.string_data.unwrap().as_slice(),
-            st.num_changed_entries.unwrap(),
-        ) {
-            Some(items) => {
-                for item in items {
-                    let index = item.index;
-                    match t.items.get_mut(&index) {
-                        Some(x) => {
-                            if item.key != "" && item.key != x.key {
-                                x.key = item.key;
+            match t.parse(
+                st.string_data.unwrap().as_slice(),
+                st.num_changed_entries.unwrap(),
+            ) {
+                Some(items) => {
+                    for item in items {
+                        let index = item.index;
+                        match t.items.get_mut(&index) {
+                            Some(x) => {
+                                if item.key != "" && item.key != x.key {
+                                    x.key = item.key;
+                                }
+                                if item.value.len() > 0 {
+                                    x.value = item.value;
+                                }
                             }
-                            if item.value.len() > 0 {
-                                x.value = item.value;
+                            None => {
+                                t.items.insert(index, item);
                             }
-                        }
-                        None => {
-                            t.items.insert(index, item);
                         }
                     }
                 }
+                None => println!("{}", t.name),
             }
-            None => println!("{}", t.name),
-        }
-        if t.name == "instancebaseline" {
+            t.name.clone()
+        };
+
+        if x == "instancebaseline" {
             self.update_instance_baseline();
         }
     }
@@ -526,8 +532,10 @@ impl<'a> Parser<'a> {
                 t.items.insert(item.index, item);
             }
 
-            self.string_tables.name_index.insert(name.clone(), t.index);
-            self.string_tables.tables.insert(t.index, t);
+            // self.string_tables.name_index.insert(name.clone(), t.index);
+            let rc = Rc::new(RefCell::new(t));
+            self.string_tables.tables.insert(rc.borrow().index, Rc::clone(&rc));
+            self.string_tables.names_to_table.insert(rc.borrow().name.clone().into(), Rc::clone(&rc));
         }
         if name == "instancebaseline" {
             self.update_instance_baseline();
@@ -615,12 +623,11 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn on_tick_end(&mut self) {
         // #[cfg(feature = "combat_log")]
-        while let Some(entry) = self.combat_log.pop_front() {
-            let log = CombatLog {
-                names: self.string_tables.get_by_name("CombatLogNames").unwrap(),
-                log: entry,
-            };
-            self.on_combat_log(&log);
+        if let Some(names) = self.string_tables.get_by_name("CombatLogNames") {
+            while let Some(entry) = self.combat_log.pop_front() {
+                let log = CombatLog { names: &names, log: entry };
+                self.on_combat_log(&log);
+            }
         }
 
         self.observers

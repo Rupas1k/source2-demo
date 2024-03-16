@@ -26,7 +26,6 @@ pub enum Decoders {
     QAngle(FieldValues),
 }
 
-// TODO: Rewrite without cloning field values
 #[derive(Clone, Debug)]
 pub struct FieldValues {
     encoder: Box<str>,
@@ -36,14 +35,7 @@ pub struct FieldValues {
     high_value: Option<f32>,
 }
 
-impl From<&Field> for Decoders {
-    fn from(value: &Field) -> Self {
-        todo!()
-    }
-}
-
 impl Decoders {
-    // From<&Field> trait?
     pub fn from_field(field: &Field, generic: bool) -> Self {
         let field_values = FieldValues {
             encoder: field.encoder.to_string().into_boxed_str(),
