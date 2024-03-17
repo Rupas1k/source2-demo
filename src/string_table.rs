@@ -1,8 +1,8 @@
-use std::cell::{Ref, RefCell};
-use std::ops::Deref;
 use crate::reader::Reader;
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
+use std::cell::{Ref, RefCell};
+use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 #[derive(Clone, Debug)]
@@ -63,26 +63,21 @@ impl StringTable {
 
         let mut r = Reader::new(buf);
         let mut index = -1;
-        // let mut keys = VecDeque::<String>::new();
         let mut delta_pos = 0;
         let mut keys = vec![String::new(); 32];
 
         for _ in 0..num_updates {
             let mut key = String::new();
             let mut value = Vec::<u8>::new();
-            if r.read_bool() {
-                index += 1;
-            } else {
-                // index = r.read_var_u32() as i32 + 1;
-                index += r.read_var_u32() as i32 + 2;
+
+            index += 1;
+            if !r.read_bool() {
+                index += r.read_var_u32() as i32 + 1;
             }
 
-            let has_key = r.read_bool();
-
-            if has_key {
-                let use_history = r.read_bool();
+            if r.read_bool() { // has key
                 let delta_zero = if delta_pos > 32 { delta_pos & 31 } else { 0 };
-                if use_history {
+                if r.read_bool() { // use history
                     let pos = (delta_zero + r.read_bits(5)) & 31;
                     let size = r.read_bits(5);
 
@@ -93,53 +88,27 @@ impl StringTable {
                             + &keys[pos as usize][..(size as usize)]
                             + &r.read_string().unwrap();
                     }
-                    // match r.read_string() {
-                    //     Some(rs) => {
-                    //         if pos as usize >= keys.len() {
-                    //             key += rs.as_str();
-                    //         } else {
-                    //             let s = keys[pos as usize].as_str();
-                    //             if size as usize > s.len() {
-                    //                 key = key + s + rs.as_str();
-                    //             } else {
-                    //                 key = key + &s[0..(size as usize)] + rs.as_str();
-                    //             }
-                    //         }
-                    //     }
-                    //     None => return None,
-                    // }
                 } else {
                     key = r.read_string().unwrap()
-                    // key = match r.read_string() {
-                    //     Some(x) => x,
-                    //     None => return None,
-                    // };
                 }
-
-                // if keys.len() >= 32 {
-                //     keys.pop_front();
-                // }
-                // keys.push_back(key.clone());
                 keys[(delta_pos & 31) as usize] = key.clone();
                 delta_pos += 1;
             }
 
-            let has_value = r.read_bool();
-            if has_value {
-                let mut bit_size = 0u32;
+            if r.read_bool() { // has value
                 let mut is_compressed = false;
-                if self.user_data_fixed_size {
-                    bit_size = self.user_data_size as u32;
+                let bit_size = if self.user_data_fixed_size {
+                    self.user_data_size as u32
                 } else {
                     if (self.flags & 0x1) != 0 {
                         is_compressed = r.read_bool();
                     }
                     if self.var_int_bit_counts {
-                        bit_size = r.read_ubit_var() * 8;
+                        r.read_ubit_var() * 8
                     } else {
-                        bit_size = r.read_bits(17) * 8;
+                        r.read_bits(17) * 8
                     }
-                }
+                };
                 value = r.read_bits_as_bytes(bit_size);
                 if is_compressed {
                     let mut decoder = snap::raw::Decoder::new();

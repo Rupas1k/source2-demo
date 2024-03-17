@@ -274,11 +274,11 @@ impl Field {
                 if self.field_type.as_ref().unwrap().generic.is_none() {
                     panic!("No generic")
                 }
-                self.base_decoder = Some(Decoders::Unsigned);
+                self.base_decoder = Some(Decoders::Unsigned32);
                 self.child_decoder = Some(Decoders::from_field(self, true))
             }
             FieldModels::VariableTable => {
-                self.base_decoder = Some(Decoders::Unsigned);
+                self.base_decoder = Some(Decoders::Unsigned32);
             }
             FieldModels::Simple => {
                 self.decoder = Some(Decoders::from_field(self, false));

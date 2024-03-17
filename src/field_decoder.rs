@@ -11,12 +11,17 @@ pub enum Decoders {
     Boolean,
     String,
     Default,
-    Signed,
+    Signed8,
+    Signed16,
+    Signed32,
+    Signed64,
+    Unsigned8,
+    Unsigned16,
+    Unsigned32,
     FloatCoordinate,
     NoScale,
     RuneTime,
     SimulationTime,
-    Unsigned,
     Component,
 
     Vector(FieldValues, u8),
@@ -58,19 +63,52 @@ impl Decoders {
             false => field.field_type.as_ref().unwrap().base.as_str(),
         };
 
+        // match match_var {
+        //     "bool" => Decoders::Boolean,
+        //     "char" | "CUtlString" | "CUtlSymbolLarge" => Decoders::String,
+        //     "int8" | "int16" | "int32" | "int64" => Decoders::Signed,
+        //     "uint8"
+        //     | "uint16"
+        //     | "uint32"
+        //     | "color32"
+        //     | "CGameSceneNodeHandle"
+        //     | "Color"
+        //     | "CUtlStringToken"
+        //     | "CHandle"
+        //     | "CEntityHandle" => Decoders::Unsigned,
+        //     "GameTime_t" => Decoders::NoScale,
+        //     "CBodyComponent" | "CPhysicsComponent" | "CRenderComponent" => Decoders::Component,
+        //
+        //     "CNetworkedQuantizedFloat" => Decoders::QuantizedFloat(field_values),
+        //
+        //     "float32" => Decoders::Float32(field_values),
+        //
+        //     "Vector" => Decoders::Vector(field_values, 3),
+        //     "Vector2D" => Decoders::Vector(field_values, 2),
+        //     "Vector4D" => Decoders::Vector(field_values, 4),
+        //
+        //     "uint64" | "CStrongHandle" => Decoders::Unsigned64(field_values),
+        //
+        //     "QAngle" => Decoders::QAngle(field_values),
+        //
+        //     _ => Decoders::Default,
+        // }
         match match_var {
             "bool" => Decoders::Boolean,
             "char" | "CUtlString" | "CUtlSymbolLarge" => Decoders::String,
-            "int8" | "int16" | "int32" | "int64" => Decoders::Signed,
-            "uint8"
-            | "uint16"
-            | "uint32"
+            "int8" => Decoders::Signed8,
+            "int16" => Decoders::Signed16,
+            "int32" => Decoders::Signed32,
+            "int64" => Decoders::Signed64,
+            "uint8" => Decoders::Signed8,
+            "uint16" => Decoders::Signed16,
+            "uint32"
             | "color32"
             | "CGameSceneNodeHandle"
             | "Color"
             | "CUtlStringToken"
             | "CHandle"
-            | "CEntityHandle" => Decoders::Unsigned,
+            | "CEntityHandle" => Decoders::Unsigned32,
             "GameTime_t" => Decoders::NoScale,
             "CBodyComponent" | "CPhysicsComponent" | "CRenderComponent" => Decoders::Component,
 
@@ -93,20 +131,25 @@ impl Decoders {
     pub(crate) fn decode(&self, reader: &mut Reader) -> EntityFieldType {
         match self {
             Decoders::VectorNormal => EntityFieldType::Vector3D(reader.read_3bit_normal()),
-            Decoders::Fixed64 => EntityFieldType::Unsigned(reader.read_le_u64()),
-            Decoders::Handle => EntityFieldType::Unsigned(reader.read_var_u32() as u64),
+            Decoders::Fixed64 => EntityFieldType::Unsigned64(reader.read_le_u64()),
+            Decoders::Handle => EntityFieldType::Unsigned32(reader.read_var_u32()),
             Decoders::Boolean => EntityFieldType::Boolean(reader.read_bool()),
             Decoders::String => EntityFieldType::String(reader.read_string().unwrap()),
-            Decoders::Default => EntityFieldType::Unsigned(reader.read_var_u32() as u64),
-            Decoders::Signed => EntityFieldType::Signed(reader.read_var_i32() as i64),
+            Decoders::Default => EntityFieldType::Unsigned32(reader.read_var_u32()),
+            Decoders::Signed8 => EntityFieldType::Signed8(reader.read_var_i32() as i8),
+            Decoders::Signed16 => EntityFieldType::Signed16(reader.read_var_i32() as i16),
+            Decoders::Signed32 => EntityFieldType::Signed32(reader.read_var_i32()),
+            Decoders::Signed64 => EntityFieldType::Signed64(reader.read_var_i32() as i64),
             Decoders::FloatCoordinate => EntityFieldType::Float(reader.read_coordinate()),
             Decoders::NoScale => EntityFieldType::Float(reader.read_f32()),
             Decoders::RuneTime => EntityFieldType::Float(f32::from_bits(reader.read_bits(4))),
             Decoders::SimulationTime => {
                 EntityFieldType::Float(reader.read_var_u32() as f32 * (1.0 / 30.0))
             }
-            Decoders::Unsigned => EntityFieldType::Unsigned(reader.read_var_u32() as u64),
-            Decoders::Component => EntityFieldType::Unsigned(reader.read_bit() as u64),
+            Decoders::Unsigned8 => EntityFieldType::Unsigned8(reader.read_var_u32() as u8),
+            Decoders::Unsigned16 => EntityFieldType::Unsigned16(reader.read_var_u32() as u16),
+            Decoders::Unsigned32 => EntityFieldType::Unsigned32(reader.read_var_u32()),
+            Decoders::Component => EntityFieldType::Boolean(reader.read_bit() == 1),
             Decoders::Float32(fv) => match fv.encoder.as_ref() {
                 "coord" => Decoders::FloatCoordinate.decode(reader),
                 "simtime" => Decoders::SimulationTime.decode(reader),
@@ -151,7 +194,7 @@ impl Decoders {
                 if fv.encoder.as_ref() == "fixed64" {
                     return Decoders::Fixed64.decode(reader);
                 }
-                EntityFieldType::Unsigned(reader.read_var_u64())
+                EntityFieldType::Unsigned64(reader.read_var_u64())
             }
             Decoders::QuantizedFloat(fv) => {
                 let qd = QFloatDecoder::new(

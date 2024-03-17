@@ -16,7 +16,7 @@ impl<'a> CombatLog<'a> {
         self.log.target_name.and_then(|id| {
             self.names
                 .items
-                .get(&(id as i32))
+                .get(&id.try_into().unwrap())
                 .map(|name| name.key.as_str())
         })
     }
@@ -25,7 +25,7 @@ impl<'a> CombatLog<'a> {
         self.log.target_source_name.and_then(|id| {
             self.names
                 .items
-                .get(&(id as i32))
+                .get(&id.try_into().unwrap())
                 .map(|name| name.key.as_str())
         })
     }
@@ -34,7 +34,7 @@ impl<'a> CombatLog<'a> {
         self.log.attacker_name.and_then(|id| {
             self.names
                 .items
-                .get(&(id as i32))
+                .get(&id.try_into().unwrap())
                 .map(|name| name.key.as_str())
         })
     }
@@ -43,7 +43,7 @@ impl<'a> CombatLog<'a> {
         self.log.damage_source_name.and_then(|id| {
             self.names
                 .items
-                .get(&(id as i32))
+                .get(&id.try_into().unwrap())
                 .map(|name| name.key.as_str())
         })
     }
@@ -52,7 +52,7 @@ impl<'a> CombatLog<'a> {
         self.log.inflictor_name.and_then(|id| {
             self.names
                 .items
-                .get(&(id as i32))
+                .get(&id.try_into().unwrap())
                 .map(|name| name.key.as_str())
         })
     }

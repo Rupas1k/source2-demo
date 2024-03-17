@@ -6,6 +6,7 @@ use nohash_hasher::IntMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::{Ref, RefCell};
 use std::collections::VecDeque;
+use std::fmt::{format, Write};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
@@ -67,21 +68,21 @@ impl Entities {
         self.entities
             .values()
             .filter(|entity| entity.class.borrow().id == id)
-            .collect::<Vec<&Entity>>()
+            .collect::<Vec<_>>()
     }
 
     pub fn get_all_by_class_name(&self, name: &str) -> Vec<&Entity> {
         self.entities
             .values()
             .filter(|entity| entity.class.borrow().name.as_ref() == name)
-            .collect::<Vec<&Entity>>()
+            .collect::<Vec<_>>()
     }
 
     pub fn get_all_by_predicate(&self, predicate: &dyn Fn(&Entity) -> bool) -> Vec<&Entity> {
         self.entities
             .values()
             .filter(|entity| predicate(entity))
-            .collect::<Vec<&Entity>>()
+            .collect::<Vec<_>>()
     }
 }
 
@@ -167,64 +168,7 @@ impl Entity {
     pub fn get_property_by_field_path(&self, fp: &FieldPath) -> Option<&EntityFieldType> {
         self.state.get(fp).unwrap().as_value()
     }
-
-    pub fn map(&self) -> FxHashMap<String, Option<EntityFieldType>> {
-        let mut values = FxHashMap::<String, Option<EntityFieldType>>::default();
-        for fp in self
-            .class
-            .borrow()
-            .get_field_paths(&mut FieldPath::new(), &self.state)
-        {
-            if let Some(v) = self.state.get(&fp) {
-                if let States::Value(vv) = v {
-                    values.insert(
-                        self.class.borrow().get_name_for_field_path(&fp).to_string(),
-                        Some(vv.clone()),
-                    );
-                }
-            } else {
-                values.insert(
-                    self.class.borrow().get_name_for_field_path(&fp).to_string(),
-                    None,
-                );
-            }
-        }
-        values
-    }
 }
-
-// impl Display for Entity {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         let mut r = String::new();
-//         r += &format!("Class: {}\n", self.class().name());
-//         r += &format!("Handle: {}\n", self.handle());
-//         for fp in self.class.borrow().get_field_paths(&mut FieldPath::new(), &self.state) {
-//             let t = self.class.borrow().get_type_for_field_path(&fp).base.clone();
-//             let name = self.class.borrow().get_name_for_field_path(&fp);
-//             let mut x = String::new();
-//             if let Some(States::Value(v)) = self.state.get(&fp) {
-//                 x = format!("Some({})", match t.as_str() {
-//                     "bool" => format!("(bool) {}", v.as_bool()),
-//                     "char" | "CUtlString" | "CUtlSymbolLarge" => format!("(String) \"{}\"", v.as_string()),
-//                     "int8" | "int16" | "int32" | "int64" => format!("(i32) {}", v.as_signed()),
-//                     "uint8" | "uint16" | "uint32" | "uint64" | "CStrongHandle" | "color32" | "CGameSceneNodeHandle" | "Color" | "CUtlStringToken" | "CHandle" | "CEntityHandle" | "CBodyComponent" | "CPhysicsComponent" | "CRenderComponent" => format!("(u64) {}", v.as_unsigned()),
-//                     "float32" | "GameTime_t" | "CNetworkedQuantizedFloat" => format!("(f32) {}", v.as_float()),
-//                     "Vector2D" => format!("[{}]", v.as_vector2d().iter().map(|&x| x.to_string()).collect::<Vec<String>>().join(" ")),
-//                     "Vector3D" | "Vector" | "QAngle" => format!("[{}]", v.as_vector3d().iter().map(|&x| x.to_string()).collect::<Vec<String>>().join(" ")),
-//                     "Vector4D" => format!("[{}]", v.as_vector4d().iter().map(|&x| x.to_string()).collect::<Vec<String>>().join(" ")),
-//                     _ => format!("(u32) {}", v.as_unsigned())
-//                 })
-//             } else {
-//                 x = "None".to_string()
-//             }
-//             r += &format!("\"{}\": {}\n", name, x);
-//         }
-//         r.pop(); // remove \n
-//
-//         write!(f, "{}", r)?;
-//         Ok(())
-//     }
-// }
 
 impl Display for Entity {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -254,7 +198,7 @@ impl Display for Entity {
                     "char" | "CUtlString" | "CUtlSymbolLarge" => {
                         format!("(String) \"{}\"", v.as_string())
                     }
-                    "int8" | "int16" | "int32" | "int64" => format!("(i32) {}", v.as_signed()),
+                    "int8" | "int16" | "int32" | "int64" => format!("(i64) {:?}", v),
                     "uint8"
                     | "uint16"
                     | "uint32"
@@ -268,7 +212,7 @@ impl Display for Entity {
                     | "CEntityHandle"
                     | "CBodyComponent"
                     | "CPhysicsComponent"
-                    | "CRenderComponent" => format!("(u64) {}", v.as_unsigned()),
+                    | "CRenderComponent" => format!("(u64) {:?}", v),
                     "float32" | "GameTime_t" | "CNetworkedQuantizedFloat" => {
                         format!("(f32) {}", v.as_float())
                     }
@@ -296,7 +240,7 @@ impl Display for Entity {
                             .collect::<Vec<String>>()
                             .join(" ")
                     ),
-                    _ => format!("(u32) {}", v.as_unsigned()),
+                    _ => format!("(u32) {:?}", v),
                 },
                 _ => "None".to_string(),
             };
@@ -315,13 +259,79 @@ impl Display for Entity {
 pub enum EntityFieldType {
     Boolean(bool),
     String(String),
-    Signed(i64),
-    Unsigned(u64),
     Float(f32),
     Vector2D([f32; 2]),
     Vector3D([f32; 3]),
     Vector4D([f32; 4]),
+
+    Signed8(i8),
+    Signed16(i16),
+    Signed32(i32),
+    Signed64(i64),
+
+    Unsigned8(u8),
+    Unsigned16(u16),
+    Unsigned32(u32),
+    Unsigned64(u64),
 }
+
+macro_rules! impl_try_into_for_fields {
+    ($target:ty) => {
+        impl TryInto<$target> for EntityFieldType {
+            type Error = ();
+
+            fn try_into(self) -> Result<$target, Self::Error> {
+                match self {
+                    // EntityFieldType::Boolean(x) => Ok(x == 1 as $target),
+                    EntityFieldType::Signed8(x) => Ok(x as $target),
+                    EntityFieldType::Signed16(x) => Ok(x as $target),
+                    EntityFieldType::Signed32(x) => Ok(x as $target),
+                    EntityFieldType::Signed64(x) => Ok(x as $target),
+                    EntityFieldType::Unsigned8(x) => Ok(x as $target),
+                    EntityFieldType::Unsigned16(x) => Ok(x as $target),
+                    EntityFieldType::Unsigned32(x) => Ok(x as $target),
+                    EntityFieldType::Unsigned64(x) => Ok(x as $target),
+                    EntityFieldType::Float(x) => Ok(x as $target),
+                    _ => Err(()),
+                }
+            }
+        }
+
+        impl TryInto<$target> for &EntityFieldType {
+            type Error = ();
+
+            fn try_into(self) -> Result<$target, Self::Error> {
+                // self.to_owned().try_into()
+                match self {
+                    // EntityFieldType::Boolean(x) => Ok(x == 1 as $target),
+                    EntityFieldType::Signed8(x) => Ok(*x as $target),
+                    EntityFieldType::Signed16(x) => Ok(*x as $target),
+                    EntityFieldType::Signed32(x) => Ok(*x as $target),
+                    EntityFieldType::Signed64(x) => Ok(*x as $target),
+                    EntityFieldType::Unsigned8(x) => Ok(*x as $target),
+                    EntityFieldType::Unsigned16(x) => Ok(*x as $target),
+                    EntityFieldType::Unsigned32(x) => Ok(*x as $target),
+                    EntityFieldType::Unsigned64(x) => Ok(*x as $target),
+                    EntityFieldType::Float(x) => Ok(*x as $target),
+                    _ => Err(()),
+                }
+            }
+        }
+    };
+}
+
+impl_try_into_for_fields!(i8);
+impl_try_into_for_fields!(i16);
+impl_try_into_for_fields!(i32);
+impl_try_into_for_fields!(i64);
+impl_try_into_for_fields!(i128);
+impl_try_into_for_fields!(u8);
+impl_try_into_for_fields!(u16);
+impl_try_into_for_fields!(u32);
+impl_try_into_for_fields!(u64);
+impl_try_into_for_fields!(u128);
+impl_try_into_for_fields!(f32);
+impl_try_into_for_fields!(f64);
 
 impl EntityFieldType {
     pub fn as_string(&self) -> &str {
@@ -332,22 +342,6 @@ impl EntityFieldType {
         }
     }
 
-    pub fn as_signed(&self) -> i64 {
-        if let EntityFieldType::Signed(s) = self {
-            *s
-        } else {
-            panic!("Tried to read as Signed, Found {:?}", self);
-        }
-    }
-
-    pub fn as_unsigned(&self) -> u64 {
-        if let EntityFieldType::Unsigned(u) = self {
-            *u
-        } else {
-            panic!("Tried to read as Unsigned, Found {:?}", self);
-        }
-    }
-
     pub fn as_bool(&self) -> bool {
         if let EntityFieldType::Boolean(b) = self {
             *b
@@ -355,7 +349,7 @@ impl EntityFieldType {
             panic!("Tried to read as Boolean, Found {:?}", self);
         }
     }
-
+    //
     pub fn as_float(&self) -> f32 {
         if let EntityFieldType::Float(f) = self {
             *f

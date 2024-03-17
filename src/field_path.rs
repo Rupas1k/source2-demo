@@ -313,7 +313,7 @@ impl FieldOp {
                     fp.last += 1;
                     fp.path[fp.last] += r.read_ubit_var_fieldpath();
                 }
-                // let n = r.read_ubit_var() as i32;
+                // let n = r.read_ubit_var() as I32;
                 // fp.inc_cur(r.read_ubit_var() as i64);
                 // for _ in 0..n {
                 //     fp.down();

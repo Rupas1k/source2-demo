@@ -6,6 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::ops::{Deref, DerefMut};
+use std::process::exit;
 use std::rc::{Rc, Weak};
 
 use crate::class::{Class, Classes};
@@ -196,12 +197,6 @@ impl<'a> Parser<'a> {
             .iter()
             .filter(|patch| patch.should_apply(self.game_build.unwrap()))
             .collect::<Vec<&FieldPatch>>();
-        // let mut patches: Vec<&FieldPatch> = vec![];
-        // for patch in &FIELD_PATCHES {
-        //     if patch.should_apply(self.game_build.unwrap()) {
-        //         patches.push(patch);
-        //     }
-        // }
 
         let mut fields = FxHashMap::<i32, Rc<Field>>::default();
         let mut field_types = FxHashMap::<String, Rc<FieldType>>::default();
@@ -467,7 +462,12 @@ impl<'a> Parser<'a> {
         //     None => panic!(),
         // };
         let x = {
-            let mut t = self.string_tables.tables.get(&st.table_id.unwrap()).unwrap().borrow_mut();
+            let mut t = self
+                .string_tables
+                .tables
+                .get(&st.table_id.unwrap())
+                .unwrap()
+                .borrow_mut();
 
             match t.parse(
                 st.string_data.unwrap().as_slice(),
@@ -534,8 +534,12 @@ impl<'a> Parser<'a> {
 
             // self.string_tables.name_index.insert(name.clone(), t.index);
             let rc = Rc::new(RefCell::new(t));
-            self.string_tables.tables.insert(rc.borrow().index, Rc::clone(&rc));
-            self.string_tables.names_to_table.insert(rc.borrow().name.clone().into(), Rc::clone(&rc));
+            self.string_tables
+                .tables
+                .insert(rc.borrow().index, Rc::clone(&rc));
+            self.string_tables
+                .names_to_table
+                .insert(rc.borrow().name.clone().into(), Rc::clone(&rc));
         }
         if name == "instancebaseline" {
             self.update_instance_baseline();
@@ -625,7 +629,10 @@ impl<'a> Parser<'a> {
         // #[cfg(feature = "combat_log")]
         if let Some(names) = self.string_tables.get_by_name("CombatLogNames") {
             while let Some(entry) = self.combat_log.pop_front() {
-                let log = CombatLog { names: &names, log: entry };
+                let log = CombatLog {
+                    names: &names,
+                    log: entry,
+                };
                 self.on_combat_log(&log);
             }
         }

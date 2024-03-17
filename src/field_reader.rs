@@ -21,11 +21,8 @@ impl FieldReader {
         let mut fp = FieldPath::new();
         let mut paths: Vec<FieldPath> = Vec::new();
         let mut node = &self.tree;
-        let mut next = &self.tree;
-        let mut i = -1;
         loop {
-            i += 1;
-            next = match reader.read_bool() {
+            let next = match reader.read_bool() {
                 true => node.right(),
                 false => node.left(),
             };
@@ -48,11 +45,8 @@ impl FieldReader {
     }
 
     pub(crate) fn read_fields(&self, reader: &mut Reader, s: &Serializer, st: &mut FieldState) {
-        let fps = self.read_field_paths(reader);
-        for fp in fps.iter() {
-            let decoder = s.get_decoder_for_field_path(fp, 0);
-            let val = decoder.decode(reader);
-            st.set(fp, val);
-        }
+        self.read_field_paths(reader).iter().for_each(|fp| {
+            st.set(fp, s.get_decoder_for_field_path(fp, 0).decode(reader))
+        })
     }
 }
