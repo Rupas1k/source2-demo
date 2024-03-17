@@ -26,9 +26,7 @@ use proto::{
     EDemoCommands, EDotaUserMessages, NetMessages, SvcMessages,
 };
 
-// #[cfg(feature = "combat_log")]
 use crate::combat_log::CombatLog;
-// #[cfg(feature = "combat_log")]
 use proto::CMsgDotaCombatLogEntry;
 
 #[derive(Debug)]
@@ -64,7 +62,6 @@ pub struct Parser<'a> {
 
     pub(crate) observers: Vec<Rc<RefCell<dyn Observer + 'static>>>,
 
-    // #[cfg(feature = "combat_log")]
     combat_log: VecDeque<CMsgDotaCombatLogEntry>,
 
     pub classes: Classes,
@@ -89,10 +86,8 @@ impl<'a> Parser<'a> {
             entities: Entities::new(),
             string_tables: StringTables::new(),
 
-            // observers: Observers::new(),
             observers: Vec::new(),
 
-            // #[cfg(feature = "combat_log")]
             combat_log: VecDeque::new(),
 
             tick: 0,
@@ -162,7 +157,6 @@ impl<'a> Parser<'a> {
     }
 
     fn on_dota_user_message(&mut self, p: EDotaUserMessages, msg: &[u8]) {
-        // #[cfg(feature = "combat_log")]
         if p == EDotaUserMessages::DotaUmCombatLogDataHltv {
             let entry = CMsgDotaCombatLogEntry::decode(msg).unwrap();
             self.combat_log.push_back(entry);
@@ -196,7 +190,7 @@ impl<'a> Parser<'a> {
         let patches = FIELD_PATCHES
             .iter()
             .filter(|patch| patch.should_apply(self.game_build.unwrap()))
-            .collect::<Vec<&FieldPatch>>();
+            .collect::<Vec<_>>();
 
         let mut fields = FxHashMap::<i32, Rc<Field>>::default();
         let mut field_types = FxHashMap::<String, Rc<FieldType>>::default();
@@ -278,7 +272,6 @@ impl<'a> Parser<'a> {
                 .insert(network_name.into_boxed_str(), Rc::clone(&c));
         }
         self.classes.class_info = true;
-        self.update_instance_baseline();
     }
 
     fn dem_packet(&mut self, msg: &[u8]) {
@@ -300,19 +293,6 @@ impl<'a> Parser<'a> {
             EDemoCommands::DemPacket,
             packet.packet.unwrap().encode_to_vec().as_slice(),
         );
-    }
-
-    pub(crate) fn update_instance_baseline(&mut self) {
-        if self.classes.class_info {
-            if let Some(st) = self.string_tables.get_by_name("instancebaseline") {
-                for item in st.items.values() {
-                    let class_id = item.key.parse::<i32>().unwrap();
-                    self.classes
-                        .class_base_lines
-                        .insert(class_id, Rc::clone(&item.value));
-                }
-            }
-        }
     }
 
     fn read_outer_message(&mut self) -> Option<OuterMessage> {
@@ -379,130 +359,125 @@ impl<'a> Parser<'a> {
     }
 
     fn packet_entities(&mut self, msg: &[u8]) {
-        let packet = CsvcMsgPacketEntities::decode(msg).unwrap();
-        let packet_entity = packet.entity_data.unwrap();
+        {
+            let packet = CsvcMsgPacketEntities::decode(msg).unwrap();
+            let packet_entity = packet.entity_data.unwrap();
 
-        let mut r = Reader::new(packet_entity.as_slice());
+            let mut r = Reader::new(packet_entity.as_slice());
 
-        let updates = packet.updated_entries.unwrap();
-        let mut index = -1;
-        let mut cmd: u32;
-        let mut class_id: i32;
-        let mut serial: i32;
-        let mut e: &mut Entity;
-        let mut op: isize;
+            let updates = packet.updated_entries.unwrap();
 
-        if !packet.is_delta.unwrap() {
-            if self.entities.entity_full_packets > 0 {
-                return;
+            let mut index = -1;
+            let mut op: isize;
+
+            if !packet.is_delta.unwrap() {
+                if self.entities.entity_full_packets > 0 {
+                    return;
+                }
+                self.entities.entity_full_packets += 1;
             }
-            self.entities.entity_full_packets += 1;
-        }
 
-        for _ in 0..updates {
-            index += r.read_ubit_var() as i32 + 1;
+            let baselines = self.string_tables.get_by_name("instancebaseline").unwrap();
+            for _ in 0..updates {
+                index += r.read_ubit_var() as i32 + 1;
 
-            cmd = r.read_bits(2);
+                let cmd = r.read_bits(2);
 
-            if cmd & 0x01 == 0 {
-                if cmd & 0x02 != 0 {
-                    class_id = r.read_bits(self.classes.class_id_size.unwrap()) as i32;
-                    serial = r.read_bits(17) as i32;
-                    r.read_var_u32();
+                if cmd & 0x01 == 0 {
+                    if cmd & 0x02 != 0 {
+                        let class_id = r.read_bits(self.classes.class_id_size.unwrap()) as i32;
+                        let serial = r.read_bits(17) as i32;
 
-                    let class = Rc::clone(self.classes.get_by_id_mut(class_id).unwrap());
-                    let baseline = Rc::clone(&self.classes.class_base_lines[&class_id]);
+                        r.read_var_u32();
 
-                    self.entities
-                        .entities
-                        .insert(index, Entity::new(index, serial, Rc::clone(&class)));
-                    e = self.entities.entities.get_mut(&index).unwrap();
+                        let class = Rc::clone(self.classes.get_by_id_mut(&class_id).unwrap());
+                        let baseline = baselines
+                            .items
+                            .values()
+                            .find(|x| x.key.parse::<i32>().unwrap() == class_id)
+                            .unwrap()
+                            .value
+                            .as_slice();
 
-                    self.field_reader.read_fields(
-                        &mut Reader::new(baseline.as_slice()),
-                        &e.class.borrow().serializer,
-                        &mut e.state,
-                    );
+                        self.entities
+                            .index_to_entity
+                            .insert(index, Entity::new(index, serial, Rc::clone(&class)));
+                        let e = self.entities.index_to_entity.get_mut(&index).unwrap();
 
-                    self.field_reader.read_fields(
-                        &mut r,
-                        &e.class.borrow().serializer,
-                        &mut e.state,
-                    );
+                        self.field_reader.read_fields(
+                            &mut Reader::new(baseline),
+                            &e.class.borrow().serializer,
+                            &mut e.state,
+                        );
 
-                    op = EntityEvent::Created as isize | EntityEvent::Entered as isize;
-                } else {
-                    op = EntityEvent::Updated as isize;
-                    e = self.entities.entities.get_mut(&index).unwrap();
-                    if !e.active {
-                        e.active = true;
-                        op |= EntityEvent::Entered as isize;
+                        self.field_reader.read_fields(
+                            &mut r,
+                            &e.class.borrow().serializer,
+                            &mut e.state,
+                        );
+
+                        op = EntityEvent::Created as isize | EntityEvent::Entered as isize;
+                    } else {
+                        op = EntityEvent::Updated as isize;
+                        let e = self.entities.index_to_entity.get_mut(&index).unwrap();
+                        if !e.active {
+                            e.active = true;
+                            op |= EntityEvent::Entered as isize;
+                        }
+                        self.field_reader.read_fields(
+                            &mut r,
+                            &e.class.borrow().serializer,
+                            &mut e.state,
+                        );
                     }
-                    self.field_reader.read_fields(
-                        &mut r,
-                        &e.class.borrow().serializer,
-                        &mut e.state,
-                    );
+                } else {
+                    op = EntityEvent::Left as isize;
+                    if cmd & 0x02 != 0 {
+                        op |= EntityEvent::Deleted as isize;
+                    }
                 }
-            } else {
-                op = EntityEvent::Left as isize;
-                if cmd & 0x02 != 0 {
-                    op |= EntityEvent::Deleted as isize;
-                }
+                self.entities.undone_entities.push_back((index, op));
             }
-            self.entities.undone_entities.push_back((index, op));
         }
+
         self.process_entities();
     }
 
     fn update_string_table(&mut self, msg: &[u8]) {
         let st = CsvcMsgUpdateStringTable::decode(msg).unwrap();
-        // let t = match self.string_tables.tables.get_mut(&st.table_id.unwrap()) {
-        //     Some(x) => x,
-        //     None => panic!(),
-        // };
-        let x = {
-            let mut t = self
-                .string_tables
-                .tables
-                .get(&st.table_id.unwrap())
-                .unwrap()
-                .borrow_mut();
+        let mut t = self
+            .string_tables
+            .tables
+            .get(&st.table_id.unwrap())
+            .unwrap()
+            .borrow_mut();
 
-            match t.parse(
-                st.string_data.unwrap().as_slice(),
-                st.num_changed_entries.unwrap(),
-            ) {
-                Some(items) => {
-                    for item in items {
-                        let index = item.index;
-                        match t.items.get_mut(&index) {
-                            Some(x) => {
-                                if item.key != "" && item.key != x.key {
-                                    x.key = item.key;
-                                }
-                                if item.value.len() > 0 {
-                                    x.value = item.value;
-                                }
-                            }
-                            None => {
-                                t.items.insert(index, item);
-                            }
+        let parsed = t.parse(
+            st.string_data.unwrap().as_slice(),
+            st.num_changed_entries.unwrap(),
+        );
+
+        if let Some(items) = parsed {
+            for item in items {
+                match t.items.get_mut(&item.index) {
+                    Some(x) => {
+                        if !item.key.is_empty() && item.key != x.key {
+                            x.key = item.key;
+                        }
+                        if item.value.len() > 0 {
+                            x.value = item.value;
                         }
                     }
+                    None => {
+                        t.items.insert(item.index, item);
+                    }
                 }
-                None => println!("{}", t.name),
             }
-            t.name.clone()
-        };
-
-        if x == "instancebaseline" {
-            self.update_instance_baseline();
         }
     }
 
     fn create_string_table(&mut self, msg: &[u8]) {
-        let mut st = CsvcMsgCreateStringTable::decode(msg).unwrap();
+        let st = CsvcMsgCreateStringTable::decode(msg).unwrap();
 
         let mut t = StringTable {
             index: self.string_tables.next_index,
@@ -526,13 +501,11 @@ impl<'a> Parser<'a> {
             false => st.string_data.unwrap(),
         };
 
-        let name = t.name.clone();
         if let Some(items) = t.parse(buf.as_slice(), st.num_entries.unwrap()) {
             for item in items {
                 t.items.insert(item.index, item);
             }
 
-            // self.string_tables.name_index.insert(name.clone(), t.index);
             let rc = Rc::new(RefCell::new(t));
             self.string_tables
                 .tables
@@ -540,9 +513,6 @@ impl<'a> Parser<'a> {
             self.string_tables
                 .names_to_table
                 .insert(rc.borrow().name.clone().into(), Rc::clone(&rc));
-        }
-        if name == "instancebaseline" {
-            self.update_instance_baseline();
         }
     }
 
@@ -566,55 +536,32 @@ impl<'a> Parser<'a> {
     }
 
     fn process_entities(&mut self) {
+        let throw_event = |ctx: &Parser, index: &i32, event: EntityEvent| {
+            ctx.observers.iter().for_each(|obs| {
+                obs.borrow_mut().on_entity(
+                    ctx,
+                    event,
+                    &ctx.entities.index_to_entity[index],
+                )
+            })
+        };
+
         while let Some((index, op)) = self.entities.undone_entities.pop_front() {
             if op & EntityEvent::Created as isize != 0 {
-                self.observers.iter().for_each(|obs| {
-                    obs.borrow_mut().on_entity(
-                        self,
-                        EntityEvent::Created,
-                        &self.entities.entities[&index],
-                    )
-                })
+                throw_event(self, &index, EntityEvent::Created);
             }
             if op & EntityEvent::Entered as isize != 0 {
-                self.observers.iter().for_each(|obs| {
-                    obs.borrow_mut().on_entity(
-                        self,
-                        EntityEvent::Entered,
-                        &self.entities.entities[&index],
-                    )
-                })
+                throw_event(self, &index, EntityEvent::Entered);
             }
             if op & EntityEvent::Updated as isize != 0 {
-                self.observers.iter().for_each(|obs| {
-                    obs.borrow_mut().on_entity(
-                        self,
-                        EntityEvent::Entered,
-                        &self.entities.entities[&index],
-                    )
-                })
+                throw_event(self, &index, EntityEvent::Updated);
             }
             if op & EntityEvent::Left as isize != 0 {
-                self.observers.iter().for_each(|obs| {
-                    obs.borrow_mut().on_entity(
-                        self,
-                        EntityEvent::Left,
-                        &self.entities.entities[&index],
-                    )
-                })
+                throw_event(self, &index, EntityEvent::Left);
             }
             if op & EntityEvent::Deleted as isize != 0 {
-                self.observers.iter().for_each(|obs| {
-                    obs.borrow_mut().on_entity(
-                        self,
-                        EntityEvent::Deleted,
-                        &self.entities.entities[&index],
-                    )
-                })
-            }
-
-            if op & EntityEvent::Deleted as isize != 0 {
-                self.entities.entities.remove(&index);
+                throw_event(self, &index, EntityEvent::Deleted);
+                self.entities.index_to_entity.remove(&index);
             }
         }
     }
@@ -626,7 +573,6 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn on_tick_end(&mut self) {
-        // #[cfg(feature = "combat_log")]
         if let Some(names) = self.string_tables.get_by_name("CombatLogNames") {
             while let Some(entry) = self.combat_log.pop_front() {
                 let log = CombatLog {
@@ -642,7 +588,6 @@ impl<'a> Parser<'a> {
             .for_each(|obs| obs.borrow_mut().on_tick_end(self))
     }
 
-    // #[cfg(feature = "combat_log")]
     pub(crate) fn on_combat_log(&self, entry: &CombatLog) {
         self.observers
             .iter()
@@ -652,34 +597,7 @@ impl<'a> Parser<'a> {
 
 #[allow(unused_variables)]
 pub trait Observer {
-    // Raw data
-
-    /// Function that will be called each time DemoCommand is received.
-    /// Provides reference to the parser instance, enum variant of demo command and raw data
-    /// ```
-    /// use stampede::prelude::*;
-    /// use stampede::proto::*;
-    ///
-    /// struct MyObserver {
-    ///     packet_amount: u32
-    /// }
-    ///
-    /// impl Observer for MyObserver {
-    ///     fn on_packet(&mut self, ctx: &Parser, p: EDemoCommands, msg: &[u8]) {
-    ///         if p == EDemoCommands::DemPacket {
-    ///             let packet = CDemoPacket::decode(msg)?;
-    ///             self.packet_amount += 1;
-    ///         }
-    ///     }
-    ///
-    ///     fn epilogue(&mut self, ctx: &Parser) {
-    ///         println!("Total packets: {}", self.packet_amount);
-    ///     }
-    /// }
-    /// ```
     fn on_packet(&mut self, ctx: &Parser, cmd: EDemoCommands, msg: &[u8]) {}
-
-    // on_message?
     fn on_net_message(&mut self, ctx: &Parser, emsg: NetMessages, msg: &[u8]) {}
     fn on_svc_message(&mut self, ctx: &Parser, emsg: SvcMessages, msg: &[u8]) {}
     fn on_base_user_message(&mut self, ctx: &Parser, emsg: EBaseUserMessages, msg: &[u8]) {}
@@ -689,13 +607,7 @@ pub trait Observer {
     fn on_tick_start(&mut self, ctx: &Parser) {}
     fn on_tick_end(&mut self, ctx: &Parser) {}
     fn on_entity(&mut self, ctx: &Parser, event: EntityEvent, entity: &Entity) {}
-
-    // #[cfg(feature = "combat_log")]
     fn on_combat_log(&mut self, ctx: &Parser, combat_log: &CombatLog) {}
-
-    // TODO: on_game_event
-    // fn on_game_event(&mut self, ctx: &Parser, combat_log: &CombatLog) {}
-
     fn epilogue(&mut self, ctx: &Parser) {}
 }
 

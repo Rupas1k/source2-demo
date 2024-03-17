@@ -10,7 +10,6 @@ use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Classes {
-    pub(crate) class_base_lines: IntMap<i32, Rc<Vec<u8>>>,
     pub(crate) classes_by_id: IntMap<i32, Rc<RefCell<Class>>>,
     pub(crate) classes_by_name: FxHashMap<Box<str>, Rc<RefCell<Class>>>,
     pub(crate) class_id_size: Option<u32>,
@@ -20,7 +19,6 @@ pub struct Classes {
 impl Classes {
     pub(crate) fn new() -> Self {
         Classes {
-            class_base_lines: IntMap::default(),
             classes_by_id: IntMap::default(),
             classes_by_name: FxHashMap::default(),
             class_id_size: None,
@@ -28,16 +26,16 @@ impl Classes {
         }
     }
 
-    pub(crate) fn get_by_id_mut(&self, id: i32) -> Option<&Rc<RefCell<Class>>> {
-        self.classes_by_id.get(&id)
+    pub(crate) fn get_by_id_mut(&self, id: &i32) -> Option<&Rc<RefCell<Class>>> {
+        self.classes_by_id.get(id)
     }
 
     pub(crate) fn get_by_name_mut(&self, name: &str) -> Option<&Rc<RefCell<Class>>> {
         self.classes_by_name.get(name)
     }
 
-    pub fn get_by_id(&self, id: i32) -> Option<Ref<Class>> {
-        self.classes_by_id.get(&id).map(|class| class.borrow())
+    pub fn get_by_id(&self, id: &i32) -> Option<Ref<Class>> {
+        self.classes_by_id.get(id).map(|class| class.borrow())
     }
 
     pub fn get_by_name(&self, name: &str) -> Option<Ref<Class>> {
@@ -56,7 +54,7 @@ impl Class {
     pub fn new(id: i32, name: &str, serializer: Rc<Serializer>) -> Self {
         Class {
             id,
-            name: name.to_string().into_boxed_str(),
+            name: name.into(),
             serializer,
         }
     }

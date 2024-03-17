@@ -75,9 +75,11 @@ impl StringTable {
                 index += r.read_var_u32() as i32 + 1;
             }
 
-            if r.read_bool() { // has key
+            // has key
+            if r.read_bool() {
                 let delta_zero = if delta_pos > 32 { delta_pos & 31 } else { 0 };
-                if r.read_bool() { // use history
+                // use history
+                if r.read_bool() {
                     let pos = (delta_zero + r.read_bits(5)) & 31;
                     let size = r.read_bits(5);
 
@@ -95,7 +97,8 @@ impl StringTable {
                 delta_pos += 1;
             }
 
-            if r.read_bool() { // has value
+            // has value
+            if r.read_bool() {
                 let mut is_compressed = false;
                 let bit_size = if self.user_data_fixed_size {
                     self.user_data_size as u32

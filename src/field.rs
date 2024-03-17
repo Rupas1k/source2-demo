@@ -57,14 +57,14 @@ impl Field {
 
     pub fn get_name_for_field_path(&self, fp: &FieldPath, pos: i32) -> Vec<String> {
         let mut x = vec![self.var_name.clone().to_string()];
+
         match self.model {
-            FieldModels::Simple => {}
-            FieldModels::FixedArray => {
+            FieldModels::Simple | FieldModels::FixedArray | FieldModels::VariableArray => {
                 if fp.last == pos as usize {
                     x.push(format!("{:04}", fp.path[pos as usize]));
                 }
             }
-            FieldModels::FixedTable => {
+            FieldModels::FixedTable | FieldModels::VariableTable => {
                 if fp.last >= pos as usize {
                     x.extend_from_slice(
                         &self
@@ -74,14 +74,7 @@ impl Field {
                             .get_name_for_field_path(fp, pos),
                     );
                 }
-            }
-            FieldModels::VariableArray => {
-                if fp.last == pos as usize {
-                    x.push(format!("{:04}", fp.path[pos as usize]));
-                }
-            }
-            FieldModels::VariableTable => {
-                if fp.last != (pos - 1) as usize {
+                if self.model == FieldModels::VariableTable && fp.last != (pos - 1) as usize {
                     x.push(format!("{:04}", fp.path[pos as usize]));
                     if fp.last != pos as usize {
                         x.extend_from_slice(
@@ -95,6 +88,7 @@ impl Field {
                 }
             }
         };
+
         x
     }
 
@@ -291,7 +285,7 @@ impl Field {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FieldModels {
     Simple,
     FixedArray,

@@ -45,8 +45,8 @@ impl FieldReader {
     }
 
     pub(crate) fn read_fields(&self, reader: &mut Reader, s: &Serializer, st: &mut FieldState) {
-        self.read_field_paths(reader).iter().for_each(|fp| {
-            st.set(fp, s.get_decoder_for_field_path(fp, 0).decode(reader))
-        })
+        self.read_field_paths(reader)
+            .iter()
+            .for_each(|fp| st.set(fp, s.get_decoder_for_field_path(fp, 0).decode(reader)))
     }
 }

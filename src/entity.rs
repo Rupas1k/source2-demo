@@ -23,63 +23,63 @@ pub enum EntityEvent {
 pub struct Entities {
     pub(crate) entity_full_packets: u32,
     pub(crate) undone_entities: VecDeque<(i32, isize)>,
-    pub(crate) entities: IntMap<i32, Entity>,
+    pub(crate) index_to_entity: IntMap<i32, Entity>,
 }
 
 impl Entities {
     pub(crate) fn new() -> Self {
         Entities {
-            entities: IntMap::default(),
+            index_to_entity: IntMap::default(),
             undone_entities: VecDeque::new(),
             entity_full_packets: 0,
         }
     }
 
-    fn serial_for_handle(handle: i32) -> i32 {
+    fn serial_for_handle(handle: &i32) -> i32 {
         handle >> 14
     }
 
-    fn index_for_handle(handle: i32) -> i32 {
+    fn index_for_handle(handle: &i32) -> i32 {
         handle & 0x3fff
     }
 
-    fn handle_for_index_and_serial(index: i32, serial: i32) -> i32 {
+    fn handle_for_index_and_serial(index: &i32, serial: &i32) -> i32 {
         (serial << 14) | index
     }
 
-    pub fn get_by_index(&self, index: i32) -> Option<&Entity> {
-        self.entities.get(&index)
+    pub fn get_by_index(&self, index: &i32) -> Option<&Entity> {
+        self.index_to_entity.get(&index)
     }
-    pub fn get_by_handle(&self, handle: i32) -> Option<&Entity> {
-        self.get_by_index(Entities::index_for_handle(handle))
+    pub fn get_by_handle(&self, handle: &i32) -> Option<&Entity> {
+        self.get_by_index(&Entities::index_for_handle(handle))
     }
-    pub fn get_by_class_id(&self, id: i32) -> Option<&Entity> {
-        self.entities
+    pub fn get_by_class_id(&self, id: &i32) -> Option<&Entity> {
+        self.index_to_entity
             .values()
-            .find(|&entity| entity.class.borrow().id == id)
+            .find(|&entity| &entity.class.borrow().id == id)
     }
     pub fn get_by_class_name(&self, name: &str) -> Option<&Entity> {
-        self.entities
+        self.index_to_entity
             .values()
             .find(|&entity| entity.class.borrow().name.as_ref() == name)
     }
 
-    pub fn get_all_by_class_id(&self, id: i32) -> Vec<&Entity> {
-        self.entities
+    pub fn get_all_by_class_id(&self, id: &i32) -> Vec<&Entity> {
+        self.index_to_entity
             .values()
-            .filter(|entity| entity.class.borrow().id == id)
+            .filter(|entity| &entity.class.borrow().id == id)
             .collect::<Vec<_>>()
     }
 
     pub fn get_all_by_class_name(&self, name: &str) -> Vec<&Entity> {
-        self.entities
+        self.index_to_entity
             .values()
             .filter(|entity| entity.class.borrow().name.as_ref() == name)
             .collect::<Vec<_>>()
     }
 
     pub fn get_all_by_predicate(&self, predicate: &dyn Fn(&Entity) -> bool) -> Vec<&Entity> {
-        self.entities
+        self.index_to_entity
             .values()
             .filter(|entity| predicate(entity))
             .collect::<Vec<_>>()
@@ -114,8 +114,8 @@ pub struct Entity {
     pub(crate) class: Rc<RefCell<Class>>,
     pub(crate) active: bool,
     pub(crate) state: FieldState,
-    fp_cache: Rc<RefCell<FpCache>>,
-    fp_no_op_cache: Rc<RefCell<FxHashSet<String>>>,
+    fp_cache: RefCell<FpCache>,
+    fp_no_op_cache: RefCell<FxHashSet<String>>,
 }
 
 impl Entity {
@@ -126,8 +126,8 @@ impl Entity {
             class,
             active: true,
             state: FieldState::new(8),
-            fp_cache: Rc::new(RefCell::new(FpCache::new())),
-            fp_no_op_cache: Rc::new(RefCell::new(FxHashSet::default())),
+            fp_cache: RefCell::new(FpCache::new()),
+            fp_no_op_cache: RefCell::new(FxHashSet::default()),
         }
     }
 

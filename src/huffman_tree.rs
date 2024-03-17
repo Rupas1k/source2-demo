@@ -46,18 +46,14 @@ impl EHTree {
     pub fn left(&self) -> &EHTree {
         match self {
             EHTree::Node { left, .. } => left,
-            _ => {
-                panic!("")
-            }
+            EHTree::Leaf { .. } => panic!(),
         }
     }
 
     pub fn right(&self) -> &EHTree {
         match self {
             EHTree::Node { right, .. } => right,
-            _ => {
-                panic!("")
-            }
+            EHTree::Leaf { .. } => panic!(),
         }
     }
 }
@@ -67,15 +63,14 @@ pub fn build_huffman_tree(freqs: Vec<i32>) -> Option<EHTree> {
         return None;
     }
 
-    let mut trees = BinaryHeap::new();
-
-    for (v, w) in freqs.iter().enumerate() {
-        let weight = if *w == 0 { 1 } else { *w };
-        trees.push(EHTree::Leaf {
+    let mut trees = freqs
+        .iter()
+        .enumerate()
+        .map(|(v, w)| EHTree::Leaf {
             value: v as i32,
-            weight,
-        });
-    }
+            weight: if *w == 0 { 1 } else { *w },
+        })
+        .collect::<BinaryHeap<EHTree>>();
 
     let mut n = 40;
 

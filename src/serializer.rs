@@ -53,11 +53,13 @@ impl Serializer {
     }
 
     pub fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldState) -> Vec<FieldPath> {
-        let mut results: Vec<FieldPath> = vec![];
-        for (i, f) in self.fields.iter().enumerate() {
-            fp.path[fp.last] = i as i32;
-            results.extend_from_slice(&f.get_field_paths(fp, st));
-        }
-        results
+        self.fields
+            .iter()
+            .enumerate()
+            .flat_map(|(i, f)| {
+                fp.path[fp.last] = i as i32;
+                f.get_field_paths(fp, st)
+            })
+            .collect()
     }
 }
