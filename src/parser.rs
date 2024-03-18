@@ -5,14 +5,12 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::ops::{Deref, DerefMut};
-use std::process::exit;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use crate::class::{Class, Classes};
 use crate::entity::{Entities, Entity, EntityEvent};
+use crate::field::FIELD_PATCHES;
 use crate::field::{Field, FieldModels};
-use crate::field::{FieldPatch, FIELD_PATCHES};
 use crate::field_reader::FieldReader;
 use crate::field_type::FieldType;
 use crate::reader::Reader;
@@ -309,7 +307,7 @@ impl<'a> Parser<'a> {
         let msg_compressed = (raw_command & EDemoCommands::DemIsCompressed as i32)
             == EDemoCommands::DemIsCompressed as i32;
         let tick = match reader.read_var_u32() {
-            4294967295 => 0,
+            0xffffffff => 0,
             x => x,
         };
 
@@ -334,25 +332,15 @@ impl<'a> Parser<'a> {
         while let Some(message) = self.pending_messages.pop_front() {
             if let Some(msg) = NetMessages::from_i32(message.msg_type) {
                 self.on_net_message(msg, &message.buf);
-            }
-
-            if let Some(msg) = EBaseUserMessages::from_i32(message.msg_type) {
+            } else if let Some(msg) = EBaseUserMessages::from_i32(message.msg_type) {
                 self.on_base_user_message(msg, &message.buf);
-            }
-
-            if let Some(msg) = EBaseGameEvents::from_i32(message.msg_type) {
+            } else if let Some(msg) = EBaseGameEvents::from_i32(message.msg_type) {
                 self.on_base_game_event(msg, &message.buf);
-            }
-
-            if let Some(msg) = EBaseEntityMessages::from_i32(message.msg_type) {
+            } else if let Some(msg) = EBaseEntityMessages::from_i32(message.msg_type) {
                 self.on_base_entity_message(msg, &message.buf);
-            }
-
-            if let Some(msg) = SvcMessages::from_i32(message.msg_type) {
+            } else if let Some(msg) = SvcMessages::from_i32(message.msg_type) {
                 self.on_svc_message(msg, &message.buf);
-            }
-
-            if let Some(msg) = EDotaUserMessages::from_i32(message.msg_type) {
+            } else if let Some(msg) = EDotaUserMessages::from_i32(message.msg_type) {
                 self.on_dota_user_message(msg, &message.buf);
             }
         }
@@ -538,11 +526,8 @@ impl<'a> Parser<'a> {
     fn process_entities(&mut self) {
         let throw_event = |ctx: &Parser, index: &i32, event: EntityEvent| {
             ctx.observers.iter().for_each(|obs| {
-                obs.borrow_mut().on_entity(
-                    ctx,
-                    event,
-                    &ctx.entities.index_to_entity[index],
-                )
+                obs.borrow_mut()
+                    .on_entity(ctx, event, &ctx.entities.index_to_entity[index])
             })
         };
 

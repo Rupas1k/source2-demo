@@ -9,75 +9,60 @@ enum QFloatFlags {
 
 #[derive(Debug)]
 pub(crate) struct QFloatDecoder {
-    // no_scale:       bool,
     bit_count: u32,
-    low: Option<f32>,
-    high: Option<f32>,
-    high_low_mul: Option<f32>,
-    dec_mul: Option<f32>,
-    offset: Option<f32>,
-    flags: Option<u32>,
+    low: f32,
+    high: f32,
+    high_low_mul: f32,
+    dec_mul: f32,
+    offset: f32,
+    flags: u32,
 }
 
 impl QFloatDecoder {
     pub(crate) fn new(
         bit_count: i32,
-        mut flags: Option<i32>,
-        mut low_value: Option<f32>,
-        mut high_value: Option<f32>,
+        flags: Option<i32>,
+        low_value: Option<f32>,
+        high_value: Option<f32>,
     ) -> Self {
         if bit_count == 0 || bit_count >= 32 {
             return QFloatDecoder {
-                // no_scale: true,
                 bit_count: 32,
-                low: None,
-                high: None,
-                high_low_mul: None,
-                dec_mul: None,
-                offset: None,
-                flags: None,
+                low: 0.0,
+                high: 1.0,
+                high_low_mul: 0.0,
+                dec_mul: 0.0,
+                offset: 0.0,
+                flags: 0,
             };
         }
 
-        if low_value.is_none() {
-            low_value = Some(0.0);
-        }
-
-        if high_value.is_none() {
-            high_value = Some(1.0)
-        }
-
-        if flags.is_none() {
-            flags = Some(0)
-        }
-
         let mut decoder = QFloatDecoder {
-            // no_scale: false,
             bit_count: bit_count as u32,
-            offset: Some(0.0),
-            low: low_value,
-            high: high_value,
-            flags: Some(flags.unwrap() as u32),
-            high_low_mul: None,
-            dec_mul: None,
+            offset: 0.0,
+            low: low_value.unwrap_or(0.0),
+            high: high_value.unwrap_or(1.0),
+            flags: flags.unwrap_or(0) as u32,
+            high_low_mul: 0.0,
+            dec_mul: 0.0,
         };
 
         decoder.validate_flags();
 
         let mut steps = (1 << decoder.bit_count) as u32;
 
-        if decoder.flags.unwrap() & (QFloatFlags::RoundDown as u32) != 0 {
-            let range = decoder.high.unwrap() - decoder.low.unwrap();
-            decoder.offset = Some(range / (steps as f32));
-            decoder.high = Some(decoder.high.unwrap() - decoder.offset.unwrap());
-        } else if decoder.flags.unwrap() & (QFloatFlags::RoundUp as u32) != 0 {
-            let range = decoder.high.unwrap() - decoder.low.unwrap();
-            decoder.offset = Some(range / (steps as f32));
-            decoder.low = Some(decoder.low.unwrap() + decoder.offset.unwrap());
+        if decoder.flags & (QFloatFlags::RoundDown as u32) != 0 {
+            let range = decoder.high - decoder.low;
+            decoder.offset = range / (steps as f32);
+            decoder.high -= decoder.offset;
+        } else if decoder.flags & (QFloatFlags::RoundUp as u32) != 0 {
+            let range = decoder.high - decoder.low;
+            decoder.offset = range / (steps as f32);
+            decoder.low += decoder.offset;
         }
 
-        if decoder.flags.unwrap() & (QFloatFlags::EncodeInteger as u32) != 0 {
-            let mut delta = decoder.high.unwrap() + decoder.low.unwrap();
+        if decoder.flags & (QFloatFlags::EncodeInteger as u32) != 0 {
+            let mut delta = decoder.high + decoder.low;
 
             if delta < 1.0 {
                 delta = 1.0
@@ -96,37 +81,35 @@ impl QFloatDecoder {
                 steps = 1 << decoder.bit_count;
             }
 
-            decoder.offset = Some((range2 as f32) / (steps as f32));
-            decoder.high = Some(decoder.low.unwrap() + range2 as f32 - decoder.offset.unwrap())
+            decoder.offset = (range2 as f32) / (steps as f32);
+            decoder.high = decoder.low + range2 as f32 - decoder.offset
         }
 
         decoder.assign_multipliers(steps);
 
-        if decoder.flags.unwrap() & (QFloatFlags::RoundDown as u32) != 0
-            && decoder.quantize(decoder.low.unwrap()) == decoder.low.unwrap()
+        if decoder.flags & (QFloatFlags::RoundDown as u32) != 0
+            && decoder.quantize(decoder.low) == decoder.low
         {
-            decoder.flags = Some(decoder.flags.unwrap() & !(QFloatFlags::RoundDown as u32))
+            decoder.flags &= !(QFloatFlags::RoundDown as u32)
         }
 
-        if decoder.flags.unwrap() & (QFloatFlags::RoundUp as u32) != 0
-            && decoder.quantize(decoder.high.unwrap()) == decoder.high.unwrap()
+        if decoder.flags & (QFloatFlags::RoundUp as u32) != 0
+            && decoder.quantize(decoder.high) == decoder.high
         {
-            decoder.flags = Some(decoder.flags.unwrap() & !(QFloatFlags::RoundUp as u32))
+            decoder.flags &= !(QFloatFlags::RoundUp as u32)
         }
 
-        if decoder.flags.unwrap() & (QFloatFlags::EncodeZero as u32) != 0
-            && decoder.quantize(0.0) == 0.0
-        {
-            decoder.flags = Some(decoder.flags.unwrap() & !(QFloatFlags::EncodeZero as u32))
+        if decoder.flags & (QFloatFlags::EncodeZero as u32) != 0 && decoder.quantize(0.0) == 0.0 {
+            decoder.flags &= !(QFloatFlags::EncodeZero as u32)
         }
 
         decoder
     }
 
     fn validate_flags(&mut self) {
-        let mut flags = self.flags.unwrap();
-        let low = self.low.unwrap();
-        let high = self.high.unwrap();
+        let mut flags = self.flags;
+        let low = self.low;
+        let high = self.high;
 
         if flags == 0 {
             return;
@@ -164,82 +147,75 @@ impl QFloatDecoder {
             panic!("Roundup / Rounddown are mutually exclusive");
         }
 
-        self.flags = Some(flags);
+        self.flags = flags;
     }
 
     fn assign_multipliers(&mut self, steps: u32) {
-        self.high_low_mul = Some(0.0);
-        let range = self.high.unwrap() - self.low.unwrap();
+        let range = self.high - self.low;
 
-        let high = match self.bit_count {
-            32 => 0xFFFFFFFEu32,
-            x => (1 << x) - 1,
+        let high = if self.bit_count == 32 {
+            0xFFFFFFFEu32
+        } else {
+            (1 << self.bit_count) - 1
         };
 
-        let mut high_mul = match range.abs() as f64 <= 0.0 {
-            true => high as f32,
-            false => (high as f32) / range,
+        let mut high_mul = if range.abs() as f64 <= 0.0 {
+            high as f32
+        } else {
+            (high as f32) / range
         };
 
         if high_mul * range > (high as f32) || (high_mul * range) as f64 > (high as f64) {
-            let multipliers: Vec<f32> = vec![0.9999, 0.99, 0.9, 0.8, 0.7];
-            for mult in multipliers {
+            for mult in [0.9999, 0.99, 0.9, 0.8, 0.7] {
                 high_mul = (high as f32) / range * mult;
-                if high_mul * range > (high as f32) || (high_mul * range) as f64 > (high as f64) {
-                    continue;
+                if high_mul * range <= high as f32 && (high_mul * range) as f64 <= high as f64 {
+                    break;
                 }
-                break;
             }
         }
 
-        self.high_low_mul = Some(high_mul);
+        self.high_low_mul = high_mul;
 
-        self.dec_mul = Some(1.0 / ((steps - 1) as f32));
+        self.dec_mul = 1.0 / ((steps - 1) as f32);
 
-        if self.high_low_mul.unwrap() == 0.0 {
+        if self.high_low_mul == 0.0 {
             panic!("Error computing high / low multiplier");
         }
     }
 
     pub(crate) fn quantize(&self, v: f32) -> f32 {
-        if v < self.low.unwrap() {
-            if self.flags.unwrap() & (QFloatFlags::RoundUp as u32) == 0 {
+        if v < self.low {
+            if self.flags & (QFloatFlags::RoundUp as u32) == 0 {
                 panic!("Field tried to quantize an out of range value")
             }
-            return self.low.unwrap();
+            return self.low;
         }
 
-        if v > self.high.unwrap() {
-            if self.flags.unwrap() & (QFloatFlags::RoundUp as u32) == 0 {
+        if v > self.high {
+            if self.flags & (QFloatFlags::RoundUp as u32) == 0 {
                 panic!("Field tried to quantize an out of range value")
             }
-            return self.high.unwrap();
+            return self.high;
         }
 
-        let i = ((v - self.low.unwrap()) * self.high_low_mul.unwrap()) as u32;
+        let i = ((v - self.low) * self.high_low_mul) as u32;
 
-        self.low.unwrap()
-            + (self.high.unwrap() - self.low.unwrap()) * i as f32 * self.dec_mul.unwrap()
+        self.low + (self.high - self.low) * i as f32 * self.dec_mul
     }
 
     pub(crate) fn decode(&self, reader: &mut Reader) -> f32 {
-        let flags = self.flags.unwrap();
-        let low = self.low.unwrap();
-        let high = self.high.unwrap();
-        let dec_mul = self.dec_mul.unwrap();
-
-        if flags & (QFloatFlags::RoundDown as u32) != 0 && reader.read_bool() {
-            return low;
+        if self.flags & (QFloatFlags::RoundDown as u32) != 0 && reader.read_bool() {
+            return self.low;
         }
 
-        if flags & (QFloatFlags::RoundUp as u32) != 0 && reader.read_bool() {
-            return high;
+        if self.flags & (QFloatFlags::RoundUp as u32) != 0 && reader.read_bool() {
+            return self.high;
         }
 
-        if flags & (QFloatFlags::EncodeZero as u32) != 0 && reader.read_bool() {
+        if self.flags & (QFloatFlags::EncodeZero as u32) != 0 && reader.read_bool() {
             return 0.0;
         }
 
-        low + (high - low) * (reader.read_bits(self.bit_count) as f32) * dec_mul
+        self.low + (self.high - self.low) * (reader.read_bits(self.bit_count) as f32) * self.dec_mul
     }
 }
