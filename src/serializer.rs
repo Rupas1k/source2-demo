@@ -3,6 +3,7 @@ use crate::field_decoder::Decoders;
 use crate::field_path::FieldPath;
 use crate::field_state::FieldState;
 use crate::field_type::FieldType;
+use anyhow::{anyhow, bail, Result};
 use std::rc::Rc;
 
 #[derive(Clone, Debug)]
@@ -37,11 +38,11 @@ impl Serializer {
         self.fields[i as usize].get_decoder_for_field_path(fp, pos + 1)
     }
 
-    pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> bool {
+    pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> Result<()> {
         for (i, f) in self.fields.iter().enumerate() {
             if name == f.var_name.as_ref() {
                 fp.path[fp.last] = i as i32;
-                return true;
+                return Ok(());
             }
             if name.starts_with(&format!("{}.", f.var_name)) {
                 fp.path[fp.last] = i as i32;
@@ -49,7 +50,7 @@ impl Serializer {
                 return f.get_field_path_for_name(fp, &name[(f.var_name.len() + 1)..]);
             }
         }
-        false
+        bail!("No field path for given name")
     }
 
     pub fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldState) -> Vec<FieldPath> {

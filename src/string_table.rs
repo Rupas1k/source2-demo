@@ -1,4 +1,5 @@
 use crate::reader::Reader;
+use anyhow::{anyhow, bail, Result};
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
 use std::cell::{Ref, RefCell};
@@ -21,12 +22,18 @@ impl StringTables {
         }
     }
 
-    pub fn get_by_id(&self, id: &i32) -> Option<Ref<StringTable>> {
-        self.tables.get(id).map(|table| table.borrow())
+    pub fn get_by_id(&self, id: &i32) -> Result<Ref<StringTable>> {
+        self.tables
+            .get(id)
+            .ok_or(anyhow!("No string table for given id"))
+            .map(|table| table.borrow())
     }
 
-    pub fn get_by_name(&self, name: &str) -> Option<Ref<StringTable>> {
-        self.names_to_table.get(name).map(|table| table.borrow())
+    pub fn get_by_name(&self, name: &str) -> Result<Ref<StringTable>> {
+        self.names_to_table
+            .get(name)
+            .ok_or(anyhow!("No string table for given name"))
+            .map(|table| table.borrow())
     }
 }
 
@@ -55,10 +62,10 @@ pub struct StringTable {
 }
 
 impl StringTable {
-    pub fn parse(&self, buf: &[u8], num_updates: i32) -> Option<Vec<StringTableItem>> {
+    pub fn parse(&self, buf: &[u8], num_updates: i32) -> Result<Vec<StringTableItem>> {
         let mut items = Vec::<StringTableItem>::new();
         if buf.is_empty() {
-            return Some(items);
+            return Ok(items);
         }
 
         let mut r = Reader::new(buf);
@@ -84,14 +91,12 @@ impl StringTable {
                     let size = r.read_bits(5);
 
                     if delta_pos < pos || keys[pos as usize].len() < size as usize {
-                        key = r.read_string().unwrap();
+                        key = r.read_string()?;
                     } else {
-                        key = key
-                            + &keys[pos as usize][..(size as usize)]
-                            + &r.read_string().unwrap();
+                        key = key + &keys[pos as usize][..(size as usize)] + &r.read_string()?;
                     }
                 } else {
-                    key = r.read_string().unwrap()
+                    key = r.read_string()?
                 }
                 keys[(delta_pos & 31) as usize] = key.clone();
                 delta_pos += 1;
@@ -115,11 +120,11 @@ impl StringTable {
                 value = r.read_bits_as_bytes(bit_size);
                 if is_compressed {
                     let mut decoder = snap::raw::Decoder::new();
-                    value = decoder.decompress_vec(&value).expect("Error");
+                    value = decoder.decompress_vec(&value)?;
                 }
             }
             items.push(StringTableItem::new(index, key, Rc::new(value)));
         }
-        Some(items)
+        Ok(items)
     }
 }

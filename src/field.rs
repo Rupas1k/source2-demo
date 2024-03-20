@@ -3,6 +3,8 @@ use crate::field_path::FieldPath;
 use crate::field_state::{FieldState, States};
 use crate::field_type::FieldType;
 use crate::serializer::Serializer;
+use anyhow::bail;
+use anyhow::Result;
 use proto::{CsvcMsgFlattenedSerializer, ProtoFlattenedSerializerFieldT};
 use std::rc::Rc;
 
@@ -28,11 +30,11 @@ pub struct Field {
 
 impl Field {
     pub fn new(ser: CsvcMsgFlattenedSerializer, f: ProtoFlattenedSerializerFieldT) -> Self {
-        let resolve = |p: Option<i32>| {
+        let resolve = |p: Option<i32>| -> Box<str> {
             if p.is_none() {
-                return "".to_string().into_boxed_str();
+                return "".into();
             }
-            ser.symbols[p.unwrap() as usize].clone().into_boxed_str()
+            ser.symbols[p.unwrap() as usize].clone().into()
         };
 
         Field {
@@ -56,7 +58,7 @@ impl Field {
     }
 
     pub fn get_name_for_field_path(&self, fp: &FieldPath, pos: i32) -> Vec<String> {
-        let mut x = vec![self.var_name.clone().to_string()];
+        let mut x = vec![self.var_name.as_ref().into()];
 
         match self.model {
             FieldModels::Simple | FieldModels::FixedArray | FieldModels::VariableArray => {
@@ -161,34 +163,34 @@ impl Field {
         self.decoder.as_ref().unwrap()
     }
 
-    pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> bool {
+    pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> Result<()> {
         match self.model {
             FieldModels::Simple => {
-                panic!("not supported")
+                bail!("not supported");
             }
             FieldModels::FixedArray => {
                 if name.len() != 4 {
-                    panic!("wrong size")
+                    bail!("wrong size");
                 }
                 fp.path[fp.last] = name.parse::<i32>().unwrap();
-                return true;
+                return Ok(());
             }
             FieldModels::FixedTable => {
                 return self
                     .serializer
                     .as_ref()
                     .unwrap()
-                    .get_field_path_for_name(fp, name);
+                    .get_field_path_for_name(fp, name)
             }
             FieldModels::VariableArray => {
                 if name.len() != 4 {
-                    panic!("wrong size")
+                    bail!("wrong size")
                 }
                 fp.path[fp.last] = name.parse::<i32>().unwrap();
             }
             FieldModels::VariableTable => {
                 if name.len() <= 6 {
-                    panic!("wrong size")
+                    bail!("wrong size")
                 }
                 fp.path[fp.last] = name[0..4].parse::<i32>().unwrap();
                 fp.last += 1;
@@ -199,7 +201,7 @@ impl Field {
                     .get_field_path_for_name(fp, &name[5..]);
             }
         }
-        false
+        bail!("No field path for given name")
     }
 
     pub fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldState) -> Vec<FieldPath> {

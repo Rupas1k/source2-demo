@@ -3,6 +3,7 @@ use crate::field_path::FieldPath;
 use crate::field_state::FieldState;
 use crate::field_type::FieldType;
 use crate::serializer::Serializer;
+use anyhow::{anyhow, Result};
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
 use std::cell::{Ref, RefCell};
@@ -26,20 +27,30 @@ impl Classes {
         }
     }
 
-    pub(crate) fn get_by_id_mut(&self, id: &i32) -> Option<&Rc<RefCell<Class>>> {
-        self.classes_by_id.get(id)
+    pub(crate) fn get_by_id_mut(&self, id: &i32) -> Result<&Rc<RefCell<Class>>> {
+        self.classes_by_id
+            .get(id)
+            .ok_or(anyhow!("No class for given id"))
     }
 
-    pub(crate) fn get_by_name_mut(&self, name: &str) -> Option<&Rc<RefCell<Class>>> {
-        self.classes_by_name.get(name)
+    pub(crate) fn get_by_name_mut(&self, name: &str) -> Result<&Rc<RefCell<Class>>> {
+        self.classes_by_name
+            .get(name)
+            .ok_or(anyhow!("No class for given name"))
     }
 
-    pub fn get_by_id(&self, id: &i32) -> Option<Ref<Class>> {
-        self.classes_by_id.get(id).map(|class| class.borrow())
+    pub fn get_by_id(&self, id: &i32) -> Result<Ref<Class>> {
+        self.classes_by_id
+            .get(id)
+            .ok_or(anyhow!("No class for given id"))
+            .map(|class| class.borrow())
     }
 
-    pub fn get_by_name(&self, name: &str) -> Option<Ref<Class>> {
-        self.classes_by_name.get(name).map(|class| class.borrow())
+    pub fn get_by_name(&self, name: &str) -> Result<Ref<Class>> {
+        self.classes_by_name
+            .get(name)
+            .ok_or(anyhow!("No class for given name"))
+            .map(|class| class.borrow())
     }
 }
 
@@ -78,7 +89,7 @@ impl Class {
         self.serializer.get_decoder_for_field_path(fp, 0)
     }
 
-    pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> bool {
+    pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> Result<()> {
         self.serializer.get_field_path_for_name(fp, name)
     }
 

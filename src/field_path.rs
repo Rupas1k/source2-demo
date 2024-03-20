@@ -71,100 +71,68 @@ impl FieldOp {
         match &self {
             FieldOp::PlusOne => {
                 fp.path[fp.last] += 1;
-                // fp.inc_cur(1)
             }
             FieldOp::PlusTwo => {
                 fp.path[fp.last] += 2;
-                // fp.inc_cur(2)
             }
             FieldOp::PlusThree => {
                 fp.path[fp.last] += 3;
-                // fp.inc_cur(3)
             }
             FieldOp::PlusFour => {
                 fp.path[fp.last] += 4;
-                // fp.inc_cur(4)
             }
             FieldOp::PlusN => {
                 fp.path[fp.last] += r.read_ubit_var_fieldpath() + 5;
-                // fp.inc_cur((r.read_ubit_var_fieldpath() + 5) as i64)
             }
             FieldOp::PushOneLeftDeltaZeroRightZero => {
                 fp.last += 1;
                 fp.path[fp.last] = 0;
-                // fp.down()
             }
             FieldOp::PushOneLeftDeltaZeroRightNonZero => {
                 fp.last += 1;
                 fp.path[fp.last] = r.read_ubit_var_fieldpath();
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushOneLeftDeltaOneRightZero => {
                 fp.path[fp.last] += 1;
                 fp.last += 1;
                 fp.path[fp.last] = 0;
-                // fp.inc_cur(1);
-                // fp.down();
             }
             FieldOp::PushOneLeftDeltaOneRightNonZero => {
                 fp.path[fp.last] += 1;
                 fp.last += 1;
                 fp.path[fp.last] = r.read_ubit_var_fieldpath();
-                // fp.inc_cur(1);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushOneLeftDeltaNRightZero => {
                 fp.path[fp.last] += r.read_ubit_var_fieldpath();
                 fp.last += 1;
                 fp.path[fp.last] = 0;
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
-                // fp.down();
             }
             FieldOp::PushOneLeftDeltaNRightNonZero => {
                 fp.path[fp.last] += r.read_ubit_var_fieldpath() + 2;
                 fp.last += 1;
                 fp.path[fp.last] = r.read_ubit_var_fieldpath() + 1;
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64 + 2);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64 + 1);
             }
             FieldOp::PushOneLeftDeltaNRightNonZeroPack6Bits => {
                 fp.path[fp.last] += r.read_bits(3) as i32 + 2;
                 fp.last += 1;
                 fp.path[fp.last] = r.read_bits(3) as i32 + 1;
-                // fp.inc_cur(r.read_bits(3) as i64 + 2);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(3) as i64 + 1);
             }
             FieldOp::PushOneLeftDeltaNRightNonZeroPack8Bits => {
                 fp.path[fp.last] += r.read_bits(4) as i32 + 2;
                 fp.last += 1;
                 fp.path[fp.last] = r.read_bits(4) as i32 + 1;
-                // fp.inc_cur(r.read_bits(4) as i64 + 2);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(4) as i64 + 1);
             }
             FieldOp::PushTwoLeftDeltaZero => {
                 fp.last += 1;
                 fp.path[fp.last] += r.read_ubit_var_fieldpath();
                 fp.last += 1;
                 fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushTwoPack5LeftDeltaZero => {
                 fp.last += 1;
                 fp.path[fp.last] = r.read_bits(5) as i32;
                 fp.last += 1;
                 fp.path[fp.last] = r.read_bits(5) as i32;
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
             }
             FieldOp::PushThreeLeftDeltaZero => {
                 fp.last += 1;
@@ -173,12 +141,6 @@ impl FieldOp {
                 fp.path[fp.last] += r.read_ubit_var_fieldpath();
                 fp.last += 1;
                 fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushThreePack5LeftDeltaZero => {
                 fp.last += 1;
@@ -187,12 +149,6 @@ impl FieldOp {
                 fp.path[fp.last] = r.read_bits(5) as i32;
                 fp.last += 1;
                 fp.path[fp.last] = r.read_bits(5) as i32;
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
             }
             FieldOp::PushTwoLeftDeltaOne => {
                 fp.path[fp.last] += 1;
@@ -200,11 +156,6 @@ impl FieldOp {
                 fp.path[fp.last] += r.read_ubit_var_fieldpath();
                 fp.last += 1;
                 fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                // fp.inc_cur(1);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushTwoPack5LeftDeltaOne => {
                 fp.path[fp.last] += 1;
@@ -212,11 +163,6 @@ impl FieldOp {
                 fp.path[fp.last] = r.read_bits(5) as i32;
                 fp.last += 1;
                 fp.path[fp.last] = r.read_bits(5) as i32;
-                // fp.inc_cur(1);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
             }
             FieldOp::PushThreeLeftDeltaOne => {
                 fp.path[fp.last] += 1;
@@ -226,13 +172,6 @@ impl FieldOp {
                 fp.path[fp.last] += r.read_ubit_var_fieldpath();
                 fp.last += 1;
                 fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                // fp.inc_cur(1);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushThreePack5LeftDeltaOne => {
                 fp.path[fp.last] += 1;
@@ -242,13 +181,6 @@ impl FieldOp {
                 fp.path[fp.last] = r.read_bits(5) as i32;
                 fp.last += 1;
                 fp.path[fp.last] = r.read_bits(5) as i32;
-                // fp.inc_cur(1);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
             }
             FieldOp::PushTwoLeftDeltaN => {
                 fp.path[fp.last] += r.read_ubit_var() as i32 + 2;
@@ -256,11 +188,6 @@ impl FieldOp {
                 fp.path[fp.last] += r.read_ubit_var_fieldpath();
                 fp.last += 1;
                 fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                // fp.inc_cur(r.read_ubit_var() as i64 + 2);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushTwoPack5LeftDeltaN => {
                 fp.path[fp.last] += r.read_ubit_var() as i32 + 2;
@@ -268,11 +195,6 @@ impl FieldOp {
                 fp.path[fp.last] = r.read_bits(5) as i32;
                 fp.last += 1;
                 fp.path[fp.last] = r.read_bits(5) as i32;
-                // fp.inc_cur(r.read_ubit_var() as i64 + 2);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
             }
             FieldOp::PushThreeLeftDeltaN => {
                 fp.path[fp.last] += r.read_ubit_var() as i32 + 2;
@@ -282,13 +204,6 @@ impl FieldOp {
                 fp.path[fp.last] += r.read_ubit_var_fieldpath();
                 fp.last += 1;
                 fp.path[fp.last] += r.read_ubit_var_fieldpath();
-                // fp.inc_cur(r.read_ubit_var() as i64 + 2);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
             }
             FieldOp::PushThreePack5LeftDeltaN => {
                 fp.path[fp.last] += r.read_ubit_var() as i32 + 2;
@@ -298,13 +213,6 @@ impl FieldOp {
                 fp.path[fp.last] = r.read_bits(5) as i32;
                 fp.last += 1;
                 fp.path[fp.last] = r.read_bits(5) as i32;
-                // fp.inc_cur(r.read_ubit_var() as i64 + 2);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
-                // fp.down();
-                // fp.inc_cur(r.read_bits(5) as i64);
             }
             FieldOp::PushN => {
                 let n = r.read_ubit_var() as i32;
@@ -313,12 +221,6 @@ impl FieldOp {
                     fp.last += 1;
                     fp.path[fp.last] += r.read_ubit_var_fieldpath();
                 }
-                // let n = r.read_ubit_var() as I32;
-                // fp.inc_cur(r.read_ubit_var() as i64);
-                // for _ in 0..n {
-                //     fp.down();
-                //     fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
-                // }
             }
             FieldOp::PushNAndNonTopological => {
                 for i in 0..=fp.last {
@@ -331,65 +233,39 @@ impl FieldOp {
                     fp.last += 1;
                     fp.path[fp.last] = r.read_ubit_var_fieldpath();
                 }
-                // for i in 0..=fp.last() {
-                //     if r.read_bool() {
-                //         fp.inc(i, r.read_var_i32() as i64 + 1);
-                //     }
-                // }
-                // let count = r.read_ubit_var() as usize;
-                // for _ in 0..count {
-                //     fp.down();
-                //     fp.inc_cur(r.read_ubit_var_fieldpath() as i64);
-                // }
             }
             FieldOp::PopOnePlusOne => {
                 fp.pop(1);
                 fp.path[fp.last] += 1;
-                // fp.up(1);
-                // fp.inc_cur(1);
             }
 
             FieldOp::PopOnePlusN => {
                 fp.pop(1);
                 fp.path[fp.last] += r.read_ubit_var_fieldpath() + 1;
-                // fp.up(1);
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64 + 1);
             }
             FieldOp::PopAllButOnePlusOne => {
                 fp.pop(fp.last);
                 fp.path[0] += 1;
-                // fp.up(fp.last());
-                // fp.inc_cur(1);
             }
             FieldOp::PopAllButOnePlusN => {
                 fp.pop(fp.last);
                 fp.path[0] += r.read_ubit_var_fieldpath() + 1;
-                // fp.up(fp.last());
-                // fp.inc_cur(r.read_ubit_var_fieldpath() as i64 + 1);
             }
             FieldOp::PopAllButOnePlusNPack3Bits => {
                 fp.pop(fp.last);
                 fp.path[0] += r.read_bits(3) as i32 + 1;
-                // fp.up(fp.last());
-                // fp.inc_cur(r.read_bits(3) as i64 + 1);
             }
             FieldOp::PopAllButOnePlusNPack6Bits => {
                 fp.pop(fp.last);
                 fp.path[0] += r.read_bits(6) as i32 + 1;
-                // fp.up(fp.last());
-                // fp.inc_cur(r.read_bits(6) as i64 + 1);
             }
             FieldOp::PopNPlusOne => {
                 fp.pop(r.read_ubit_var_fieldpath() as usize);
                 fp.path[fp.last] += 1;
-                // fp.up(r.read_ubit_var_fieldpath() as usize);
-                // fp.inc_cur(1);
             }
             FieldOp::PopNPlusN => {
                 fp.pop(r.read_ubit_var_fieldpath() as usize);
                 fp.path[fp.last] += r.read_var_i32();
-                // fp.up(r.read_ubit_var_fieldpath() as usize);
-                // fp.inc_cur(r.read_var_i32() as i64);
             }
             FieldOp::PopNAndNonTopographical => {
                 fp.pop(r.read_ubit_var_fieldpath() as usize);
@@ -398,12 +274,6 @@ impl FieldOp {
                         fp.path[i] += r.read_var_i32();
                     }
                 }
-                // fp.up(r.read_ubit_var_fieldpath() as usize);
-                // for i in 0..=fp.last() {
-                //     if r.read_bool() {
-                //         fp.inc(i, r.read_var_i32() as i64);
-                //     }
-                // }
             }
             FieldOp::NonTopoComplex => {
                 for i in 0..=fp.last {
@@ -411,15 +281,9 @@ impl FieldOp {
                         fp.path[i] += r.read_var_i32();
                     }
                 }
-                // for i in 0..=fp.last() {
-                //     if r.read_bool() {
-                //         fp.inc(i, r.read_var_i32() as i64);
-                //     }
-                // }
             }
             FieldOp::NonTopoPenultimatePlusOne => {
                 fp.path[fp.last - 1] += 1;
-                // fp.inc(fp.last() - 1, 1);
             }
             FieldOp::NonTopoComplexPack4Bits => {
                 for i in 0..=fp.last {
@@ -427,15 +291,8 @@ impl FieldOp {
                         fp.path[i] += r.read_bits(4) as i32 - 7;
                     }
                 }
-                // for i in 0..=fp.last() {
-                //     if r.read_bool() {
-                //         fp.inc(i, r.read_bits(4) as i64 - 7);
-                //     }
-                // }
             }
-            FieldOp::FieldPathEncodeFinish => {
-                // fp.done = true;
-            }
+            FieldOp::FieldPathEncodeFinish => {}
         }
     }
     pub fn weight(&self) -> u32 {

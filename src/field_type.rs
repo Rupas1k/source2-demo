@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 use rustc_hash::FxHashMap;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug)]
 pub struct FieldType {
@@ -46,12 +47,14 @@ impl FieldType {
             count,
         }
     }
+}
 
-    pub fn as_str(&self) -> String {
+impl Display for FieldType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut s = self.base.clone();
 
         if let Some(generic_type) = &self.generic {
-            s += &format!("< {} >", &generic_type.as_str());
+            s += &format!("< {} >", &generic_type.as_ref());
         }
 
         if self.pointer {
@@ -62,6 +65,6 @@ impl FieldType {
             s += &format!("[{}]", self.count.unwrap());
         }
 
-        s
+        write!(f, "{}", s)
     }
 }

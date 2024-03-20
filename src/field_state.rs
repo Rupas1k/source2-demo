@@ -1,11 +1,11 @@
-use crate::entity::EntityFieldType;
+use crate::entity::EntityFieldValue;
 use crate::field_path::FieldPath;
 use enum_as_inner::EnumAsInner;
 use std::cmp::max;
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum States {
-    Value(EntityFieldType),
+    Value(EntityFieldValue),
     FieldState(FieldState),
 }
 
@@ -41,7 +41,7 @@ impl FieldState {
         None
     }
 
-    pub fn set(&mut self, fp: &FieldPath, v: EntityFieldType) {
+    pub fn set(&mut self, fp: &FieldPath, v: EntityFieldValue) {
         let mut x = self;
         for i in 0..=fp.last {
             let z = fp.path[i];

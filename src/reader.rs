@@ -1,3 +1,4 @@
+use anyhow::Result;
 use bitter::{BitReader, LittleEndianReader};
 
 pub(crate) struct Reader<'a> {
@@ -154,11 +155,11 @@ impl<'a> Reader<'a> {
         unsafe { u64::from_le_bytes((&self.read_bytes(8)[..8]).try_into().unwrap_unchecked()) }
     }
 
-    pub fn read_string(&mut self) -> Option<String> {
+    pub fn read_string(&mut self) -> Result<String> {
         let mut buf: Vec<u8> = vec![];
         loop {
             if self.le_reader.bytes_remaining() == 0 {
-                return Some(String::new());
+                return Ok(String::new());
             }
             let b = self.read_byte();
             if b == 0 {
@@ -166,7 +167,7 @@ impl<'a> Reader<'a> {
             }
             buf.push(b);
         }
-        Some(String::from_utf8_lossy(&buf).to_string())
+        Ok(String::from_utf8_lossy(&buf).to_string())
     }
 
     pub fn read_coordinate(&mut self) -> f32 {

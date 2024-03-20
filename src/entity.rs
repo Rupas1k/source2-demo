@@ -2,6 +2,7 @@ use crate::class::Class;
 use crate::field_path::FieldPath;
 use crate::field_state::FieldState;
 use crate::field_state::States;
+use anyhow::{anyhow, bail, format_err, Result};
 use nohash_hasher::IntMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::{Ref, RefCell};
@@ -47,21 +48,25 @@ impl Entities {
         (serial << 14) | index
     }
 
-    pub fn get_by_index(&self, index: &i32) -> Option<&Entity> {
-        self.index_to_entity.get(&index)
+    pub fn get_by_index(&self, index: &i32) -> Result<&Entity> {
+        self.index_to_entity
+            .get(&index)
+            .ok_or_else(|| anyhow!(format!("No entities for index {index}")))
     }
-    pub fn get_by_handle(&self, handle: &i32) -> Option<&Entity> {
+    pub fn get_by_handle(&self, handle: &i32) -> Result<&Entity> {
         self.get_by_index(&Entities::index_for_handle(handle))
     }
-    pub fn get_by_class_id(&self, id: &i32) -> Option<&Entity> {
+    pub fn get_by_class_id(&self, id: &i32) -> Result<&Entity> {
         self.index_to_entity
             .values()
             .find(|&entity| &entity.class.borrow().id == id)
+            .ok_or_else(|| anyhow!(format!("No entities for class with id {id}")))
     }
-    pub fn get_by_class_name(&self, name: &str) -> Option<&Entity> {
+    pub fn get_by_class_name(&self, name: &str) -> Result<&Entity> {
         self.index_to_entity
             .values()
             .find(|&entity| entity.class.borrow().name.as_ref() == name)
+            .ok_or_else(|| anyhow!(format!("No entities for class with name {name}")))
     }
 
     pub fn get_all_by_class_id(&self, id: &i32) -> Vec<&Entity> {
@@ -115,7 +120,7 @@ pub struct Entity {
     pub(crate) active: bool,
     pub(crate) state: FieldState,
     fp_cache: RefCell<FpCache>,
-    fp_no_op_cache: RefCell<FxHashSet<String>>,
+    fp_no_op_cache: RefCell<FxHashSet<Box<str>>>,
 }
 
 impl Entity {
@@ -147,26 +152,35 @@ impl Entity {
         self.active
     }
 
-    pub fn get_property_by_name(&self, name: &str) -> Option<&EntityFieldType> {
+    pub fn get_property_by_name(&self, name: &str) -> Result<&EntityFieldValue> {
         if self.fp_no_op_cache.borrow().contains(name) {
-            return None;
+            bail!("No op for given property");
         }
         if let Some(fp) = self.fp_cache.borrow().get(name) {
             return self.get_property_by_field_path(fp);
         }
 
         let mut fp = FieldPath::new();
-        if self.class.borrow().get_field_path_for_name(&mut fp, name) {
+        if self
+            .class
+            .borrow()
+            .get_field_path_for_name(&mut fp, name)
+            .is_ok()
+        {
             self.fp_cache.borrow_mut().set(name, fp.clone());
             return self.get_property_by_field_path(&fp);
         } else {
-            self.fp_no_op_cache.borrow_mut().insert(name.to_string());
+            self.fp_no_op_cache.borrow_mut().insert(name.into());
         }
-        None
+        bail!("No property for given name")
     }
 
-    pub fn get_property_by_field_path(&self, fp: &FieldPath) -> Option<&EntityFieldType> {
-        self.state.get(fp).unwrap().as_value()
+    pub fn get_property_by_field_path(&self, fp: &FieldPath) -> Result<&EntityFieldValue> {
+        if let Some(state) = self.state.get(fp) {
+            Ok(state.as_value().unwrap())
+        } else {
+            bail!("No property for given field path")
+        }
     }
 }
 
@@ -249,14 +263,13 @@ impl Display for Entity {
 
         // Add bottom border
         table += &format!("+-------------------------------------+-------------------------------------+-------------------------------------+\n");
-
         write!(f, "{}", table)?;
         Ok(())
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum EntityFieldType {
+pub enum EntityFieldValue {
     Boolean(bool),
     String(String),
     Float(f32),
@@ -275,67 +288,287 @@ pub enum EntityFieldType {
     Unsigned64(u64),
 }
 
-macro_rules! impl_try_into_for_fields {
-    ($target:ty) => {
-        impl TryInto<$target> for EntityFieldType {
-            type Error = ();
+impl Display for EntityFieldValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EntityFieldValue::Boolean(val) => write!(f, "{}", val),
+            EntityFieldValue::String(val) => write!(f, "{}", val),
+            EntityFieldValue::Float(val) => write!(f, "{}", val),
+            EntityFieldValue::Vector2D(val) => write!(f, "[{}, {}]", val[0], val[1]),
+            EntityFieldValue::Vector3D(val) => write!(f, "[{}, {}, {}]", val[0], val[1], val[2]),
+            EntityFieldValue::Vector4D(val) => {
+                write!(f, "[{}, {}, {}, {}]", val[0], val[1], val[2], val[3])
+            }
+            EntityFieldValue::Signed8(val) => write!(f, "{}", val),
+            EntityFieldValue::Signed16(val) => write!(f, "{}", val),
+            EntityFieldValue::Signed32(val) => write!(f, "{}", val),
+            EntityFieldValue::Signed64(val) => write!(f, "{}", val),
+            EntityFieldValue::Unsigned8(val) => write!(f, "{}", val),
+            EntityFieldValue::Unsigned16(val) => write!(f, "{}", val),
+            EntityFieldValue::Unsigned32(val) => write!(f, "{}", val),
+            EntityFieldValue::Unsigned64(val) => write!(f, "{}", val),
+        }
+    }
+}
 
-            fn try_into(self) -> Result<$target, Self::Error> {
+impl TryInto<[f32; 2]> for EntityFieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<[f32; 2], anyhow::Error> {
+        match self {
+            EntityFieldValue::Vector2D(x) => Ok(x),
+            _ => Err(format_err!("Error converting {} into [f32; 2]", self,)),
+        }
+    }
+}
+
+impl TryInto<[f32; 2]> for &EntityFieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<[f32; 2], anyhow::Error> {
+        match self {
+            EntityFieldValue::Vector2D(x) => Ok(*x),
+            _ => Err(format_err!("Error converting {} into [f32; 2]", self,)),
+        }
+    }
+}
+
+impl TryInto<[f32; 3]> for EntityFieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<[f32; 3], anyhow::Error> {
+        match self {
+            EntityFieldValue::Vector3D(x) => Ok(x),
+            _ => Err(format_err!("Error converting {} into [f32; 3]", self,)),
+        }
+    }
+}
+
+impl TryInto<[f32; 3]> for &EntityFieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<[f32; 3], anyhow::Error> {
+        match self {
+            EntityFieldValue::Vector3D(x) => Ok(*x),
+            _ => Err(format_err!("Error converting {} into [f32; 3]", self,)),
+        }
+    }
+}
+
+impl TryInto<[f32; 4]> for EntityFieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<[f32; 4], anyhow::Error> {
+        match self {
+            EntityFieldValue::Vector4D(x) => Ok(x),
+            _ => Err(format_err!("Error converting {} into [f32; 4]", self,)),
+        }
+    }
+}
+
+impl TryInto<[f32; 4]> for &EntityFieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<[f32; 4], anyhow::Error> {
+        match self {
+            EntityFieldValue::Vector4D(x) => Ok(*x),
+            _ => Err(format_err!("Error converting {} into [f32; 4]", self,)),
+        }
+    }
+}
+
+impl TryInto<Vec<f32>> for EntityFieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<Vec<f32>, anyhow::Error> {
+        match self {
+            EntityFieldValue::Vector2D(x) => Ok(x.to_vec()),
+            EntityFieldValue::Vector3D(x) => Ok(x.to_vec()),
+            EntityFieldValue::Vector4D(x) => Ok(x.to_vec()),
+            _ => Err(format_err!("Error converting {} into Vec<f32>", self,)),
+        }
+    }
+}
+
+impl TryInto<Vec<f32>> for &EntityFieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<Vec<f32>, anyhow::Error> {
+        match self {
+            EntityFieldValue::Vector2D(x) => Ok(x.to_vec()),
+            EntityFieldValue::Vector3D(x) => Ok(x.to_vec()),
+            EntityFieldValue::Vector4D(x) => Ok(x.to_vec()),
+            _ => Err(format_err!("Error converting {} into Vec<f32>", self,)),
+        }
+    }
+}
+
+impl TryInto<f32> for EntityFieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<f32, anyhow::Error> {
+        match self {
+            EntityFieldValue::Float(x) => Ok(x),
+            _ => Err(format_err!("Error converting {} into f32", self,)),
+        }
+    }
+}
+
+impl TryInto<f32> for &EntityFieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<f32, anyhow::Error> {
+        match self {
+            EntityFieldValue::Float(x) => Ok(*x),
+            _ => Err(format_err!("Error converting {} into f32", self,)),
+        }
+    }
+}
+
+impl TryInto<bool> for EntityFieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<bool, anyhow::Error> {
+        match self {
+            EntityFieldValue::Boolean(x) => Ok(x),
+            _ => Err(format_err!("Error converting {} into bool", self,)),
+        }
+    }
+}
+
+impl TryInto<bool> for &EntityFieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<bool, anyhow::Error> {
+        match self {
+            EntityFieldValue::Boolean(x) => Ok(*x),
+            _ => Err(format_err!("Error converting {} into bool", self)),
+        }
+    }
+}
+
+macro_rules! impl_try_into_for_integers {
+    ($target:ty) => {
+        impl TryInto<$target> for EntityFieldValue {
+            type Error = anyhow::Error;
+
+            fn try_into(self) -> Result<$target, anyhow::Error> {
                 match self {
-                    // EntityFieldType::Boolean(x) => Ok(x == 1 as $target),
-                    EntityFieldType::Signed8(x) => Ok(x as $target),
-                    EntityFieldType::Signed16(x) => Ok(x as $target),
-                    EntityFieldType::Signed32(x) => Ok(x as $target),
-                    EntityFieldType::Signed64(x) => Ok(x as $target),
-                    EntityFieldType::Unsigned8(x) => Ok(x as $target),
-                    EntityFieldType::Unsigned16(x) => Ok(x as $target),
-                    EntityFieldType::Unsigned32(x) => Ok(x as $target),
-                    EntityFieldType::Unsigned64(x) => Ok(x as $target),
-                    EntityFieldType::Float(x) => Ok(x as $target),
-                    _ => Err(()),
+                    // EntityFieldType::Boolean(x) => Ok((x == 1) as $target),
+                    EntityFieldValue::Signed8(x) => {
+                        Ok(TryInto::<$target>::try_into(x).map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?)
+                    }
+                    EntityFieldValue::Signed16(x) => {
+                        Ok(TryInto::<$target>::try_into(x).map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?)
+                    }
+                    EntityFieldValue::Signed32(x) => {
+                        Ok(TryInto::<$target>::try_into(x).map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?)
+                    }
+                    EntityFieldValue::Signed64(x) => {
+                        Ok(TryInto::<$target>::try_into(x).map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?)
+                    }
+                    EntityFieldValue::Unsigned8(x) => {
+                        Ok(TryInto::<$target>::try_into(x).map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?)
+                    }
+                    EntityFieldValue::Unsigned16(x) => Ok(TryInto::<$target>::try_into(x)
+                        .map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?),
+                    EntityFieldValue::Unsigned32(x) => Ok(TryInto::<$target>::try_into(x)
+                        .map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?),
+                    EntityFieldValue::Unsigned64(x) => Ok(TryInto::<$target>::try_into(x)
+                        .map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?),
+                    EntityFieldValue::Float(x) => Ok(x as $target),
+                    _ => Err(format_err!(
+                        "Cannot convert {} into {}",
+                        self,
+                        stringify!($target)
+                    )),
                 }
             }
         }
 
-        impl TryInto<$target> for &EntityFieldType {
-            type Error = ();
+        impl TryInto<$target> for &EntityFieldValue {
+            type Error = anyhow::Error;
 
-            fn try_into(self) -> Result<$target, Self::Error> {
-                // self.to_owned().try_into()
+            fn try_into(self) -> Result<$target, anyhow::Error> {
                 match self {
                     // EntityFieldType::Boolean(x) => Ok(x == 1 as $target),
-                    EntityFieldType::Signed8(x) => Ok(*x as $target),
-                    EntityFieldType::Signed16(x) => Ok(*x as $target),
-                    EntityFieldType::Signed32(x) => Ok(*x as $target),
-                    EntityFieldType::Signed64(x) => Ok(*x as $target),
-                    EntityFieldType::Unsigned8(x) => Ok(*x as $target),
-                    EntityFieldType::Unsigned16(x) => Ok(*x as $target),
-                    EntityFieldType::Unsigned32(x) => Ok(*x as $target),
-                    EntityFieldType::Unsigned64(x) => Ok(*x as $target),
-                    EntityFieldType::Float(x) => Ok(*x as $target),
-                    _ => Err(()),
+                    EntityFieldValue::Signed8(x) => {
+                        Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?)
+                    }
+                    EntityFieldValue::Signed16(x) => {
+                        Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?)
+                    }
+                    EntityFieldValue::Signed32(x) => {
+                        Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?)
+                    }
+                    EntityFieldValue::Signed64(x) => {
+                        Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?)
+                    }
+                    EntityFieldValue::Unsigned8(x) => Ok(TryInto::<$target>::try_into(*x)
+                        .map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?),
+                    EntityFieldValue::Unsigned16(x) => Ok(TryInto::<$target>::try_into(*x)
+                        .map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?),
+                    EntityFieldValue::Unsigned32(x) => Ok(TryInto::<$target>::try_into(*x)
+                        .map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?),
+                    EntityFieldValue::Unsigned64(x) => Ok(TryInto::<$target>::try_into(*x)
+                        .map_err(|_| {
+                            format_err!("Error converting {x} into {}", stringify!($target))
+                        })?),
+                    EntityFieldValue::Float(x) => Ok(*x as $target),
+                    _ => Err(format_err!(
+                        "Cannot convert {} into {}",
+                        self,
+                        stringify!($target)
+                    )),
                 }
             }
         }
     };
 }
+impl_try_into_for_integers!(i8);
+impl_try_into_for_integers!(i16);
+impl_try_into_for_integers!(i32);
+impl_try_into_for_integers!(i64);
+impl_try_into_for_integers!(i128);
+impl_try_into_for_integers!(u8);
+impl_try_into_for_integers!(u16);
+impl_try_into_for_integers!(u32);
+impl_try_into_for_integers!(u64);
+impl_try_into_for_integers!(u128);
 
-impl_try_into_for_fields!(i8);
-impl_try_into_for_fields!(i16);
-impl_try_into_for_fields!(i32);
-impl_try_into_for_fields!(i64);
-impl_try_into_for_fields!(i128);
-impl_try_into_for_fields!(u8);
-impl_try_into_for_fields!(u16);
-impl_try_into_for_fields!(u32);
-impl_try_into_for_fields!(u64);
-impl_try_into_for_fields!(u128);
-impl_try_into_for_fields!(f32);
-impl_try_into_for_fields!(f64);
-
-impl EntityFieldType {
+impl EntityFieldValue {
     pub fn as_string(&self) -> &str {
-        if let EntityFieldType::String(s) = self {
+        if let EntityFieldValue::String(s) = self {
             s.as_str()
         } else {
             panic!("Tried to read as String, Found {:?}", self);
@@ -343,7 +576,7 @@ impl EntityFieldType {
     }
 
     pub fn as_bool(&self) -> bool {
-        if let EntityFieldType::Boolean(b) = self {
+        if let EntityFieldValue::Boolean(b) = self {
             *b
         } else {
             panic!("Tried to read as Boolean, Found {:?}", self);
@@ -351,7 +584,7 @@ impl EntityFieldType {
     }
     //
     pub fn as_float(&self) -> f32 {
-        if let EntityFieldType::Float(f) = self {
+        if let EntityFieldValue::Float(f) = self {
             *f
         } else {
             panic!("Tried to read as Float, Found {:?}", self);
@@ -359,7 +592,7 @@ impl EntityFieldType {
     }
 
     pub fn as_vector2d(&self) -> &[f32; 2] {
-        if let EntityFieldType::Vector2D(v) = self {
+        if let EntityFieldValue::Vector2D(v) = self {
             v
         } else {
             panic!("Tried to read as Vector2D, Found {:?}", self);
@@ -367,7 +600,7 @@ impl EntityFieldType {
     }
 
     pub fn as_vector3d(&self) -> &[f32; 3] {
-        if let EntityFieldType::Vector3D(v) = self {
+        if let EntityFieldValue::Vector3D(v) = self {
             v
         } else {
             panic!("Tried to read as Vector3D, Found {:?}", self);
@@ -375,7 +608,7 @@ impl EntityFieldType {
     }
 
     pub fn as_vector4d(&self) -> &[f32; 4] {
-        if let EntityFieldType::Vector4D(v) = self {
+        if let EntityFieldValue::Vector4D(v) = self {
             v
         } else {
             panic!("Tried to read as Vector4D, Found {:?}", self);

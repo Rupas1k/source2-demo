@@ -20,6 +20,7 @@ nohash-hasher = "0.2.0"
 mimalloc = { version = "0.1.39", default-features = false }
 lazy_static = "1.4.0"
 prost = "0.12.3"
+anyhow = "1.0.81"
 
 [profile.dev]
 #opt-level = 0

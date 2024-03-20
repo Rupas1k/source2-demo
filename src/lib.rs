@@ -14,23 +14,21 @@ mod reader;
 mod serializer;
 mod string_table;
 
-// pub mod observers;
-
 pub mod prelude {
     pub use proto::*;
 
     pub use prost::Message;
 
+    pub use anyhow::Result;
+
     pub use crate::parser::{Observer, Parser};
 
     pub use crate::string_table::{StringTable, StringTableItem};
 
-    pub use crate::entity::{Entity, EntityEvent, EntityFieldType};
+    pub use crate::entity::{Entity, EntityEvent, EntityFieldValue};
 
     pub use crate::combat_log::CombatLog;
 }
-
-// pub use crate::observers;
 
 pub use proto;
 
