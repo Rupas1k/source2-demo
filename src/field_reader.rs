@@ -28,13 +28,13 @@ impl FieldReader {
             };
             match next {
                 EHTree::Leaf { value, .. } => {
-                    node = &self.tree;
                     let op = FieldOp::from_position(*value);
                     op.execute(reader, &mut fp);
                     if let FieldOp::FieldPathEncodeFinish = op {
                         break;
                     }
                     paths.push(fp.clone());
+                    node = &self.tree;
                 }
                 EHTree::Node { .. } => {
                     node = next;

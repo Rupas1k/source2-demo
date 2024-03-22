@@ -25,7 +25,7 @@ pub mod prelude {
 
     pub use crate::string_table::{StringTable, StringTableItem};
 
-    pub use crate::entity::{Entity, EntityEvent, EntityFieldValue};
+    pub use crate::entity::{Entity, EntityAction, FieldValue};
 
     pub use crate::combat_log::CombatLog;
 }

@@ -9,9 +9,10 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 
 use crate::class::{Class, Classes};
-use crate::entity::{Entities, Entity, EntityEvent};
+use crate::entity::{Entities, Entity, EntityAction};
 use crate::field::FIELD_PATCHES;
 use crate::field::{Field, FieldModels};
+use crate::field_decoder::Decoders;
 use crate::field_reader::FieldReader;
 use crate::field_type::FieldType;
 use crate::reader::Reader;
@@ -30,7 +31,7 @@ use proto::CMsgDotaCombatLogEntry;
 
 #[derive(Debug)]
 struct OuterMessage {
-    tick: u32,
+    // tick: u32,
     msg_type: EDemoCommands,
     buf: Vec<u8>,
 }
@@ -58,6 +59,7 @@ pub struct Parser<'a> {
 
     pending_messages: VecDeque<PendingMessage>,
     serializers: FxHashMap<Box<str>, Rc<Serializer>>,
+    baselines: IntMap<i32, Rc<Vec<u8>>>,
 
     pub(crate) observers: Vec<Rc<RefCell<dyn Observer + 'static>>>,
 
@@ -80,6 +82,7 @@ impl<'a> Parser<'a> {
 
             pending_messages: VecDeque::new(),
             serializers: FxHashMap::default(),
+            baselines: IntMap::default(),
 
             classes: Classes::new(),
             entities: Entities::new(),
@@ -187,72 +190,127 @@ impl<'a> Parser<'a> {
 
         let fs = CsvcMsgFlattenedSerializer::decode(buf.as_slice())?;
 
+        let resolve = |p: Option<i32>| -> Box<str> {
+            if let Some(i) = p {
+                return fs.symbols[i as usize].clone().into();
+            }
+            "".to_string().into()
+        };
+
+        let pointer_types: FxHashSet<&'static str> = [
+            "PhysicsRagdollPose_t",
+            "CBodyComponent",
+            "CEntityIdentity",
+            "CPhysicsComponent",
+            "CRenderComponent",
+            "CDOTAGamerules",
+            "CDOTAGameManager",
+            "CDOTASpectatorGraphManager",
+            "CPlayerLocalData",
+            "CPlayer_CameraServices",
+            "CDOTAGameRules",
+        ]
+        .iter()
+        .cloned()
+        .collect();
+
         let patches = FIELD_PATCHES
             .iter()
             .filter(|patch| patch.should_apply(self.game_build.unwrap()))
             .collect::<Vec<_>>();
 
-        let mut fields = FxHashMap::<i32, Rc<Field>>::default();
-        let mut field_types = FxHashMap::<String, Rc<FieldType>>::default();
+        let mut fields = IntMap::<i32, Rc<Field>>::default();
+        let mut field_types = FxHashMap::<Box<str>, Rc<FieldType>>::default();
 
         for s in fs.serializers.iter() {
+            let serializer_name = fs.symbols[s.serializer_name_sym() as usize].clone();
             let mut serializer = Serializer::new(
-                fs.symbols[s.serializer_name_sym.unwrap() as usize].clone(),
-                s.serializer_version.unwrap(),
+                serializer_name.clone().into(),
+                // s.serializer_version(),
             );
 
             for i in s.fields_index.iter() {
+                let current_field = &fs.fields[*i as usize];
+                let field_serializer_name = resolve(current_field.field_serializer_name_sym);
+
                 if fields.get(i).is_none() {
-                    let mut field = Field::new(fs.clone(), fs.fields[*i as usize].clone());
-                    if field_types.get(field.var_type.as_ref()).is_none() {
+                    let var_type_str = resolve(current_field.var_type_sym);
+                    let current_field_serializer =
+                        self.serializers.get(&field_serializer_name).map(Rc::clone);
+
+                    if field_types.get(&var_type_str).is_none() {
                         field_types.insert(
-                            field.var_type.clone().parse()?,
-                            Rc::new(FieldType::new(&field.var_type)),
+                            var_type_str.clone(),
+                            Rc::new(FieldType::new(var_type_str.clone().as_ref())),
                         );
                     }
-                    field.field_type = Some(Rc::clone(&field_types[field.var_type.as_ref()]));
 
-                    if field.serializer_name.as_ref() != "" {
-                        field.serializer =
-                            self.serializers.get(&field.serializer_name).map(Rc::clone);
-                    }
+                    let field_type = Rc::clone(&field_types[&var_type_str]);
+
+                    let current_field_model = if current_field_serializer.is_some() {
+                        if field_type.pointer || pointer_types.contains(field_type.base.as_str()) {
+                            FieldModels::FixedTable
+                        } else {
+                            FieldModels::VariableTable
+                        }
+                    } else if field_type.count.is_some()
+                        && field_type.count.unwrap() > 0
+                        && field_type.base != "char"
+                    {
+                        FieldModels::FixedArray
+                    } else if field_type.base == "CUtlVector"
+                        || field_type.base == "CNetworkUtlVectorBase"
+                    {
+                        FieldModels::VariableArray
+                    } else {
+                        FieldModels::Simple
+                    };
+
+                    let mut field = Field {
+                        var_name: resolve(current_field.var_name_sym),
+                        var_type: var_type_str,
+                        serializer_name: field_serializer_name,
+                        encoder: resolve(current_field.var_encoder_sym),
+                        encoder_flags: current_field.encode_flags(),
+                        bit_count: current_field.bit_count(),
+                        low_value: current_field.low_value(),
+                        high_value: current_field.high_value(),
+                        field_type: Rc::clone(&field_type),
+                        serializer: current_field_serializer,
+                        model: current_field_model,
+
+                        decoder: Decoders::Default,
+                        base_decoder: Decoders::Default,
+                        child_decoder: Decoders::Default,
+                    };
 
                     for patch in patches.iter() {
                         (patch.patch)(&mut field);
                     }
 
-                    if field.serializer.is_some() {
-                        if field.field_type.as_ref().unwrap().pointer
-                            || POINTER_TYPES
-                                .get(field.field_type.as_ref().unwrap().base.as_str())
-                                .is_some()
-                        {
-                            field.set_model(FieldModels::FixedTable);
-                        } else {
-                            field.set_model(FieldModels::VariableTable);
+                    match field.model {
+                        FieldModels::FixedArray => {
+                            field.decoder = Decoders::from_field(&field, false);
                         }
-                    } else if field.field_type.as_ref().unwrap().count.is_some()
-                        && field.field_type.as_ref().unwrap().count.unwrap() > 0
-                        && field.field_type.as_ref().unwrap().base != "char"
-                    {
-                        field.set_model(FieldModels::FixedArray);
-                    } else if field.field_type.as_ref().unwrap().base == "CUtlVector"
-                        || field.field_type.as_ref().unwrap().base == "CNetworkUtlVectorBase"
-                    {
-                        field.set_model(FieldModels::VariableArray);
-                    } else {
-                        field.set_model(FieldModels::Simple);
-                    }
+                        FieldModels::FixedTable => field.base_decoder = Decoders::Boolean,
+                        FieldModels::VariableArray => {
+                            field.base_decoder = Decoders::Unsigned32;
+                            field.child_decoder = Decoders::from_field(&field, true)
+                        }
+                        FieldModels::VariableTable => {
+                            field.base_decoder = Decoders::Unsigned32;
+                        }
+                        FieldModels::Simple => {
+                            field.decoder = Decoders::from_field(&field, false);
+                        }
+                    };
                     fields.insert(*i, Rc::new(field));
                 }
                 serializer.fields.push(Rc::clone(&fields[i]));
             }
-            let ser_name = serializer.name.clone();
+            let ser_name = serializer_name.clone();
             self.serializers
-                .insert(serializer.name.clone(), Rc::new(serializer));
-            if let Ok(x) = self.classes.get_by_name_mut(ser_name.as_ref()) {
-                x.borrow_mut().serializer = Rc::clone(self.serializers.get(&ser_name).unwrap());
-            }
+                .insert(ser_name.clone().into(), Rc::new(serializer));
         }
         Ok(())
     }
@@ -262,17 +320,16 @@ impl<'a> Parser<'a> {
         for class in info.classes {
             let class_id = class.class_id.unwrap();
             let network_name = class.network_name.unwrap();
-            let c = Rc::new(RefCell::new(Class::new(
+            let c: Rc<Class> = Rc::new(Class::new(
                 class_id,
                 network_name.as_str(),
                 Rc::clone(&self.serializers[&network_name.clone().into_boxed_str()]),
-            )));
+            ));
             self.classes.classes_by_id.insert(class_id, Rc::clone(&c));
             self.classes
                 .classes_by_name
                 .insert(network_name.into(), Rc::clone(&c));
         }
-        self.classes.class_info = true;
         Ok(())
     }
 
@@ -298,24 +355,22 @@ impl<'a> Parser<'a> {
     }
 
     fn read_outer_message(&mut self) -> Result<Option<OuterMessage>> {
-        let reader = &mut self.reader;
-
-        if reader.remain_bytes() == 0 {
+        if self.reader.remain_bytes() == 0 {
             return Ok(None);
         }
 
-        let raw_command = reader.read_var_u32() as i32;
+        let raw_command = self.reader.read_var_u32() as i32;
         let msg_type =
             EDemoCommands::try_from(raw_command & !(EDemoCommands::DemIsCompressed as i32))?;
         let msg_compressed = (raw_command & EDemoCommands::DemIsCompressed as i32)
             == EDemoCommands::DemIsCompressed as i32;
-        let tick = match reader.read_var_u32() {
+        let tick = match self.reader.read_var_u32() {
             0xffffffff => 0,
             x => x,
         };
 
-        let size = reader.read_var_u32();
-        let mut buf = reader.read_bytes(size);
+        let size = self.reader.read_var_u32();
+        let mut buf = self.reader.read_bytes(size);
 
         if msg_compressed {
             let mut decoder = snap::raw::Decoder::new();
@@ -325,7 +380,7 @@ impl<'a> Parser<'a> {
         self.tick = tick;
 
         Ok(Some(OuterMessage {
-            tick,
+            // tick,
             msg_type,
             buf,
         }))
@@ -333,18 +388,18 @@ impl<'a> Parser<'a> {
 
     fn process_messages(&mut self) -> Result<()> {
         while let Some(message) = self.pending_messages.pop_front() {
-            if let Ok(msg) = NetMessages::try_from(message.msg_type) {
-                self.on_net_message(msg, &message.buf)?;
+            if let Ok(msg) = EDotaUserMessages::try_from(message.msg_type) {
+                self.on_dota_user_message(msg, &message.buf)?;
+            } else if let Ok(msg) = SvcMessages::try_from(message.msg_type) {
+                self.on_svc_message(msg, &message.buf)?;
             } else if let Ok(msg) = EBaseUserMessages::try_from(message.msg_type) {
                 self.on_base_user_message(msg, &message.buf)?;
             } else if let Ok(msg) = EBaseGameEvents::try_from(message.msg_type) {
                 self.on_base_game_event(msg, &message.buf)?;
+            } else if let Ok(msg) = NetMessages::try_from(message.msg_type) {
+                self.on_net_message(msg, &message.buf)?;
             } else if let Ok(msg) = EBaseEntityMessages::try_from(message.msg_type) {
                 self.on_base_entity_message(msg, &message.buf)?;
-            } else if let Ok(msg) = SvcMessages::try_from(message.msg_type) {
-                self.on_svc_message(msg, &message.buf)?;
-            } else if let Ok(msg) = EDotaUserMessages::try_from(message.msg_type) {
-                self.on_dota_user_message(msg, &message.buf)?;
             }
         }
         Ok(())
@@ -369,7 +424,6 @@ impl<'a> Parser<'a> {
                 self.entities.entity_full_packets += 1;
             }
 
-            let baselines = self.string_tables.get_by_name("instancebaseline")?;
             for _ in 0..updates {
                 index += r.read_ubit_var() as i32 + 1;
 
@@ -382,14 +436,8 @@ impl<'a> Parser<'a> {
 
                         r.read_var_u32();
 
-                        let class = Rc::clone(self.classes.get_by_id_mut(&class_id)?);
-                        let baseline = baselines
-                            .items
-                            .values()
-                            .find(|x| x.key.parse::<i32>().unwrap() == class_id)
-                            .ok_or(anyhow!("No baseline for given class"))?
-                            .value
-                            .as_slice();
+                        let class = Rc::clone(self.classes.get_by_id_rc(&class_id)?);
+                        let baseline = self.baselines[&class_id].as_slice();
 
                         self.entities
                             .index_to_entity
@@ -398,34 +446,28 @@ impl<'a> Parser<'a> {
 
                         self.field_reader.read_fields(
                             &mut Reader::new(baseline),
-                            &e.class.borrow().serializer,
+                            &e.class.serializer,
                             &mut e.state,
                         );
 
-                        self.field_reader.read_fields(
-                            &mut r,
-                            &e.class.borrow().serializer,
-                            &mut e.state,
-                        );
+                        self.field_reader
+                            .read_fields(&mut r, &e.class.serializer, &mut e.state);
 
-                        op = EntityEvent::Created as isize | EntityEvent::Entered as isize;
+                        op = EntityAction::Created as isize | EntityAction::Entered as isize;
                     } else {
-                        op = EntityEvent::Updated as isize;
+                        op = EntityAction::Updated as isize;
                         let e = self.entities.index_to_entity.get_mut(&index).unwrap();
                         if !e.active {
                             e.active = true;
-                            op |= EntityEvent::Entered as isize;
+                            op |= EntityAction::Entered as isize;
                         }
-                        self.field_reader.read_fields(
-                            &mut r,
-                            &e.class.borrow().serializer,
-                            &mut e.state,
-                        );
+                        self.field_reader
+                            .read_fields(&mut r, &e.class.serializer, &mut e.state);
                     }
                 } else {
-                    op = EntityEvent::Left as isize;
+                    op = EntityAction::Left as isize;
                     if cmd & 0x02 != 0 {
-                        op |= EntityEvent::Deleted as isize;
+                        op |= EntityAction::Deleted as isize;
                     }
                 }
                 self.entities.undone_entities.push_back((index, op));
@@ -443,6 +485,7 @@ impl<'a> Parser<'a> {
             .get(&st.table_id.unwrap())
             .unwrap()
             .borrow_mut();
+        let is_baseline = t.name == "instancebaseline";
 
         for item in t.parse(
             st.string_data.unwrap().as_slice(),
@@ -450,14 +493,22 @@ impl<'a> Parser<'a> {
         )? {
             match t.items.get_mut(&item.index) {
                 Some(x) => {
-                    if !item.key.is_empty() && item.key != x.key {
-                        x.key = item.key;
+                    if is_baseline {
+                        self.baselines
+                            .insert(item.key.parse::<i32>()?, Rc::clone(&item.value));
                     }
                     if item.value.len() > 0 {
                         x.value = item.value;
                     }
+                    if !item.key.is_empty() && item.key != x.key {
+                        x.key = item.key;
+                    }
                 }
                 None => {
+                    if is_baseline {
+                        self.baselines
+                            .insert(item.key.parse::<i32>()?, Rc::clone(&item.value));
+                    }
                     t.items.insert(item.index, item);
                 }
             }
@@ -472,9 +523,9 @@ impl<'a> Parser<'a> {
             index: self.string_tables.next_index,
             name: st.name().into(),
             items: IntMap::default(),
-            user_data_fixed_size: st.user_data_fixed_size.unwrap(),
-            user_data_size: st.user_data_size.unwrap(),
-            flags: st.flags.unwrap() as u32,
+            user_data_fixed_size: st.user_data_fixed_size(),
+            user_data_size: st.user_data_size(),
+            flags: st.flags() as u32,
             var_int_bit_counts: st.using_varint_bitcounts(),
         };
 
@@ -488,7 +539,13 @@ impl<'a> Parser<'a> {
             false => st.string_data.unwrap(),
         };
 
+        let is_baseline = t.name == "instancebaseline";
+
         for item in t.parse(buf.as_slice(), st.num_entries.unwrap())? {
+            if is_baseline {
+                self.baselines
+                    .insert(item.key.parse::<i32>()?, Rc::clone(&item.value));
+            }
             t.items.insert(item.index, item);
         }
 
@@ -499,6 +556,7 @@ impl<'a> Parser<'a> {
         self.string_tables
             .names_to_table
             .insert(rc.borrow().name.clone().into(), Rc::clone(&rc));
+
         Ok(())
     }
 
@@ -514,18 +572,16 @@ impl<'a> Parser<'a> {
                 let build = build_str.parse::<u32>()?;
                 self.game_build = Some(build);
             } else {
-                // panic!("No build number found in regex capture");
                 bail!("No build number found in regex capture");
             }
         } else {
-            // panic!("Failed to parse build number: '{}'", info.game_dir());
             bail!("Failed to parse build number: '{}'", info.game_dir());
         }
         Ok(())
     }
 
     fn process_entities(&mut self) -> Result<()> {
-        let throw_event = |ctx: &Parser, index: &i32, event: EntityEvent| -> Result<()> {
+        let throw_event = |ctx: &Parser, index: &i32, event: EntityAction| -> Result<()> {
             self.observers.iter().try_for_each(|obs| {
                 obs.borrow_mut()
                     .on_entity(ctx, event, &ctx.entities.index_to_entity[index])
@@ -533,20 +589,20 @@ impl<'a> Parser<'a> {
         };
 
         while let Some((index, op)) = self.entities.undone_entities.pop_front() {
-            if op & EntityEvent::Created as isize != 0 {
-                throw_event(self, &index, EntityEvent::Created)?;
+            if op & EntityAction::Created as isize != 0 {
+                throw_event(self, &index, EntityAction::Created)?;
             }
-            if op & EntityEvent::Entered as isize != 0 {
-                throw_event(self, &index, EntityEvent::Entered)?;
+            if op & EntityAction::Entered as isize != 0 {
+                throw_event(self, &index, EntityAction::Entered)?;
             }
-            if op & EntityEvent::Updated as isize != 0 {
-                throw_event(self, &index, EntityEvent::Updated)?;
+            if op & EntityAction::Updated as isize != 0 {
+                throw_event(self, &index, EntityAction::Updated)?;
             }
-            if op & EntityEvent::Left as isize != 0 {
-                throw_event(self, &index, EntityEvent::Left)?;
+            if op & EntityAction::Left as isize != 0 {
+                throw_event(self, &index, EntityAction::Left)?;
             }
-            if op & EntityEvent::Deleted as isize != 0 {
-                throw_event(self, &index, EntityEvent::Deleted)?;
+            if op & EntityAction::Deleted as isize != 0 {
+                throw_event(self, &index, EntityAction::Deleted)?;
                 self.entities.index_to_entity.remove(&index);
             }
         }
@@ -631,7 +687,7 @@ pub trait Observer {
     fn on_tick_end(&mut self, ctx: &Parser) -> Result<()> {
         Ok(())
     }
-    fn on_entity(&mut self, ctx: &Parser, event: EntityEvent, entity: &Entity) -> Result<()> {
+    fn on_entity(&mut self, ctx: &Parser, event: EntityAction, entity: &Entity) -> Result<()> {
         Ok(())
     }
     fn on_combat_log(&mut self, ctx: &Parser, combat_log: &CombatLog) -> Result<()> {
@@ -640,24 +696,4 @@ pub trait Observer {
     fn epilogue(&mut self, ctx: &Parser) -> Result<()> {
         Ok(())
     }
-}
-pub enum ParseError {}
-
-lazy_static! {
-    static ref POINTER_TYPES: FxHashSet<&'static str> = [
-        "PhysicsRagdollPose_t",
-        "CBodyComponent",
-        "CEntityIdentity",
-        "CPhysicsComponent",
-        "CRenderComponent",
-        "CDOTAGamerules",
-        "CDOTAGameManager",
-        "CDOTASpectatorGraphManager",
-        "CPlayerLocalData",
-        "CPlayer_CameraServices",
-        "CDOTAGameRules",
-    ]
-    .iter()
-    .cloned()
-    .collect();
 }

@@ -11,10 +11,9 @@ use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Classes {
-    pub(crate) classes_by_id: IntMap<i32, Rc<RefCell<Class>>>,
-    pub(crate) classes_by_name: FxHashMap<Box<str>, Rc<RefCell<Class>>>,
+    pub(crate) classes_by_id: IntMap<i32, Rc<Class>>,
+    pub(crate) classes_by_name: FxHashMap<Box<str>, Rc<Class>>,
     pub(crate) class_id_size: Option<u32>,
-    pub(crate) class_info: bool,
 }
 
 impl Classes {
@@ -23,34 +22,34 @@ impl Classes {
             classes_by_id: IntMap::default(),
             classes_by_name: FxHashMap::default(),
             class_id_size: None,
-            class_info: false,
         }
     }
 
-    pub(crate) fn get_by_id_mut(&self, id: &i32) -> Result<&Rc<RefCell<Class>>> {
+    pub(crate) fn get_by_id_rc(&self, id: &i32) -> Result<&Rc<Class>> {
         self.classes_by_id
             .get(id)
             .ok_or(anyhow!("No class for given id"))
     }
 
-    pub(crate) fn get_by_name_mut(&self, name: &str) -> Result<&Rc<RefCell<Class>>> {
+    pub(crate) fn get_by_name_mut(&self, name: &str) -> Result<&Class> {
         self.classes_by_name
             .get(name)
             .ok_or(anyhow!("No class for given name"))
+            .map(|class| class.as_ref())
     }
 
-    pub fn get_by_id(&self, id: &i32) -> Result<Ref<Class>> {
+    pub fn get_by_id(&self, id: &i32) -> Result<&Class> {
         self.classes_by_id
             .get(id)
             .ok_or(anyhow!("No class for given id"))
-            .map(|class| class.borrow())
+            .map(|class| class.as_ref())
     }
 
-    pub fn get_by_name(&self, name: &str) -> Result<Ref<Class>> {
+    pub fn get_by_name(&self, name: &str) -> Result<&Class> {
         self.classes_by_name
             .get(name)
             .ok_or(anyhow!("No class for given name"))
-            .map(|class| class.borrow())
+            .map(|class| class.as_ref())
     }
 }
 

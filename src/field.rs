@@ -14,49 +14,20 @@ pub struct Field {
     pub var_type: Box<str>,
     pub serializer_name: Box<str>,
     pub encoder: Box<str>,
-    pub encoder_flags: Option<i32>,
-    pub bit_count: Option<i32>,
-    pub low_value: Option<f32>,
-    pub high_value: Option<f32>,
-    pub field_type: Option<Rc<FieldType>>,
+    pub encoder_flags: i32,
+    pub bit_count: i32,
+    pub low_value: f32,
+    pub high_value: f32,
+    pub field_type: Rc<FieldType>,
     pub serializer: Option<Rc<Serializer>>,
-    pub value: Option<i32>,
     pub model: FieldModels,
 
-    pub decoder: Option<Decoders>,
-    pub base_decoder: Option<Decoders>,
-    pub child_decoder: Option<Decoders>,
+    pub decoder: Decoders,
+    pub base_decoder: Decoders,
+    pub child_decoder: Decoders,
 }
 
 impl Field {
-    pub fn new(ser: CsvcMsgFlattenedSerializer, f: ProtoFlattenedSerializerFieldT) -> Self {
-        let resolve = |p: Option<i32>| -> Box<str> {
-            if p.is_none() {
-                return "".into();
-            }
-            ser.symbols[p.unwrap() as usize].clone().into()
-        };
-
-        Field {
-            var_name: resolve(f.var_name_sym),
-            var_type: resolve(f.var_type_sym),
-            serializer_name: resolve(f.field_serializer_name_sym),
-            encoder: resolve(f.var_encoder_sym),
-            encoder_flags: f.encode_flags,
-            bit_count: f.bit_count,
-            low_value: f.low_value,
-            high_value: f.high_value,
-            field_type: None,
-            serializer: None,
-            value: None,
-            model: FieldModels::Simple,
-
-            decoder: Some(Decoders::Default),
-            base_decoder: Some(Decoders::Default),
-            child_decoder: Some(Decoders::Default),
-        }
-    }
-
     pub fn get_name_for_field_path(&self, fp: &FieldPath, pos: i32) -> Vec<String> {
         let mut x = vec![self.var_name.as_ref().into()];
 
@@ -98,7 +69,7 @@ impl Field {
         match self.model {
             FieldModels::Simple => {}
             FieldModels::FixedArray => {
-                return self.field_type.as_ref().unwrap();
+                return self.field_type.as_ref();
             }
             FieldModels::FixedTable => {
                 if fp.last as i32 != pos - 1 {
@@ -111,7 +82,7 @@ impl Field {
             }
             FieldModels::VariableArray => {
                 if fp.last as i32 == pos {
-                    return self.field_type.as_ref().unwrap().generic.as_ref().unwrap();
+                    return self.field_type.as_ref().generic.as_ref().unwrap();
                 }
             }
             FieldModels::VariableTable => {
@@ -124,18 +95,18 @@ impl Field {
                 }
             }
         };
-        self.field_type.as_ref().unwrap()
+        self.field_type.as_ref()
     }
 
     pub fn get_decoder_for_field_path(&self, fp: &FieldPath, pos: i32) -> &Decoders {
         match self.model {
             FieldModels::Simple => {}
             FieldModels::FixedArray => {
-                return self.decoder.as_ref().unwrap();
+                return &self.decoder;
             }
             FieldModels::FixedTable => {
                 if fp.last as i32 == pos - 1 {
-                    return self.base_decoder.as_ref().unwrap();
+                    return &self.base_decoder;
                 }
                 return self
                     .serializer
@@ -145,9 +116,9 @@ impl Field {
             }
             FieldModels::VariableArray => {
                 if fp.last as i32 == pos {
-                    return self.child_decoder.as_ref().unwrap();
+                    return &self.child_decoder;
                 }
-                return self.base_decoder.as_ref().unwrap();
+                return &self.base_decoder;
             }
             FieldModels::VariableTable => {
                 if fp.last as i32 > pos {
@@ -157,10 +128,10 @@ impl Field {
                         .unwrap()
                         .get_decoder_for_field_path(fp, pos + 1);
                 }
-                return self.base_decoder.as_ref().unwrap();
+                return &self.base_decoder;
             }
         }
-        self.decoder.as_ref().unwrap()
+        &self.decoder
     }
 
     pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> Result<()> {
@@ -169,9 +140,6 @@ impl Field {
                 bail!("not supported");
             }
             FieldModels::FixedArray => {
-                if name.len() != 4 {
-                    bail!("wrong size");
-                }
                 fp.path[fp.last] = name.parse::<i32>().unwrap();
                 return Ok(());
             }
@@ -183,15 +151,9 @@ impl Field {
                     .get_field_path_for_name(fp, name)
             }
             FieldModels::VariableArray => {
-                if name.len() != 4 {
-                    bail!("wrong size")
-                }
                 fp.path[fp.last] = name.parse::<i32>().unwrap();
             }
             FieldModels::VariableTable => {
-                if name.len() <= 6 {
-                    bail!("wrong size")
-                }
                 fp.path[fp.last] = name[0..4].parse::<i32>().unwrap();
                 fp.last += 1;
                 return self
@@ -214,10 +176,8 @@ impl Field {
                 if let Some(States::FieldState(s)) = st.get(fp) {
                     fp.last += 1;
                     for (i, v) in s.state.iter().enumerate() {
-                        if v.is_some() {
                             fp.path[fp.last] = i as i32;
                             vec.push(fp.clone());
-                        }
                     }
                     fp.pop(1);
                 }
@@ -259,28 +219,25 @@ impl Field {
         vec
     }
 
-    pub fn set_model(&mut self, model: FieldModels) {
-        self.model = model;
-        match self.model {
-            FieldModels::FixedArray => {
-                self.decoder = Some(Decoders::from_field(self, false));
-            }
-            FieldModels::FixedTable => self.base_decoder = Some(Decoders::Boolean),
-            FieldModels::VariableArray => {
-                if self.field_type.as_ref().unwrap().generic.is_none() {
-                    panic!("No generic")
-                }
-                self.base_decoder = Some(Decoders::Unsigned32);
-                self.child_decoder = Some(Decoders::from_field(self, true))
-            }
-            FieldModels::VariableTable => {
-                self.base_decoder = Some(Decoders::Unsigned32);
-            }
-            FieldModels::Simple => {
-                self.decoder = Some(Decoders::from_field(self, false));
-            }
-        }
-    }
+    // pub fn set_model(&mut self, model: FieldModels) {
+    //     self.model = model;
+    //     match self.model {
+    //         FieldModels::FixedArray => {
+    //             self.decoder = Decoders::from_field(self, false);
+    //         }
+    //         FieldModels::FixedTable => self.base_decoder = Decoders::Boolean,
+    //         FieldModels::VariableArray => {
+    //             self.base_decoder = Decoders::Unsigned32;
+    //             self.child_decoder = Decoders::from_field(self, true)
+    //         }
+    //         FieldModels::VariableTable => {
+    //             self.base_decoder = Decoders::Unsigned32;
+    //         }
+    //         FieldModels::Simple => {
+    //             self.decoder = Decoders::from_field(self, false);
+    //         }
+    //     }
+    // }
 
     pub fn get_name(&self) -> &str {
         &self.var_name
@@ -369,8 +326,8 @@ pub static FIELD_PATCHES: [FieldPatch; 3] = [
         max_build: 954,
         patch: |f: &mut Field| match f.var_name.as_ref() {
             "m_flMana" | "m_flMaxMana" => {
-                f.low_value = Some(0.0);
-                f.high_value = Some(8192.0f32);
+                f.low_value = 0.0;
+                f.high_value = 8192.0f32;
             }
             _ => {}
         },

@@ -60,10 +60,9 @@ impl<'a> Reader<'a> {
             y += 7;
 
             if (byte & 0x80) == 0 || y == 35 {
-                break;
+                return x;
             }
         }
-        x
     }
 
     pub fn read_var_u64(&mut self) -> u64 {
@@ -71,33 +70,31 @@ impl<'a> Reader<'a> {
         let mut y: u64 = 0;
 
         loop {
-            let b = self.read_byte();
+            let b = self.read_byte() as u64;
             if b < 0x80 {
-                return x | ((b as u64) << y);
+                return x | (b << y);
             }
-            x |= ((b & 0x7f) as u64) << y;
+            x |= (b & 0x7f) << y;
             y += 7;
         }
     }
 
     pub fn read_var_i32(&mut self) -> i32 {
-        let ux = self.read_var_u32();
-        let mut x = (ux >> 1) as i32;
+        let ux: u32 = self.read_var_u32();
         if ux & 1 != 0 {
-            x = !x;
+            return !((ux >> 1) as i32);
         }
-        x
+        (ux >> 1) as i32
     }
 
     pub fn read_ubit_var(&mut self) -> u32 {
-        let mut bits = self.read_bits(6);
-        bits = match bits & 0x30 {
+        let bits = self.read_bits(6);
+        match bits & 0x30 {
             0x10 => (bits & 0xF) | (self.read_bits(4) << 4),
             0x20 => (bits & 0xF) | (self.read_bits(8) << 4),
             0x30 => (bits & 0xF) | (self.read_bits(28) << 4),
             _ => bits,
-        };
-        bits
+        }
     }
 
     pub fn read_ubit_var_fp(&mut self) -> u32 {
@@ -163,11 +160,10 @@ impl<'a> Reader<'a> {
             }
             let b = self.read_byte();
             if b == 0 {
-                break;
+                return Ok(String::from_utf8_lossy(&buf).to_string());
             }
             buf.push(b);
         }
-        Ok(String::from_utf8_lossy(&buf).to_string())
     }
 
     pub fn read_coordinate(&mut self) -> f32 {
@@ -198,14 +194,6 @@ impl<'a> Reader<'a> {
 
     pub fn read_angle(&mut self, n: u32) -> f32 {
         (self.read_bits(n) as f32) * 360.0 / (1 << n) as f32
-    }
-
-    pub fn read_string_n(&mut self, n: u32) -> String {
-        unsafe {
-            String::from_utf8_unchecked(self.read_bytes(n))
-                .parse()
-                .unwrap_unchecked()
-        }
     }
 
     pub fn read_bits_as_bytes(&mut self, n: u32) -> Vec<u8> {

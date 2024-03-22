@@ -1,4 +1,4 @@
-use crate::entity::EntityFieldValue;
+use crate::entity::FieldValue;
 use crate::field::Field;
 use crate::qfloat::QFloatDecoder;
 use crate::reader::Reader;
@@ -24,25 +24,25 @@ pub enum Decoders {
     SimulationTime,
     Component,
 
-    Vector(FieldValues, u8),
-    Unsigned64(FieldValues),
-    Float32(FieldValues),
-    QuantizedFloat(FieldValues),
-    QAngle(FieldValues),
+    Vector(FieldProperties, u8),
+    Unsigned64(FieldProperties),
+    Float32(FieldProperties),
+    QuantizedFloat(FieldProperties),
+    QAngle(FieldProperties),
 }
 
 #[derive(Clone, Debug)]
-pub struct FieldValues {
+pub struct FieldProperties {
     encoder: Box<str>,
-    encoder_flags: Option<i32>,
-    bit_count: Option<i32>,
-    low_value: Option<f32>,
-    high_value: Option<f32>,
+    encoder_flags: i32,
+    bit_count: i32,
+    low_value: f32,
+    high_value: f32,
 }
 
 impl Decoders {
     pub fn from_field(field: &Field, generic: bool) -> Self {
-        let field_values = FieldValues {
+        let field_properties = FieldProperties {
             encoder: field.encoder.to_string().into_boxed_str(),
             encoder_flags: field.encoder_flags,
             bit_count: field.bit_count,
@@ -53,14 +53,12 @@ impl Decoders {
         let match_var = match generic {
             true => field
                 .field_type
-                .as_ref()
-                .unwrap()
                 .generic
                 .as_ref()
                 .unwrap()
                 .base
                 .as_str(),
-            false => field.field_type.as_ref().unwrap().base.as_str(),
+            false => field.field_type.base.as_str(),
         };
 
         match match_var {
@@ -82,112 +80,110 @@ impl Decoders {
             "GameTime_t" => Decoders::NoScale,
             "CBodyComponent" | "CPhysicsComponent" | "CRenderComponent" => Decoders::Component,
 
-            "CNetworkedQuantizedFloat" => Decoders::QuantizedFloat(field_values),
+            "CNetworkedQuantizedFloat" => Decoders::QuantizedFloat(field_properties),
 
-            "float32" => Decoders::Float32(field_values),
+            "float32" => Decoders::Float32(field_properties),
 
-            "Vector" => Decoders::Vector(field_values, 3),
-            "Vector2D" => Decoders::Vector(field_values, 2),
-            "Vector4D" => Decoders::Vector(field_values, 4),
+            "Vector" => Decoders::Vector(field_properties, 3),
+            "Vector2D" => Decoders::Vector(field_properties, 2),
+            "Vector4D" => Decoders::Vector(field_properties, 4),
 
-            "uint64" | "CStrongHandle" => Decoders::Unsigned64(field_values),
+            "uint64" | "CStrongHandle" => Decoders::Unsigned64(field_properties),
 
-            "QAngle" => Decoders::QAngle(field_values),
+            "QAngle" => Decoders::QAngle(field_properties),
 
             _ => Decoders::Default,
         }
     }
 
-    pub(crate) fn decode(&self, reader: &mut Reader) -> EntityFieldValue {
+    pub(crate) fn decode(&self, reader: &mut Reader) -> FieldValue {
         match self {
-            Decoders::VectorNormal => EntityFieldValue::Vector3D(reader.read_3bit_normal()),
-            Decoders::Fixed64 => EntityFieldValue::Unsigned64(reader.read_le_u64()),
-            Decoders::Handle => EntityFieldValue::Unsigned32(reader.read_var_u32()),
-            Decoders::Boolean => EntityFieldValue::Boolean(reader.read_bool()),
-            Decoders::String => EntityFieldValue::String(reader.read_string().unwrap()),
-            Decoders::Default => EntityFieldValue::Unsigned32(reader.read_var_u32()),
-            Decoders::Signed8 => EntityFieldValue::Signed8(reader.read_var_i32() as i8),
-            Decoders::Signed16 => EntityFieldValue::Signed16(reader.read_var_i32() as i16),
-            Decoders::Signed32 => EntityFieldValue::Signed32(reader.read_var_i32()),
-            Decoders::Signed64 => EntityFieldValue::Signed64(reader.read_var_i32() as i64),
-            Decoders::FloatCoordinate => EntityFieldValue::Float(reader.read_coordinate()),
-            Decoders::NoScale => EntityFieldValue::Float(reader.read_f32()),
-            Decoders::RuneTime => EntityFieldValue::Float(f32::from_bits(reader.read_bits(4))),
+            Decoders::VectorNormal => FieldValue::Vector3D(reader.read_3bit_normal()),
+            Decoders::Fixed64 => FieldValue::Unsigned64(reader.read_le_u64()),
+            Decoders::Handle => FieldValue::Unsigned32(reader.read_var_u32()),
+            Decoders::Boolean => FieldValue::Boolean(reader.read_bool()),
+            Decoders::String => FieldValue::String(reader.read_string().unwrap()),
+            Decoders::Default => FieldValue::Unsigned32(reader.read_var_u32()),
+            Decoders::Signed8 => FieldValue::Signed8(reader.read_var_i32() as i8),
+            Decoders::Signed16 => FieldValue::Signed16(reader.read_var_i32() as i16),
+            Decoders::Signed32 => FieldValue::Signed32(reader.read_var_i32()),
+            Decoders::Signed64 => FieldValue::Signed64(reader.read_var_i32() as i64),
+            Decoders::FloatCoordinate => FieldValue::Float(reader.read_coordinate()),
+            Decoders::NoScale => FieldValue::Float(reader.read_f32()),
+            Decoders::RuneTime => FieldValue::Float(f32::from_bits(reader.read_bits(4))),
             Decoders::SimulationTime => {
-                EntityFieldValue::Float(reader.read_var_u32() as f32 * (1.0 / 30.0))
+                FieldValue::Float(reader.read_var_u32() as f32 * (1.0 / 30.0))
             }
-            Decoders::Unsigned8 => EntityFieldValue::Unsigned8(reader.read_var_u32() as u8),
-            Decoders::Unsigned16 => EntityFieldValue::Unsigned16(reader.read_var_u32() as u16),
-            Decoders::Unsigned32 => EntityFieldValue::Unsigned32(reader.read_var_u32()),
-            Decoders::Component => EntityFieldValue::Boolean(reader.read_bit() == 1),
-            Decoders::Float32(fv) => match fv.encoder.as_ref() {
+            Decoders::Unsigned8 => FieldValue::Unsigned8(reader.read_var_u32() as u8),
+            Decoders::Unsigned16 => FieldValue::Unsigned16(reader.read_var_u32() as u16),
+            Decoders::Unsigned32 => FieldValue::Unsigned32(reader.read_var_u32()),
+            Decoders::Component => FieldValue::Boolean(reader.read_bit() == 1),
+            Decoders::Float32(fp) => match fp.encoder.as_ref() {
                 "coord" => Decoders::FloatCoordinate.decode(reader),
                 "simtime" => Decoders::SimulationTime.decode(reader),
                 "runetime" => Decoders::RuneTime.decode(reader),
                 _ => {
-                    if fv.bit_count.is_none()
-                        || (fv.bit_count.unwrap() <= 0 || fv.bit_count.unwrap() >= 32)
-                    {
+                    if fp.bit_count <= 0 || fp.bit_count >= 32 {
                         return Decoders::NoScale.decode(reader);
                     }
-                    Decoders::QuantizedFloat(fv.clone()).decode(reader)
+                    Decoders::QuantizedFloat(fp.clone()).decode(reader)
                 }
             },
-            Decoders::Vector(fv, n) => {
+            Decoders::Vector(fp, n) => {
                 if *n == 2 {
                     let mut r = [0.0f32; 2];
-                    r[0] = Decoders::Float32(fv.clone()).decode(reader).as_float();
-                    r[1] = Decoders::Float32(fv.clone()).decode(reader).as_float();
-                    return EntityFieldValue::Vector2D(r);
+                    r[0] = Decoders::Float32(fp.clone()).decode(reader).as_float();
+                    r[1] = Decoders::Float32(fp.clone()).decode(reader).as_float();
+                    return FieldValue::Vector2D(r);
                 }
                 if *n == 3 {
-                    if fv.encoder.as_ref() == "normal" {
+                    if fp.encoder.as_ref() == "normal" {
                         return Decoders::VectorNormal.decode(reader);
                     }
                     let mut r = [0.0f32; 3];
-                    r[0] = Decoders::Float32(fv.clone()).decode(reader).as_float();
-                    r[1] = Decoders::Float32(fv.clone()).decode(reader).as_float();
-                    r[2] = Decoders::Float32(fv.clone()).decode(reader).as_float();
-                    return EntityFieldValue::Vector3D(r);
+                    r[0] = Decoders::Float32(fp.clone()).decode(reader).as_float();
+                    r[1] = Decoders::Float32(fp.clone()).decode(reader).as_float();
+                    r[2] = Decoders::Float32(fp.clone()).decode(reader).as_float();
+                    return FieldValue::Vector3D(r);
                 }
                 if *n == 4 {
                     let mut r = [0.0f32; 4];
-                    r[0] = Decoders::Float32(fv.clone()).decode(reader).as_float();
-                    r[1] = Decoders::Float32(fv.clone()).decode(reader).as_float();
-                    r[2] = Decoders::Float32(fv.clone()).decode(reader).as_float();
-                    r[3] = Decoders::Float32(fv.clone()).decode(reader).as_float();
-                    return EntityFieldValue::Vector4D(r);
+                    r[0] = Decoders::Float32(fp.clone()).decode(reader).as_float();
+                    r[1] = Decoders::Float32(fp.clone()).decode(reader).as_float();
+                    r[2] = Decoders::Float32(fp.clone()).decode(reader).as_float();
+                    r[3] = Decoders::Float32(fp.clone()).decode(reader).as_float();
+                    return FieldValue::Vector4D(r);
                 }
                 panic!("Unsupported size");
             }
-            Decoders::Unsigned64(fv) => {
-                if fv.encoder.as_ref() == "fixed64" {
+            Decoders::Unsigned64(fp) => {
+                if fp.encoder.as_ref() == "fixed64" {
                     return Decoders::Fixed64.decode(reader);
                 }
-                EntityFieldValue::Unsigned64(reader.read_var_u64())
+                FieldValue::Unsigned64(reader.read_var_u64())
             }
-            Decoders::QuantizedFloat(fv) => {
+            Decoders::QuantizedFloat(fp) => {
                 let qd = QFloatDecoder::new(
-                    fv.bit_count.unwrap(),
-                    fv.encoder_flags,
-                    fv.low_value,
-                    fv.high_value,
+                    fp.bit_count,
+                    fp.encoder_flags,
+                    fp.low_value,
+                    fp.high_value,
                 );
-                EntityFieldValue::Float(qd.decode(reader))
+                FieldValue::Float(qd.decode(reader))
             }
-            Decoders::QAngle(fv) => {
-                if fv.encoder.as_ref() == "qangle_pitch_yaw" {
-                    let n = fv.bit_count.unwrap() as u32;
-                    return EntityFieldValue::Vector3D([
+            Decoders::QAngle(fp) => {
+                if fp.encoder.as_ref() == "qangle_pitch_yaw" {
+                    let n = fp.bit_count as u32;
+                    return FieldValue::Vector3D([
                         reader.read_angle(n),
                         reader.read_angle(n),
                         0.0,
                     ]);
                 }
 
-                if fv.bit_count.is_some() && fv.bit_count.unwrap() != 0 {
-                    let n = fv.bit_count.unwrap() as u32;
-                    return EntityFieldValue::Vector3D([
+                if fp.bit_count != 0 {
+                    let n = fp.bit_count as u32;
+                    return FieldValue::Vector3D([
                         reader.read_angle(n),
                         reader.read_angle(n),
                         reader.read_angle(n),
@@ -207,7 +203,7 @@ impl Decoders {
                 if z {
                     v[2] = reader.read_coordinate();
                 }
-                EntityFieldValue::Vector3D(v)
+                FieldValue::Vector3D(v)
             }
         }
     }

@@ -21,9 +21,9 @@ pub(crate) struct QFloatDecoder {
 impl QFloatDecoder {
     pub(crate) fn new(
         bit_count: i32,
-        flags: Option<i32>,
-        low_value: Option<f32>,
-        high_value: Option<f32>,
+        flags: i32,
+        low_value: f32,
+        high_value: f32,
     ) -> Self {
         if bit_count == 0 || bit_count >= 32 {
             return QFloatDecoder {
@@ -40,9 +40,9 @@ impl QFloatDecoder {
         let mut decoder = QFloatDecoder {
             bit_count: bit_count as u32,
             offset: 0.0,
-            low: low_value.unwrap_or(0.0),
-            high: high_value.unwrap_or(1.0),
-            flags: flags.unwrap_or(0) as u32,
+            low: low_value,
+            high: high_value,
+            flags: flags as u32,
             high_low_mul: 0.0,
             dec_mul: 0.0,
         };

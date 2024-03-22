@@ -1,11 +1,12 @@
-use crate::entity::EntityFieldValue;
+use crate::entity::FieldValue;
 use crate::field_path::FieldPath;
 use enum_as_inner::EnumAsInner;
 use std::cmp::max;
+use std::vec;
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum States {
-    Value(EntityFieldValue),
+    Value(FieldValue),
     FieldState(FieldState),
 }
 
@@ -23,51 +24,47 @@ impl FieldState {
 
     pub fn get(&self, fp: &FieldPath) -> Option<&States> {
         let mut current_state = self;
-        let mut z = 0;
-        for i in 0..=fp.last {
-            z = fp.path[i];
-            if (current_state.state.len() as i32) < z + 2 {
+        for i in 0..fp.last {
+            if current_state.state[fp.path[i] as usize].is_none()
+                || current_state.state[fp.path[i] as usize]
+                    .as_ref()
+                    .unwrap()
+                    .is_value()
+            {
                 return None;
             }
-            if i == fp.last {
-                return current_state.state[z as usize].as_ref();
-            }
-            if let States::FieldState(x) = current_state.state[z as usize].as_ref().unwrap() {
-                current_state = x;
-                continue;
-            }
-            return None;
+            current_state = current_state.state[fp.path[i] as usize]
+                .as_ref()
+                .unwrap()
+                .as_field_state()
+                .unwrap();
         }
-        None
+        current_state.state[fp.path[fp.last] as usize].as_ref()
     }
 
-    pub fn set(&mut self, fp: &FieldPath, v: EntityFieldValue) {
-        let mut x = self;
+    pub fn set(&mut self, fp: &FieldPath, v: FieldValue) {
+        let mut current_state = self;
         for i in 0..=fp.last {
-            let z = fp.path[i];
-            let y = x.state.len() as i32;
-            if y <= z {
-                x.state.resize_with(max(z + 2, y * 2) as usize, || None);
+            if (current_state.state.len() as i32) <= fp.path[i] as i32 {
+                current_state.state.resize_with(
+                    max(fp.path[i] as usize + 2, current_state.state.len() * 2),
+                    || None,
+                );
             }
-
             if i == fp.last {
-                if x.state[z as usize].as_ref().is_none() {
-                    x.state[z as usize] = Some(States::Value(v));
-                    return;
-                }
-                if let States::Value(_) = x.state[z as usize].as_ref().unwrap() {
-                    x.state[z as usize] = Some(States::Value(v));
-                }
+                current_state.state[fp.path[i] as usize] = Some(States::Value(v));
                 return;
             }
-
-            if x.state[z as usize].is_none() {
-                x.state[z as usize] = Some(States::FieldState(FieldState::new(8)));
-            } else if let States::Value(_) = x.state[z as usize].as_ref().unwrap() {
-                x.state[z as usize] = Some(States::FieldState(FieldState::new(8)));
+            if current_state.state[fp.path[i] as usize].is_none()
+                || !current_state.state[fp.path[i] as usize]
+                    .as_ref()
+                    .unwrap()
+                    .is_field_state()
+            {
+                current_state.state[fp.path[i] as usize] =
+                    Some(States::FieldState(FieldState::new(8)));
             }
-
-            x = x.state[z as usize]
+            current_state = current_state.state[fp.path[i] as usize]
                 .as_mut()
                 .unwrap()
                 .as_field_state_mut()

@@ -9,15 +9,15 @@ use std::rc::Rc;
 #[derive(Clone, Debug)]
 pub struct Serializer {
     pub name: Box<str>,
-    pub ver: i32,
+    // pub ver: i32,
     pub fields: Vec<Rc<Field>>,
 }
 
 impl Serializer {
-    pub fn new(name: String, ver: i32) -> Self {
+    pub fn new(name: String) -> Self {
         Serializer {
             name: name.into_boxed_str(),
-            ver,
+            // ver,
             fields: vec![],
         }
     }

@@ -7,12 +7,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-proto = { path = "proto", features = []}
+proto = { path = "./proto" }
 
 snap = "1.1.1"
 regex = "1.10.2"
-strum = "0.25.0"
-strum_macros = "0.25.3"
+strum = "0.26.2"
+strum_macros = "0.26.2"
 enum-as-inner = "0.6.0"
 bitter = "0.6.1"
 rustc-hash = "1.1.0"
@@ -22,19 +22,7 @@ lazy_static = "1.4.0"
 prost = "0.12.3"
 anyhow = "1.0.81"
 
-[profile.dev]
-#opt-level = 0
-
-[profile.release]
-#debug=true
-#opt-level = 3
-#lto = "fat"
-#codegen-units = 1
-#panic = "abort"
-#strip = "symbols"
 
 [features]
 default = ["mimalloc"]
 mimalloc = []
-#combat_log = []
-#entities = []
