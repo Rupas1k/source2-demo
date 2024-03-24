@@ -1,5 +1,4 @@
-use anyhow::{anyhow, bail, Result};
-use lazy_static::lazy_static;
+use anyhow::{bail, Result};
 use nohash_hasher::IntMap;
 use prost::Message;
 use regex::Regex;
@@ -211,7 +210,7 @@ impl<'a> Parser<'a> {
             "CDOTAGameRules",
         ]
         .iter()
-        .cloned()
+        .copied()
         .collect();
 
         let patches = FIELD_PATCHES
@@ -248,18 +247,18 @@ impl<'a> Parser<'a> {
                     let field_type = Rc::clone(&field_types[&var_type_str]);
 
                     let current_field_model = if current_field_serializer.is_some() {
-                        if field_type.pointer || pointer_types.contains(field_type.base.as_str()) {
+                        if field_type.pointer || pointer_types.contains(field_type.base.as_ref()) {
                             FieldModels::FixedTable
                         } else {
                             FieldModels::VariableTable
                         }
                     } else if field_type.count.is_some()
                         && field_type.count.unwrap() > 0
-                        && field_type.base != "char"
+                        && field_type.base.as_ref() != "char"
                     {
                         FieldModels::FixedArray
-                    } else if field_type.base == "CUtlVector"
-                        || field_type.base == "CNetworkUtlVectorBase"
+                    } else if field_type.base.as_ref() == "CUtlVector"
+                        || field_type.base.as_ref() == "CNetworkUtlVectorBase"
                     {
                         FieldModels::VariableArray
                     } else {

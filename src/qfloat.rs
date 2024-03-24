@@ -19,12 +19,7 @@ pub(crate) struct QFloatDecoder {
 }
 
 impl QFloatDecoder {
-    pub(crate) fn new(
-        bit_count: i32,
-        flags: i32,
-        low_value: f32,
-        high_value: f32,
-    ) -> Self {
+    pub(crate) fn new(bit_count: i32, flags: i32, low_value: f32, high_value: f32) -> Self {
         if bit_count == 0 || bit_count >= 32 {
             return QFloatDecoder {
                 bit_count: 32,
@@ -141,11 +136,11 @@ impl QFloatDecoder {
                 | QFloatFlags::EncodeZero as u32);
         }
 
-        if flags & (QFloatFlags::RoundUp as u32 | QFloatFlags::RoundDown as u32)
-            == (QFloatFlags::RoundUp as u32 | QFloatFlags::RoundDown as u32)
-        {
-            panic!("Roundup / Rounddown are mutually exclusive");
-        }
+        // if flags & (QFloatFlags::RoundUp as u32 | QFloatFlags::RoundDown as u32)
+        //     == (QFloatFlags::RoundUp as u32 | QFloatFlags::RoundDown as u32)
+        // {
+        //     panic!("Roundup / Rounddown are mutually exclusive");
+        // }
 
         self.flags = flags;
     }
@@ -178,23 +173,23 @@ impl QFloatDecoder {
 
         self.dec_mul = 1.0 / ((steps - 1) as f32);
 
-        if self.high_low_mul == 0.0 {
-            panic!("Error computing high / low multiplier");
-        }
+        // if self.high_low_mul == 0.0 {
+        //     panic!("Error computing high / low multiplier");
+        // }
     }
 
     pub(crate) fn quantize(&self, v: f32) -> f32 {
         if v < self.low {
-            if self.flags & (QFloatFlags::RoundUp as u32) == 0 {
-                panic!("Field tried to quantize an out of range value")
-            }
+            // if self.flags & (QFloatFlags::RoundUp as u32) == 0 {
+            //     panic!("Field tried to quantize an out of range value")
+            // }
             return self.low;
         }
 
         if v > self.high {
-            if self.flags & (QFloatFlags::RoundUp as u32) == 0 {
-                panic!("Field tried to quantize an out of range value")
-            }
+            // if self.flags & (QFloatFlags::RoundUp as u32) == 0 {
+            //     panic!("Field tried to quantize an out of range value")
+            // }
             return self.high;
         }
 

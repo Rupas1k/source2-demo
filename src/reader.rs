@@ -67,15 +67,17 @@ impl<'a> Reader<'a> {
 
     pub fn read_var_u64(&mut self) -> u64 {
         let mut x: u64 = 0;
-        let mut y: u64 = 0;
-
+        let mut y: u8 = 0;
+        let mut byte: u8;
         loop {
-            let b = self.read_byte() as u64;
-            if b < 0x80 {
-                return x | (b << y);
-            }
-            x |= (b & 0x7f) << y;
+            byte = self.read_byte();
+
+            x |= (byte as u64 & 0x7F) << y;
             y += 7;
+
+            if (byte & 0x80) == 0 {
+                return x;
+            }
         }
     }
 
@@ -97,24 +99,20 @@ impl<'a> Reader<'a> {
         }
     }
 
-    pub fn read_ubit_var_fp(&mut self) -> u32 {
-        if self.read_bool() {
-            return self.read_bits(2);
-        }
-        if self.read_bool() {
-            return self.read_bits(4);
-        }
-        if self.read_bool() {
-            return self.read_bits(10);
-        }
-        if self.read_bool() {
-            return self.read_bits(17);
-        }
-        self.read_bits(31)
-    }
-
     pub fn read_ubit_var_fieldpath(&mut self) -> i32 {
-        self.read_ubit_var_fp() as i32
+        if self.read_bool() {
+            return self.read_bits(2) as i32;
+        }
+        if self.read_bool() {
+            return self.read_bits(4) as i32;
+        }
+        if self.read_bool() {
+            return self.read_bits(10) as i32;
+        }
+        if self.read_bool() {
+            return self.read_bits(17) as i32;
+        }
+        self.read_bits(31) as i32
     }
 
     pub fn read_normal(&mut self) -> f32 {

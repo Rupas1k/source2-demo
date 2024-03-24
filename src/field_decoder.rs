@@ -51,14 +51,8 @@ impl Decoders {
         };
 
         let match_var = match generic {
-            true => field
-                .field_type
-                .generic
-                .as_ref()
-                .unwrap()
-                .base
-                .as_str(),
-            false => field.field_type.base.as_str(),
+            true => field.field_type.generic.as_ref().unwrap().base.as_ref(),
+            false => field.field_type.base.as_ref(),
         };
 
         match match_var {
@@ -117,7 +111,7 @@ impl Decoders {
             Decoders::Unsigned8 => FieldValue::Unsigned8(reader.read_var_u32() as u8),
             Decoders::Unsigned16 => FieldValue::Unsigned16(reader.read_var_u32() as u16),
             Decoders::Unsigned32 => FieldValue::Unsigned32(reader.read_var_u32()),
-            Decoders::Component => FieldValue::Boolean(reader.read_bit() == 1),
+            Decoders::Component => FieldValue::Boolean(reader.read_bool()),
             Decoders::Float32(fp) => match fp.encoder.as_ref() {
                 "coord" => Decoders::FloatCoordinate.decode(reader),
                 "simtime" => Decoders::SimulationTime.decode(reader),
@@ -131,28 +125,28 @@ impl Decoders {
             },
             Decoders::Vector(fp, n) => {
                 if *n == 2 {
-                    let mut r = [0.0f32; 2];
-                    r[0] = Decoders::Float32(fp.clone()).decode(reader).as_float();
-                    r[1] = Decoders::Float32(fp.clone()).decode(reader).as_float();
-                    return FieldValue::Vector2D(r);
+                    return FieldValue::Vector2D([
+                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
+                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
+                    ]);
                 }
                 if *n == 3 {
                     if fp.encoder.as_ref() == "normal" {
                         return Decoders::VectorNormal.decode(reader);
                     }
-                    let mut r = [0.0f32; 3];
-                    r[0] = Decoders::Float32(fp.clone()).decode(reader).as_float();
-                    r[1] = Decoders::Float32(fp.clone()).decode(reader).as_float();
-                    r[2] = Decoders::Float32(fp.clone()).decode(reader).as_float();
-                    return FieldValue::Vector3D(r);
+                    return FieldValue::Vector3D([
+                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
+                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
+                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
+                    ]);
                 }
                 if *n == 4 {
-                    let mut r = [0.0f32; 4];
-                    r[0] = Decoders::Float32(fp.clone()).decode(reader).as_float();
-                    r[1] = Decoders::Float32(fp.clone()).decode(reader).as_float();
-                    r[2] = Decoders::Float32(fp.clone()).decode(reader).as_float();
-                    r[3] = Decoders::Float32(fp.clone()).decode(reader).as_float();
-                    return FieldValue::Vector4D(r);
+                    return FieldValue::Vector4D([
+                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
+                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
+                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
+                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
+                    ]);
                 }
                 panic!("Unsupported size");
             }
@@ -163,22 +157,14 @@ impl Decoders {
                 FieldValue::Unsigned64(reader.read_var_u64())
             }
             Decoders::QuantizedFloat(fp) => {
-                let qd = QFloatDecoder::new(
-                    fp.bit_count,
-                    fp.encoder_flags,
-                    fp.low_value,
-                    fp.high_value,
-                );
+                let qd =
+                    QFloatDecoder::new(fp.bit_count, fp.encoder_flags, fp.low_value, fp.high_value);
                 FieldValue::Float(qd.decode(reader))
             }
             Decoders::QAngle(fp) => {
                 if fp.encoder.as_ref() == "qangle_pitch_yaw" {
                     let n = fp.bit_count as u32;
-                    return FieldValue::Vector3D([
-                        reader.read_angle(n),
-                        reader.read_angle(n),
-                        0.0,
-                    ]);
+                    return FieldValue::Vector3D([reader.read_angle(n), reader.read_angle(n), 0.0]);
                 }
 
                 if fp.bit_count != 0 {

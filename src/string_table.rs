@@ -1,10 +1,9 @@
 use crate::reader::Reader;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
 use std::cell::{Ref, RefCell};
-use std::ops::Deref;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub struct StringTables {
@@ -87,13 +86,13 @@ impl StringTable {
                 let delta_zero = if delta_pos > 32 { delta_pos & 31 } else { 0 };
                 // use history
                 if r.read_bool() {
-                    let pos = (delta_zero + r.read_bits(5)) & 31;
-                    let size = r.read_bits(5);
+                    let pos = ((delta_zero + r.read_bits(5)) & 31) as usize;
+                    let size = r.read_bits(5) as usize;
 
-                    if delta_pos < pos || keys[pos as usize].len() < size as usize {
+                    if delta_pos < pos as u32 || keys[pos].len() < size {
                         key = r.read_string()?;
                     } else {
-                        key = key + &keys[pos as usize][..(size as usize)] + &r.read_string()?;
+                        key = key + &keys[pos][..(size)] + &r.read_string()?;
                     }
                 } else {
                     key = r.read_string()?

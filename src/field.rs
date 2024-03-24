@@ -5,8 +5,8 @@ use crate::field_type::FieldType;
 use crate::serializer::Serializer;
 use anyhow::bail;
 use anyhow::Result;
-use proto::{CsvcMsgFlattenedSerializer, ProtoFlattenedSerializerFieldT};
 use std::rc::Rc;
+use lazy_static::lazy_static;
 
 #[derive(Clone, Debug)]
 pub struct Field {
@@ -176,8 +176,8 @@ impl Field {
                 if let Some(States::FieldState(s)) = st.get(fp) {
                     fp.last += 1;
                     for (i, v) in s.state.iter().enumerate() {
-                            fp.path[fp.last] = i as i32;
-                            vec.push(fp.clone());
+                        fp.path[fp.last] = i as i32;
+                        vec.push(fp.clone());
                     }
                     fp.pop(1);
                 }
@@ -281,7 +281,9 @@ impl FieldPatch {
     }
 }
 // pub static FIELD_PATCHES: [FieldPatch; 0] = [];
-pub static FIELD_PATCHES: [FieldPatch; 3] = [
+
+lazy_static!{
+pub static ref FIELD_PATCHES: [FieldPatch; 1] = [
     // FieldPatch {
     //     min_build: 0,
     //     max_build: 990,
@@ -321,44 +323,45 @@ pub static FIELD_PATCHES: [FieldPatch; 3] = [
     //         _ => {}
     //     },
     // },
-    FieldPatch {
-        min_build: 0,
-        max_build: 954,
-        patch: |f: &mut Field| match f.var_name.as_ref() {
-            "m_flMana" | "m_flMaxMana" => {
-                f.low_value = 0.0;
-                f.high_value = 8192.0f32;
-            }
-            _ => {}
-        },
-    },
-    FieldPatch {
-        min_build: 1016,
-        max_build: 1027,
-        patch: |f: &mut Field| match f.var_name.as_ref() {
-            "m_bItemWhiteList"
-            | "m_bWorldTreeState"
-            | "m_iPlayerIDsInControl"
-            | "m_iPlayerSteamID"
-            | "m_ulTeamBannerLogo"
-            | "m_ulTeamBaseLogo"
-            | "m_ulTeamLogo" => {
-                f.encoder = "fixed64".to_string().into_boxed_str();
-            }
-            _ => {}
-        },
-    },
+    // FieldPatch {
+    //     min_build: 0,
+    //     max_build: 954,
+    //     patch: |f: &mut Field| match f.var_name.as_ref() {
+    //         "m_flMana" | "m_flMaxMana" => {
+    //             f.low_value = 0.0;
+    //             f.high_value = 8192.0f32;
+    //         }
+    //         _ => {}
+    //     },
+    // },
+    // FieldPatch {
+    //     min_build: 1016,
+    //     max_build: 1027,
+    //     patch: |f: &mut Field| match f.var_name.as_ref() {
+    //         "m_bItemWhiteList"
+    //         | "m_bWorldTreeState"
+    //         | "m_iPlayerIDsInControl"
+    //         | "m_iPlayerSteamID"
+    //         | "m_ulTeamBannerLogo"
+    //         | "m_ulTeamBaseLogo"
+    //         | "m_ulTeamLogo" => {
+    //             f.encoder = "fixed64".to_string().into_boxed_str();
+    //         }
+    //         _ => {}
+    //     },
+    // },
     FieldPatch {
         min_build: 0,
         max_build: 0,
         patch: |f: &mut Field| match f.var_name.as_ref() {
             "m_flSimulationTime" | "m_flAnimTime" => {
-                f.encoder = "simtime".to_string().into_boxed_str();
+                f.encoder = "simtime".into();
             }
             "m_flRuneTime" => {
-                f.encoder = "runetime".to_string().into_boxed_str();
+                f.encoder = "runetime".into();
             }
             _ => {}
         },
     },
 ];
+}

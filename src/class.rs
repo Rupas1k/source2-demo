@@ -6,7 +6,6 @@ use crate::serializer::Serializer;
 use anyhow::{anyhow, Result};
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
-use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
 #[derive(Debug)]

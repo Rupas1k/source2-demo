@@ -3,13 +3,12 @@ use crate::field_decoder::Decoders;
 use crate::field_path::FieldPath;
 use crate::field_state::FieldState;
 use crate::field_type::FieldType;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub struct Serializer {
     pub name: Box<str>,
-    // pub ver: i32,
     pub fields: Vec<Rc<Field>>,
 }
 
@@ -32,9 +31,6 @@ impl Serializer {
 
     pub fn get_decoder_for_field_path(&self, fp: &FieldPath, pos: i32) -> &Decoders {
         let i = fp.path[pos as usize];
-        if self.fields.len() <= i as usize {
-            panic!("No field");
-        }
         self.fields[i as usize].get_decoder_for_field_path(fp, pos + 1)
     }
 

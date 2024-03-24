@@ -5,7 +5,7 @@ use crate::field_state::States;
 use anyhow::{anyhow, bail, format_err, Result};
 use nohash_hasher::IntMap;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
@@ -187,7 +187,7 @@ impl Display for Entity {
             let t = self.class.get_type_for_field_path(&fp).base.clone();
             let name = self.class.get_name_for_field_path(&fp);
             let value = match self.state.get(&fp) {
-                Some(States::Value(v)) => match t.as_str() {
+                Some(States::Value(v)) => match t.as_ref() {
                     "bool" => format!("(bool) {}", v.as_bool()),
                     "char" | "CUtlString" | "CUtlSymbolLarge" => {
                         format!("(String) \"{}\"", v.as_string())
@@ -460,18 +460,21 @@ macro_rules! impl_try_into_for_integers {
                             format_err!("Error converting {x} into {}", stringify!($target))
                         })?)
                     }
-                    FieldValue::Unsigned16(x) => Ok(TryInto::<$target>::try_into(x)
-                        .map_err(|_| {
+                    FieldValue::Unsigned16(x) => {
+                        Ok(TryInto::<$target>::try_into(x).map_err(|_| {
                             format_err!("Error converting {x} into {}", stringify!($target))
-                        })?),
-                    FieldValue::Unsigned32(x) => Ok(TryInto::<$target>::try_into(x)
-                        .map_err(|_| {
+                        })?)
+                    }
+                    FieldValue::Unsigned32(x) => {
+                        Ok(TryInto::<$target>::try_into(x).map_err(|_| {
                             format_err!("Error converting {x} into {}", stringify!($target))
-                        })?),
-                    FieldValue::Unsigned64(x) => Ok(TryInto::<$target>::try_into(x)
-                        .map_err(|_| {
+                        })?)
+                    }
+                    FieldValue::Unsigned64(x) => {
+                        Ok(TryInto::<$target>::try_into(x).map_err(|_| {
                             format_err!("Error converting {x} into {}", stringify!($target))
-                        })?),
+                        })?)
+                    }
                     FieldValue::Float(x) => Ok(x as $target),
                     _ => Err(format_err!(
                         "Cannot convert {} into {}",
@@ -508,22 +511,26 @@ macro_rules! impl_try_into_for_integers {
                             format_err!("Error converting {x} into {}", stringify!($target))
                         })?)
                     }
-                    FieldValue::Unsigned8(x) => Ok(TryInto::<$target>::try_into(*x)
-                        .map_err(|_| {
+                    FieldValue::Unsigned8(x) => {
+                        Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
                             format_err!("Error converting {x} into {}", stringify!($target))
-                        })?),
-                    FieldValue::Unsigned16(x) => Ok(TryInto::<$target>::try_into(*x)
-                        .map_err(|_| {
+                        })?)
+                    }
+                    FieldValue::Unsigned16(x) => {
+                        Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
                             format_err!("Error converting {x} into {}", stringify!($target))
-                        })?),
-                    FieldValue::Unsigned32(x) => Ok(TryInto::<$target>::try_into(*x)
-                        .map_err(|_| {
+                        })?)
+                    }
+                    FieldValue::Unsigned32(x) => {
+                        Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
                             format_err!("Error converting {x} into {}", stringify!($target))
-                        })?),
-                    FieldValue::Unsigned64(x) => Ok(TryInto::<$target>::try_into(*x)
-                        .map_err(|_| {
+                        })?)
+                    }
+                    FieldValue::Unsigned64(x) => {
+                        Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
                             format_err!("Error converting {x} into {}", stringify!($target))
-                        })?),
+                        })?)
+                    }
                     FieldValue::Float(x) => Ok(*x as $target),
                     _ => Err(format_err!(
                         "Cannot convert {} into {}",
