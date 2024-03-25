@@ -1,7 +1,7 @@
 use crate::class::Class;
-use crate::field_path::FieldPath;
-use crate::field_state::FieldState;
-use crate::field_state::States;
+use crate::field::FieldPath;
+use crate::field::FieldState;
+use crate::field::StateType;
 use anyhow::{anyhow, bail, format_err, Result};
 use nohash_hasher::IntMap;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -187,7 +187,7 @@ impl Display for Entity {
             let t = self.class.get_type_for_field_path(&fp).base.clone();
             let name = self.class.get_name_for_field_path(&fp);
             let value = match self.state.get(&fp) {
-                Some(States::Value(v)) => match t.as_ref() {
+                Some(StateType::Value(v)) => match t.as_ref() {
                     "bool" => format!("(bool) {}", v.as_bool()),
                     "char" | "CUtlString" | "CUtlSymbolLarge" => {
                         format!("(String) \"{}\"", v.as_string())

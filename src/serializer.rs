@@ -1,8 +1,8 @@
+use crate::decoder::Decoders;
 use crate::field::Field;
-use crate::field_decoder::Decoders;
-use crate::field_path::FieldPath;
-use crate::field_state::FieldState;
-use crate::field_type::FieldType;
+use crate::field::FieldPath;
+use crate::field::FieldState;
+use crate::field::FieldType;
 use anyhow::{bail, Result};
 use std::rc::Rc;
 
@@ -29,8 +29,8 @@ impl Serializer {
         self.fields[fp.path[pos as usize] as usize].get_type_for_field_path(fp, pos + 1)
     }
 
-    pub fn get_decoder_for_field_path(&self, fp: &FieldPath, pos: i32) -> &Decoders {
-        let i = fp.path[pos as usize];
+    pub fn get_decoder_for_field_path(&self, fp: &FieldPath, pos: usize) -> &Decoders {
+        let i = fp.path[pos];
         self.fields[i as usize].get_decoder_for_field_path(fp, pos + 1)
     }
 

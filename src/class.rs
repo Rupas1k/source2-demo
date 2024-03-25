@@ -1,7 +1,7 @@
-use crate::field_decoder::Decoders;
-use crate::field_path::FieldPath;
-use crate::field_state::FieldState;
-use crate::field_type::FieldType;
+use crate::decoder::Decoders;
+use crate::field::FieldPath;
+use crate::field::FieldState;
+use crate::field::FieldType;
 use crate::serializer::Serializer;
 use anyhow::{anyhow, Result};
 use nohash_hasher::IntMap;
@@ -28,13 +28,6 @@ impl Classes {
         self.classes_by_id
             .get(id)
             .ok_or(anyhow!("No class for given id"))
-    }
-
-    pub(crate) fn get_by_name_mut(&self, name: &str) -> Result<&Class> {
-        self.classes_by_name
-            .get(name)
-            .ok_or(anyhow!("No class for given name"))
-            .map(|class| class.as_ref())
     }
 
     pub fn get_by_id(&self, id: &i32) -> Result<&Class> {

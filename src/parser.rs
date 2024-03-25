@@ -1,3 +1,12 @@
+use crate::class::{Class, Classes};
+use crate::decoder::Decoders;
+use crate::entity::{Entities, Entity, EntityAction};
+use crate::field::FIELD_PATCHES;
+use crate::field::{Field, FieldModels};
+use crate::field::{FieldPath, FieldState, FieldType};
+use crate::serializer::Serializer;
+use crate::string_table::{StringTable, StringTables};
+use crate::utils::{build_huffman_tree, HTree, Reader};
 use anyhow::{bail, Result};
 use nohash_hasher::IntMap;
 use prost::Message;
@@ -6,17 +15,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
-
-use crate::class::{Class, Classes};
-use crate::entity::{Entities, Entity, EntityAction};
-use crate::field::FIELD_PATCHES;
-use crate::field::{Field, FieldModels};
-use crate::field_decoder::Decoders;
-use crate::field_reader::FieldReader;
-use crate::field_type::FieldType;
-use crate::reader::Reader;
-use crate::serializer::Serializer;
-use crate::string_table::{StringTable, StringTables};
+use strum::IntoEnumIterator;
 
 use proto::{
     CDemoClassInfo, CDemoFullPacket, CDemoPacket, CDemoSendTables, CnetMsgTick,
@@ -26,6 +25,8 @@ use proto::{
 };
 
 use crate::combat_log::CombatLog;
+use crate::field_reader::FieldReader;
+use crate::operation::FieldOp;
 use proto::CMsgDotaCombatLogEntry;
 
 #[derive(Debug)]
@@ -187,7 +188,7 @@ impl<'a> Parser<'a> {
         let amount = r.read_var_u32();
         let buf = r.read_bytes(amount);
 
-        let fs = CsvcMsgFlattenedSerializer::decode(buf.as_slice())?;
+        let fs: CsvcMsgFlattenedSerializer = CsvcMsgFlattenedSerializer::decode(buf.as_slice())?;
 
         let resolve = |p: Option<i32>| -> Box<str> {
             if let Some(i) = p {
@@ -223,21 +224,18 @@ impl<'a> Parser<'a> {
 
         for s in fs.serializers.iter() {
             let serializer_name = fs.symbols[s.serializer_name_sym() as usize].clone();
-            let mut serializer = Serializer::new(
-                serializer_name.clone().into(),
-                // s.serializer_version(),
-            );
+            let mut serializer = Serializer::new(serializer_name.clone());
 
             for i in s.fields_index.iter() {
                 let current_field = &fs.fields[*i as usize];
                 let field_serializer_name = resolve(current_field.field_serializer_name_sym);
 
-                if fields.get(i).is_none() {
+                if !fields.contains_key(i) {
                     let var_type_str = resolve(current_field.var_type_sym);
                     let current_field_serializer =
-                        self.serializers.get(&field_serializer_name).map(Rc::clone);
+                        self.serializers.get(&field_serializer_name).cloned();
 
-                    if field_types.get(&var_type_str).is_none() {
+                    if !field_types.contains_key(&var_type_str) {
                         field_types.insert(
                             var_type_str.clone(),
                             Rc::new(FieldType::new(var_type_str.clone().as_ref())),

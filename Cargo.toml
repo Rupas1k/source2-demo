@@ -10,7 +10,7 @@ edition = "2021"
 proto = { path = "./proto" }
 
 snap = "1.1.1"
-regex = "1.10.2"
+regex = { version = "1.10.2", features = ["std"]}
 strum = "0.26.2"
 strum_macros = "0.26.2"
 enum-as-inner = "0.6.0"
@@ -21,7 +21,6 @@ mimalloc = { version = "0.1.39", default-features = false }
 lazy_static = "1.4.0"
 prost = "0.12.3"
 anyhow = "1.0.81"
-
 
 [features]
 default = ["mimalloc"]

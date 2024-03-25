@@ -1,13 +1,13 @@
-use crate::field_path::FieldOp;
-use crate::field_path::FieldPath;
-use crate::field_state::FieldState;
-use crate::huffman_tree::{build_huffman_tree, EHTree};
-use crate::reader::Reader;
+use crate::field::FieldPath;
+use crate::field::FieldState;
+use crate::operation::FieldOp;
 use crate::serializer::Serializer;
+use crate::utils::Reader;
+use crate::utils::{build_huffman_tree, HTree};
 use strum::IntoEnumIterator;
 
 pub struct FieldReader {
-    tree: EHTree,
+    tree: HTree,
 }
 
 impl FieldReader {
@@ -27,7 +27,7 @@ impl FieldReader {
                 false => node.left(),
             };
             match next {
-                EHTree::Leaf { value, .. } => {
+                HTree::Leaf { value, .. } => {
                     let op = FieldOp::from_position(*value);
                     op.execute(reader, &mut fp);
                     if let FieldOp::FieldPathEncodeFinish = op {
@@ -36,7 +36,7 @@ impl FieldReader {
                     paths.push(fp.clone());
                     node = &self.tree;
                 }
-                EHTree::Node { .. } => {
+                HTree::Node { .. } => {
                     node = next;
                 }
             }

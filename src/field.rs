@@ -1,12 +1,14 @@
-use crate::field_decoder::Decoders;
-use crate::field_path::FieldPath;
-use crate::field_state::{FieldState, States};
-use crate::field_type::FieldType;
+use crate::decoder::Decoders;
+use crate::entity::FieldValue;
 use crate::serializer::Serializer;
 use anyhow::bail;
 use anyhow::Result;
-use std::rc::Rc;
+use enum_as_inner::EnumAsInner;
 use lazy_static::lazy_static;
+use regex::Regex;
+use rustc_hash::FxHashMap;
+use std::cmp::max;
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub struct Field {
@@ -98,14 +100,12 @@ impl Field {
         self.field_type.as_ref()
     }
 
-    pub fn get_decoder_for_field_path(&self, fp: &FieldPath, pos: i32) -> &Decoders {
+    pub fn get_decoder_for_field_path(&self, fp: &FieldPath, pos: usize) -> &Decoders {
         match self.model {
-            FieldModels::Simple => {}
-            FieldModels::FixedArray => {
-                return &self.decoder;
-            }
+            FieldModels::Simple => &self.decoder,
+            FieldModels::FixedArray => &self.decoder,
             FieldModels::FixedTable => {
-                if fp.last as i32 == pos - 1 {
+                if fp.last == pos - 1 {
                     return &self.base_decoder;
                 }
                 return self
@@ -115,55 +115,47 @@ impl Field {
                     .get_decoder_for_field_path(fp, pos);
             }
             FieldModels::VariableArray => {
-                if fp.last as i32 == pos {
+                if fp.last == pos {
                     return &self.child_decoder;
                 }
-                return &self.base_decoder;
+                &self.base_decoder
             }
             FieldModels::VariableTable => {
-                if fp.last as i32 > pos {
+                if fp.last > pos {
                     return self
                         .serializer
                         .as_ref()
                         .unwrap()
                         .get_decoder_for_field_path(fp, pos + 1);
                 }
-                return &self.base_decoder;
+                &self.base_decoder
             }
         }
-        &self.decoder
     }
 
     pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> Result<()> {
         match self.model {
             FieldModels::Simple => {
-                bail!("not supported");
+                bail!("not supported")
             }
-            FieldModels::FixedArray => {
-                fp.path[fp.last] = name.parse::<i32>().unwrap();
-                return Ok(());
+            FieldModels::FixedArray | FieldModels::VariableArray => {
+                fp.path[fp.last] = name.parse::<i32>()?;
+                Ok(())
             }
-            FieldModels::FixedTable => {
-                return self
-                    .serializer
-                    .as_ref()
-                    .unwrap()
-                    .get_field_path_for_name(fp, name)
-            }
-            FieldModels::VariableArray => {
-                fp.path[fp.last] = name.parse::<i32>().unwrap();
-            }
+            FieldModels::FixedTable => self
+                .serializer
+                .as_ref()
+                .unwrap()
+                .get_field_path_for_name(fp, name),
             FieldModels::VariableTable => {
-                fp.path[fp.last] = name[0..4].parse::<i32>().unwrap();
+                fp.path[fp.last] = name[0..4].parse::<i32>()?;
                 fp.last += 1;
-                return self
-                    .serializer
+                self.serializer
                     .as_ref()
                     .unwrap()
-                    .get_field_path_for_name(fp, &name[5..]);
+                    .get_field_path_for_name(fp, &name[5..])
             }
         }
-        bail!("No field path for given name")
     }
 
     pub fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldState) -> Vec<FieldPath> {
@@ -172,10 +164,10 @@ impl Field {
             FieldModels::Simple => {
                 vec.push(fp.clone());
             }
-            FieldModels::FixedArray => {
-                if let Some(States::FieldState(s)) = st.get(fp) {
+            FieldModels::FixedArray | FieldModels::VariableArray => {
+                if let Some(StateType::FieldState(s)) = st.get(fp) {
                     fp.last += 1;
-                    for (i, v) in s.state.iter().enumerate() {
+                    for (i, _) in s.state.iter().enumerate() {
                         fp.path[fp.last] = i as i32;
                         vec.push(fp.clone());
                     }
@@ -183,7 +175,7 @@ impl Field {
                 }
             }
             FieldModels::FixedTable => {
-                if let Some(States::FieldState(v)) = st.get(fp) {
+                if let Some(StateType::FieldState(v)) = st.get(fp) {
                     fp.last += 1;
                     vec.extend_from_slice(
                         &self.serializer.as_ref().unwrap().get_field_paths(fp, v),
@@ -191,21 +183,11 @@ impl Field {
                     fp.pop(1);
                 }
             }
-            FieldModels::VariableArray => {
-                if let Some(States::FieldState(x)) = st.get(fp) {
-                    fp.last += 1;
-                    for (i, _) in x.state.iter().enumerate() {
-                        fp.path[fp.last] = i as i32;
-                        vec.push(fp.clone());
-                    }
-                    fp.pop(1);
-                }
-            }
             FieldModels::VariableTable => {
-                if let Some(States::FieldState(x)) = st.get(fp) {
+                if let Some(StateType::FieldState(x)) = st.get(fp) {
                     fp.last += 2;
                     for (i, v) in x.state.iter().enumerate() {
-                        if let Some(States::FieldState(vv)) = v.as_ref() {
+                        if let Some(StateType::FieldState(vv)) = v.as_ref() {
                             fp.path[fp.last - 1] = i as i32;
                             vec.extend_from_slice(
                                 &self.serializer.as_ref().unwrap().get_field_paths(fp, vv),
@@ -219,26 +201,6 @@ impl Field {
         vec
     }
 
-    // pub fn set_model(&mut self, model: FieldModels) {
-    //     self.model = model;
-    //     match self.model {
-    //         FieldModels::FixedArray => {
-    //             self.decoder = Decoders::from_field(self, false);
-    //         }
-    //         FieldModels::FixedTable => self.base_decoder = Decoders::Boolean,
-    //         FieldModels::VariableArray => {
-    //             self.base_decoder = Decoders::Unsigned32;
-    //             self.child_decoder = Decoders::from_field(self, true)
-    //         }
-    //         FieldModels::VariableTable => {
-    //             self.base_decoder = Decoders::Unsigned32;
-    //         }
-    //         FieldModels::Simple => {
-    //             self.decoder = Decoders::from_field(self, false);
-    //         }
-    //     }
-    // }
-
     pub fn get_name(&self) -> &str {
         &self.var_name
     }
@@ -251,18 +213,6 @@ pub enum FieldModels {
     FixedTable,
     VariableArray,
     VariableTable,
-}
-
-impl FieldModels {
-    pub fn as_str(&self) -> &str {
-        match &self {
-            FieldModels::Simple => "fixed-array",
-            FieldModels::FixedArray => "fixed-table",
-            FieldModels::FixedTable => "variable-array",
-            FieldModels::VariableArray => "variable-table",
-            FieldModels::VariableTable => "simple",
-        }
-    }
 }
 
 pub struct FieldPatch {
@@ -280,77 +230,133 @@ impl FieldPatch {
         }
     }
 }
-// pub static FIELD_PATCHES: [FieldPatch; 0] = [];
 
-lazy_static!{
-pub static ref FIELD_PATCHES: [FieldPatch; 1] = [
-    // FieldPatch {
-    //     min_build: 0,
-    //     max_build: 990,
-    //     patch: |f: &mut Field| match f.var_name.as_ref() {
-    //         "angExtraLocalAngles"
-    //         | "angLocalAngles"
-    //         | "m_angInitialAngles"
-    //         | "m_angRotation"
-    //         | "m_ragAngles"
-    //         | "m_vLightDirection" => {
-    //             f.encoder = Box::from(if f.parent.as_ref() == "CBodyComponentBaseAnimatingOverlay" {
-    //                 "qangle_pitch_yaw".to_string()
-    //             } else {
-    //                 "QAngle".to_string()
-    //             });
-    //         }
-    //         "dirPrimary"
-    //         | "localSound"
-    //         | "m_flElasticity"
-    //         | "m_location"
-    //         | "m_poolOrigin"
-    //         | "m_ragPos"
-    //         | "m_vecEndPos"
-    //         | "m_vecLadderDir"
-    //         | "m_vecPlayerMountPositionBottom"
-    //         | "m_vecPlayerMountPositionTop"
-    //         | "m_viewtarget"
-    //         | "m_WorldMaxs"
-    //         | "m_WorldMins"
-    //         | "origin"
-    //         | "vecLocalOrigin" => {
-    //             f.encoder = "coord".to_string().into_boxed_str();
-    //         }
-    //         "m_vecLadderNormal" => {
-    //             f.encoder = "normal".to_string().into_boxed_str();
-    //         }
-    //         _ => {}
-    //     },
-    // },
-    // FieldPatch {
-    //     min_build: 0,
-    //     max_build: 954,
-    //     patch: |f: &mut Field| match f.var_name.as_ref() {
-    //         "m_flMana" | "m_flMaxMana" => {
-    //             f.low_value = 0.0;
-    //             f.high_value = 8192.0f32;
-    //         }
-    //         _ => {}
-    //     },
-    // },
-    // FieldPatch {
-    //     min_build: 1016,
-    //     max_build: 1027,
-    //     patch: |f: &mut Field| match f.var_name.as_ref() {
-    //         "m_bItemWhiteList"
-    //         | "m_bWorldTreeState"
-    //         | "m_iPlayerIDsInControl"
-    //         | "m_iPlayerSteamID"
-    //         | "m_ulTeamBannerLogo"
-    //         | "m_ulTeamBaseLogo"
-    //         | "m_ulTeamLogo" => {
-    //             f.encoder = "fixed64".to_string().into_boxed_str();
-    //         }
-    //         _ => {}
-    //     },
-    // },
-    FieldPatch {
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum StateType {
+    Value(FieldValue),
+    FieldState(FieldState),
+}
+
+#[derive(Debug, Clone)]
+pub struct FieldState {
+    pub(crate) state: Vec<Option<StateType>>,
+}
+
+impl FieldState {
+    pub fn new(len: usize) -> Self {
+        FieldState {
+            state: vec![None; len],
+        }
+    }
+
+    pub fn get(&self, fp: &FieldPath) -> Option<&StateType> {
+        let mut current_state = self;
+        for i in 0..fp.last {
+            if current_state.state[fp.path[i] as usize].is_none()
+                || current_state.state[fp.path[i] as usize]
+                    .as_ref()
+                    .unwrap()
+                    .is_value()
+            {
+                return None;
+            }
+            current_state = current_state.state[fp.path[i] as usize]
+                .as_ref()
+                .unwrap()
+                .as_field_state()
+                .unwrap();
+        }
+        current_state.state[fp.path[fp.last] as usize].as_ref()
+    }
+
+    pub fn set(&mut self, fp: &FieldPath, v: FieldValue) {
+        let mut current_state = self;
+        for i in 0..=fp.last {
+            if (current_state.state.len() as i32) <= fp.path[i] as i32 {
+                current_state.state.resize_with(
+                    max(fp.path[i] as usize + 2, current_state.state.len() * 2),
+                    || None,
+                );
+            }
+            if i == fp.last {
+                current_state.state[fp.path[i] as usize] = Some(StateType::Value(v));
+                return;
+            }
+            if current_state.state[fp.path[i] as usize].is_none()
+                || !current_state.state[fp.path[i] as usize]
+                    .as_ref()
+                    .unwrap()
+                    .is_field_state()
+            {
+                current_state.state[fp.path[i] as usize] =
+                    Some(StateType::FieldState(FieldState::new(8)));
+            }
+            current_state = current_state.state[fp.path[i] as usize]
+                .as_mut()
+                .unwrap()
+                .as_field_state_mut()
+                .unwrap();
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FieldPath {
+    pub(crate) path: [i32; 7],
+    pub(crate) last: usize,
+}
+
+impl FieldPath {
+    pub(crate) fn new() -> Self {
+        FieldPath {
+            path: [-1, 0, 0, 0, 0, 0, 0],
+            last: 0,
+        }
+    }
+    pub fn pop(&mut self, n: usize) {
+        for _ in 0..n {
+            self.path[self.last] = 0;
+            self.last -= 1;
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FieldType {
+    pub base: Box<str>,
+    pub generic: Option<Box<FieldType>>,
+    pub pointer: bool,
+    pub count: Option<i32>,
+}
+
+impl FieldType {
+    pub fn new(name: &str) -> Self {
+        let captures = RE.captures(name).unwrap();
+
+        let base = captures[1].to_string().into_boxed_str();
+        let pointer = captures.get(4).is_some();
+        let generic = captures
+            .get(3)
+            .map(|v| Box::new(FieldType::new(v.as_str())));
+
+        let count = captures.get(6).and_then(|x| {
+            COUNT_TYPES
+                .get(x.as_str())
+                .copied()
+                .or_else(|| x.as_str().parse().ok())
+        });
+
+        FieldType {
+            base,
+            generic,
+            pointer,
+            count,
+        }
+    }
+}
+
+lazy_static! {
+    pub static ref FIELD_PATCHES: [FieldPatch; 1] = [FieldPatch {
         min_build: 0,
         max_build: 0,
         patch: |f: &mut Field| match f.var_name.as_ref() {
@@ -362,6 +368,11 @@ pub static ref FIELD_PATCHES: [FieldPatch; 1] = [
             }
             _ => {}
         },
-    },
-];
+    },];
+    static ref RE: Regex = Regex::new(r"([^<\[*]+)(<\s(.*)\s>)?(\*)?(\[(.*)])?").unwrap();
+    static ref COUNT_TYPES: FxHashMap<&'static str, i32> =
+        [("MAX_ITEM_STOCKS", 8), ("MAX_ABILITY_DRAFT_ABILITIES", 48)]
+            .iter()
+            .copied()
+            .collect();
 }

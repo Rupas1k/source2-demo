@@ -1,7 +1,6 @@
 use crate::entity::FieldValue;
 use crate::field::Field;
-use crate::qfloat::QFloatDecoder;
-use crate::reader::Reader;
+use crate::utils::{QFloatDecoder, Reader};
 
 #[derive(Clone, Debug)]
 pub enum Decoders {

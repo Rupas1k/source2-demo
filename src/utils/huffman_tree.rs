@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum EHTree {
+pub enum HTree {
     Leaf {
         weight: i32,
         value: i32,
@@ -10,12 +10,12 @@ pub enum EHTree {
     Node {
         weight: i32,
         value: i32,
-        left: Box<EHTree>,
-        right: Box<EHTree>,
+        left: Box<HTree>,
+        right: Box<HTree>,
     },
 }
 
-impl Ord for EHTree {
+impl Ord for HTree {
     fn cmp(&self, other: &Self) -> Ordering {
         match self.weight().cmp(&other.weight()) {
             Ordering::Equal => self.value().cmp(&other.value()),
@@ -24,41 +24,41 @@ impl Ord for EHTree {
     }
 }
 
-impl PartialOrd for EHTree {
+impl PartialOrd for HTree {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl EHTree {
+impl HTree {
     pub fn weight(&self) -> i32 {
         match self {
-            EHTree::Leaf { weight, .. } | EHTree::Node { weight, .. } => *weight,
+            HTree::Leaf { weight, .. } | HTree::Node { weight, .. } => *weight,
         }
     }
 
     pub fn value(&self) -> i32 {
         match self {
-            EHTree::Leaf { value, .. } | EHTree::Node { value, .. } => *value,
+            HTree::Leaf { value, .. } | HTree::Node { value, .. } => *value,
         }
     }
 
-    pub fn left(&self) -> &EHTree {
+    pub fn left(&self) -> &HTree {
         match self {
-            EHTree::Node { left, .. } => left,
-            EHTree::Leaf { .. } => panic!(),
+            HTree::Node { left, .. } => left,
+            HTree::Leaf { .. } => panic!(),
         }
     }
 
-    pub fn right(&self) -> &EHTree {
+    pub fn right(&self) -> &HTree {
         match self {
-            EHTree::Node { right, .. } => right,
-            EHTree::Leaf { .. } => panic!(),
+            HTree::Node { right, .. } => right,
+            HTree::Leaf { .. } => panic!(),
         }
     }
 }
 
-pub fn build_huffman_tree(freqs: Vec<i32>) -> Option<EHTree> {
+pub fn build_huffman_tree(freqs: Vec<i32>) -> Option<HTree> {
     if freqs.is_empty() {
         return None;
     }
@@ -66,11 +66,11 @@ pub fn build_huffman_tree(freqs: Vec<i32>) -> Option<EHTree> {
     let mut trees = freqs
         .iter()
         .enumerate()
-        .map(|(v, w)| EHTree::Leaf {
+        .map(|(v, w)| HTree::Leaf {
             value: v as i32,
             weight: if *w == 0 { 1 } else { *w },
         })
-        .collect::<BinaryHeap<EHTree>>();
+        .collect::<BinaryHeap<HTree>>();
 
     let mut n = 40;
 
@@ -78,7 +78,7 @@ pub fn build_huffman_tree(freqs: Vec<i32>) -> Option<EHTree> {
         let a = trees.pop().unwrap();
         let b = trees.pop().unwrap();
 
-        trees.push(EHTree::Node {
+        trees.push(HTree::Node {
             weight: a.weight() + b.weight(),
             value: n,
             left: Box::new(a),

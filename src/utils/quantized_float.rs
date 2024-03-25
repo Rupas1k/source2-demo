@@ -1,4 +1,4 @@
-use crate::reader::Reader;
+use crate::utils::Reader;
 
 enum QFloatFlags {
     RoundDown = 1 << 0,

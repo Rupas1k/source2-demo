@@ -1,18 +1,14 @@
 mod class;
 mod combat_log;
+mod decoder;
 mod entity;
 mod field;
-mod field_decoder;
-mod field_path;
 mod field_reader;
-mod field_state;
-mod field_type;
-mod huffman_tree;
+mod operation;
 mod parser;
-mod qfloat;
-mod reader;
 mod serializer;
 mod string_table;
+mod utils;
 
 pub mod prelude {
     pub use proto::*;
