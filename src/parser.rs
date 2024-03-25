@@ -1,22 +1,19 @@
 use crate::class::{Class, Classes};
 use crate::decoder::Decoders;
 use crate::entity::{Entities, Entity, EntityAction};
-use crate::field::FIELD_PATCHES;
-use crate::field::{Field, FieldModels};
-use crate::field::{FieldPath, FieldState, FieldType};
+use crate::field::{Field, FieldModels, FieldType, FIELD_PATCHES};
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTables};
-use crate::utils::{build_huffman_tree, HTree, Reader};
+use crate::utils::Reader;
 use anyhow::{bail, Result};
 use nohash_hasher::IntMap;
-use prost::Message;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
-use strum::IntoEnumIterator;
 
+use proto::prost::Message;
 use proto::{
     CDemoClassInfo, CDemoFullPacket, CDemoPacket, CDemoSendTables, CnetMsgTick,
     CsvcMsgCreateStringTable, CsvcMsgFlattenedSerializer, CsvcMsgPacketEntities, CsvcMsgServerInfo,
