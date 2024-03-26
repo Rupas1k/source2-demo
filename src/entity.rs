@@ -4,7 +4,7 @@ use crate::field::FieldState;
 use crate::field::StateType;
 use anyhow::{anyhow, bail, format_err, Result};
 use nohash_hasher::IntMap;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
@@ -35,29 +35,25 @@ impl Entities {
         }
     }
 
-    fn index_for_handle(handle: &i32) -> i32 {
-        handle & 0x3fff
-    }
-
     pub fn get_by_index(&self, index: &i32) -> Result<&Entity> {
         self.index_to_entity
-            .get(&index)
-            .ok_or(anyhow!("No entities for index {index}"))
+            .get(index)
+            .ok_or_else(|| anyhow!("No entities for index {index}"))
     }
     pub fn get_by_handle(&self, handle: &i32) -> Result<&Entity> {
-        self.get_by_index(&Entities::index_for_handle(handle))
+        self.get_by_index(&(handle & 0x3fff))
     }
     pub fn get_by_class_id(&self, id: &i32) -> Result<&Entity> {
         self.index_to_entity
             .values()
             .find(|&entity| &entity.class.id == id)
-            .ok_or(anyhow!("No entities for class with id {id}"))
+            .ok_or_else(|| anyhow!("No entities for class with id {id}"))
     }
     pub fn get_by_class_name(&self, name: &str) -> Result<&Entity> {
         self.index_to_entity
             .values()
             .find(|&entity| entity.class.name.as_ref() == name)
-            .ok_or(anyhow!("No entities for class with name {name}"))
+            .ok_or_else(|| anyhow!("No entities for class with name {name}"))
     }
 
     pub fn get_all_by_class_id(&self, id: &i32) -> Vec<&Entity> {
@@ -111,7 +107,6 @@ pub struct Entity {
     pub(crate) active: bool,
     pub(crate) state: FieldState,
     fp_cache: RefCell<FpCache>,
-    fp_no_op_cache: RefCell<FxHashSet<Box<str>>>,
 }
 
 impl Entity {
@@ -121,9 +116,8 @@ impl Entity {
             serial,
             class,
             active: true,
-            state: FieldState::new(8),
+            state: FieldState::new(16),
             fp_cache: RefCell::new(FpCache::new()),
-            fp_no_op_cache: RefCell::new(FxHashSet::default()),
         }
     }
 
@@ -144,29 +138,25 @@ impl Entity {
     }
 
     pub fn get_property_by_name(&self, name: &str) -> Result<&FieldValue> {
-        if self.fp_no_op_cache.borrow().contains(name) {
-            bail!("No op for given property");
-        }
         if let Some(fp) = self.fp_cache.borrow().get(name) {
             return self.get_property_by_field_path(fp);
         }
 
         let mut fp = FieldPath::new();
-        if self.class.get_field_path_for_name(&mut fp, name).is_ok() {
-            self.fp_cache.borrow_mut().set(name, fp.clone());
-            return self.get_property_by_field_path(&fp);
-        } else {
-            self.fp_no_op_cache.borrow_mut().insert(name.into());
-        }
-        bail!("No property for given name")
+        self.class
+            .get_field_path_for_name(&mut fp, name)
+            .and_then(|_| {
+                let property = self.get_property_by_field_path(&fp);
+                self.fp_cache.borrow_mut().set(name, fp);
+                property
+            })
+            .or_else(|_| bail!("No property for given name"))
     }
 
     pub fn get_property_by_field_path(&self, fp: &FieldPath) -> Result<&FieldValue> {
-        if let Some(state) = self.state.get(fp) {
-            Ok(state.as_value().unwrap())
-        } else {
-            bail!("No property for given field path")
-        }
+        self.state
+            .get_value(fp)
+            .ok_or_else(|| anyhow!("No property for given field path"))
     }
 }
 
@@ -186,8 +176,8 @@ impl Display for Entity {
         {
             let t = self.class.get_type_for_field_path(&fp).base.clone();
             let name = self.class.get_name_for_field_path(&fp);
-            let value = match self.state.get(&fp) {
-                Some(StateType::Value(v)) => match t.as_ref() {
+            let value = match self.state.get_value(&fp) {
+                Some(v) => match t.as_ref() {
                     "bool" => format!("(bool) {}", v.as_bool()),
                     "char" | "CUtlString" | "CUtlSymbolLarge" => {
                         format!("(String) \"{}\"", v.as_string())
@@ -308,7 +298,7 @@ impl TryInto<[f32; 2]> for &FieldValue {
     fn try_into(self) -> Result<[f32; 2], anyhow::Error> {
         match self {
             FieldValue::Vector2D(x) => Ok(*x),
-            _ => Err(format_err!("Error converting {} into [f32; 2]", self,)),
+            _ => Err(format_err!("Error converting {} into [f32; 2]", self)),
         }
     }
 }
@@ -319,7 +309,7 @@ impl TryInto<[f32; 3]> for FieldValue {
     fn try_into(self) -> Result<[f32; 3], anyhow::Error> {
         match self {
             FieldValue::Vector3D(x) => Ok(x),
-            _ => Err(format_err!("Error converting {} into [f32; 3]", self,)),
+            _ => Err(format_err!("Error converting {} into [f32; 3]", self)),
         }
     }
 }
@@ -330,7 +320,7 @@ impl TryInto<[f32; 3]> for &FieldValue {
     fn try_into(self) -> Result<[f32; 3], anyhow::Error> {
         match self {
             FieldValue::Vector3D(x) => Ok(*x),
-            _ => Err(format_err!("Error converting {} into [f32; 3]", self,)),
+            _ => Err(format_err!("Error converting {} into [f32; 3]", self)),
         }
     }
 }
@@ -341,7 +331,7 @@ impl TryInto<[f32; 4]> for FieldValue {
     fn try_into(self) -> Result<[f32; 4], anyhow::Error> {
         match self {
             FieldValue::Vector4D(x) => Ok(x),
-            _ => Err(format_err!("Error converting {} into [f32; 4]", self,)),
+            _ => Err(format_err!("Error converting {} into [f32; 4]", self)),
         }
     }
 }
@@ -352,7 +342,7 @@ impl TryInto<[f32; 4]> for &FieldValue {
     fn try_into(self) -> Result<[f32; 4], anyhow::Error> {
         match self {
             FieldValue::Vector4D(x) => Ok(*x),
-            _ => Err(format_err!("Error converting {} into [f32; 4]", self,)),
+            _ => Err(format_err!("Error converting {} into [f32; 4]", self)),
         }
     }
 }
@@ -365,7 +355,7 @@ impl TryInto<Vec<f32>> for FieldValue {
             FieldValue::Vector2D(x) => Ok(x.to_vec()),
             FieldValue::Vector3D(x) => Ok(x.to_vec()),
             FieldValue::Vector4D(x) => Ok(x.to_vec()),
-            _ => Err(format_err!("Error converting {} into Vec<f32>", self,)),
+            _ => Err(format_err!("Error converting {} into Vec<f32>", self)),
         }
     }
 }
@@ -378,7 +368,7 @@ impl TryInto<Vec<f32>> for &FieldValue {
             FieldValue::Vector2D(x) => Ok(x.to_vec()),
             FieldValue::Vector3D(x) => Ok(x.to_vec()),
             FieldValue::Vector4D(x) => Ok(x.to_vec()),
-            _ => Err(format_err!("Error converting {} into Vec<f32>", self,)),
+            _ => Err(format_err!("Error converting {} into Vec<f32>", self)),
         }
     }
 }
@@ -389,7 +379,7 @@ impl TryInto<f32> for FieldValue {
     fn try_into(self) -> Result<f32, anyhow::Error> {
         match self {
             FieldValue::Float(x) => Ok(x),
-            _ => Err(format_err!("Error converting {} into f32", self,)),
+            _ => Err(format_err!("Error converting {} into f32", self)),
         }
     }
 }
@@ -400,7 +390,7 @@ impl TryInto<f32> for &FieldValue {
     fn try_into(self) -> Result<f32, anyhow::Error> {
         match self {
             FieldValue::Float(x) => Ok(*x),
-            _ => Err(format_err!("Error converting {} into f32", self,)),
+            _ => Err(format_err!("Error converting {} into f32", self)),
         }
     }
 }
@@ -411,7 +401,7 @@ impl TryInto<bool> for FieldValue {
     fn try_into(self) -> Result<bool, anyhow::Error> {
         match self {
             FieldValue::Boolean(x) => Ok(x),
-            _ => Err(format_err!("Error converting {} into bool", self,)),
+            _ => Err(format_err!("Error converting {} into bool", self)),
         }
     }
 }

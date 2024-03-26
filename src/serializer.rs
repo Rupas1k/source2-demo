@@ -16,7 +16,6 @@ impl Serializer {
     pub fn new(name: String) -> Self {
         Serializer {
             name: name.into_boxed_str(),
-            // ver,
             fields: vec![],
         }
     }
@@ -30,8 +29,7 @@ impl Serializer {
     }
 
     pub fn get_decoder_for_field_path(&self, fp: &FieldPath, pos: usize) -> &Decoders {
-        let i = fp.path[pos];
-        self.fields[i as usize].get_decoder_for_field_path(fp, pos + 1)
+        self.fields[fp.path[pos] as usize].get_decoder_for_field_path(fp, pos + 1)
     }
 
     pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> Result<()> {

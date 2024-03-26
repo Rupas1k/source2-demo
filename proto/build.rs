@@ -1,6 +1,11 @@
+use std::any::Any;
+
 /// Script for updating protobufs
 fn main() -> std::io::Result<()> {
-    prost_build::compile_protos(
+    let mut config = prost_build::Config::new();
+    config.out_dir("./generated");
+    config.default_package_filename("proto");
+    config.compile_protos(
         &[
             "./protos/demo.proto",
             "./protos/dota_commonmessages.proto",

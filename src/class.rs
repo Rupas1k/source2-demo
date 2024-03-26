@@ -6,6 +6,7 @@ use crate::serializer::Serializer;
 use anyhow::{anyhow, Result};
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Debug)]
@@ -50,6 +51,7 @@ pub struct Class {
     pub(crate) id: i32,
     pub(crate) name: Box<str>,
     pub(crate) serializer: Rc<Serializer>,
+    pub(crate) fp_cache: RefCell<FxHashMap<Box<str>, FieldPath>>,
 }
 
 impl Class {
@@ -58,6 +60,7 @@ impl Class {
             id,
             name: name.into(),
             serializer,
+            fp_cache: RefCell::new(FxHashMap::default()),
         }
     }
 
@@ -81,7 +84,12 @@ impl Class {
     }
 
     pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> Result<()> {
-        self.serializer.get_field_path_for_name(fp, name)
+        if !self.fp_cache.borrow().contains_key(name) {
+            self.serializer.get_field_path_for_name(fp, name)?;
+            self.fp_cache.borrow_mut().insert(name.into(), fp.clone());
+        }
+        *fp = self.fp_cache.borrow_mut()[name].clone();
+        Ok(())
     }
 
     pub fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldState) -> Vec<FieldPath> {

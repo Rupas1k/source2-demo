@@ -135,9 +135,6 @@ impl Field {
 
     pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> Result<()> {
         match self.model {
-            FieldModels::Simple => {
-                bail!("not supported")
-            }
             FieldModels::FixedArray | FieldModels::VariableArray => {
                 fp.path[fp.last] = name.parse::<i32>()?;
                 Ok(())
@@ -155,6 +152,7 @@ impl Field {
                     .unwrap()
                     .get_field_path_for_name(fp, &name[5..])
             }
+            FieldModels::Simple => unreachable!(),
         }
     }
 
@@ -165,7 +163,7 @@ impl Field {
                 vec.push(fp.clone());
             }
             FieldModels::FixedArray | FieldModels::VariableArray => {
-                if let Some(StateType::FieldState(s)) = st.get(fp) {
+                if let Some(s) = st.get_field_state(fp) {
                     fp.last += 1;
                     for (i, _) in s.state.iter().enumerate() {
                         fp.path[fp.last] = i as i32;
@@ -175,7 +173,7 @@ impl Field {
                 }
             }
             FieldModels::FixedTable => {
-                if let Some(StateType::FieldState(v)) = st.get(fp) {
+                if let Some(v) = st.get_field_state(fp) {
                     fp.last += 1;
                     vec.extend_from_slice(
                         &self.serializer.as_ref().unwrap().get_field_paths(fp, v),
@@ -184,7 +182,7 @@ impl Field {
                 }
             }
             FieldModels::VariableTable => {
-                if let Some(StateType::FieldState(x)) = st.get(fp) {
+                if let Some(x) = st.get_field_state(fp) {
                     fp.last += 2;
                     for (i, v) in x.state.iter().enumerate() {
                         if let Some(StateType::FieldState(vv)) = v.as_ref() {
@@ -249,53 +247,60 @@ impl FieldState {
         }
     }
 
-    pub fn get(&self, fp: &FieldPath) -> Option<&StateType> {
+    pub fn get_value(&self, fp: &FieldPath) -> Option<&FieldValue> {
         let mut current_state = self;
         for i in 0..fp.last {
-            if current_state.state[fp.path[i] as usize].is_none()
-                || current_state.state[fp.path[i] as usize]
-                    .as_ref()
-                    .unwrap()
-                    .is_value()
-            {
-                return None;
-            }
             current_state = current_state.state[fp.path[i] as usize]
-                .as_ref()
-                .unwrap()
-                .as_field_state()
-                .unwrap();
+                .as_ref()?
+                .as_field_state()?;
         }
-        current_state.state[fp.path[fp.last] as usize].as_ref()
+        current_state.state[fp.path[fp.last] as usize]
+            .as_ref()?
+            .as_value()
     }
 
-    pub fn set(&mut self, fp: &FieldPath, v: FieldValue) {
+    pub fn get_field_state(&self, fp: &FieldPath) -> Option<&FieldState> {
         let mut current_state = self;
-        for i in 0..=fp.last {
-            if (current_state.state.len() as i32) <= fp.path[i] as i32 {
-                current_state.state.resize_with(
-                    max(fp.path[i] as usize + 2, current_state.state.len() * 2),
-                    || None,
-                );
-            }
-            if i == fp.last {
-                current_state.state[fp.path[i] as usize] = Some(StateType::Value(v));
-                return;
-            }
-            if current_state.state[fp.path[i] as usize].is_none()
-                || !current_state.state[fp.path[i] as usize]
-                    .as_ref()
-                    .unwrap()
-                    .is_field_state()
-            {
-                current_state.state[fp.path[i] as usize] =
-                    Some(StateType::FieldState(FieldState::new(8)));
-            }
+        for i in 0..fp.last {
             current_state = current_state.state[fp.path[i] as usize]
-                .as_mut()
-                .unwrap()
-                .as_field_state_mut()
-                .unwrap();
+                .as_ref()?
+                .as_field_state()?;
+        }
+        current_state.state[fp.path[fp.last] as usize]
+            .as_ref()?
+            .as_field_state()
+    }
+
+    // REFACTOR!!!!!!
+    pub fn set(&mut self, fp: &FieldPath, v: FieldValue) {
+        unsafe {
+            let mut current_state = self;
+            for i in 0..=fp.last {
+                if (current_state.state.len() as i32) <= fp.path[i] {
+                    current_state.state.resize_with(
+                        max(fp.path[i] as usize + 2, current_state.state.len() * 2),
+                        || None,
+                    );
+                }
+                if i == fp.last {
+                    current_state.state[fp.path[i] as usize] = Some(StateType::Value(v));
+                    return;
+                }
+                if current_state.state[fp.path[i] as usize].is_none()
+                    || !current_state.state[fp.path[i] as usize]
+                        .as_ref()
+                        .unwrap_unchecked()
+                        .is_field_state()
+                {
+                    current_state.state[fp.path[i] as usize] =
+                        Some(StateType::FieldState(FieldState::new(16)));
+                }
+                current_state = current_state.state[fp.path[i] as usize]
+                    .as_mut()
+                    .unwrap_unchecked()
+                    .as_field_state_mut()
+                    .unwrap_unchecked();
+            }
         }
     }
 }

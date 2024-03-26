@@ -1,3 +1,3 @@
-include!(concat!(env!("OUT_DIR"), "/_.rs"));
+include!("./generated/proto.rs");
 
 pub use prost;
