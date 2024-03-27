@@ -136,7 +136,7 @@ impl Field {
     pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> Result<()> {
         match self.model {
             FieldModels::FixedArray | FieldModels::VariableArray => {
-                fp.path[fp.last] = name.parse::<i32>()?;
+                fp.path[fp.last] = name.parse::<u8>()?;
                 Ok(())
             }
             FieldModels::FixedTable => self
@@ -145,7 +145,7 @@ impl Field {
                 .unwrap()
                 .get_field_path_for_name(fp, name),
             FieldModels::VariableTable => {
-                fp.path[fp.last] = name[0..4].parse::<i32>()?;
+                fp.path[fp.last] = name[0..4].parse::<u8>()?;
                 fp.last += 1;
                 self.serializer
                     .as_ref()
@@ -166,7 +166,7 @@ impl Field {
                 if let Some(s) = st.get_field_state(fp) {
                     fp.last += 1;
                     for (i, _) in s.state.iter().enumerate() {
-                        fp.path[fp.last] = i as i32;
+                        fp.path[fp.last] = i as u8;
                         vec.push(fp.clone());
                     }
                     fp.pop(1);
@@ -186,7 +186,7 @@ impl Field {
                     fp.last += 2;
                     for (i, v) in x.state.iter().enumerate() {
                         if let Some(StateType::FieldState(vv)) = v.as_ref() {
-                            fp.path[fp.last - 1] = i as i32;
+                            fp.path[fp.last - 1] = i as u8;
                             vec.extend_from_slice(
                                 &self.serializer.as_ref().unwrap().get_field_paths(fp, vv),
                             );
@@ -276,7 +276,7 @@ impl FieldState {
         unsafe {
             let mut current_state = self;
             for i in 0..=fp.last {
-                if (current_state.state.len() as i32) <= fp.path[i] {
+                if current_state.state.len() <= fp.path[i] as usize {
                     current_state.state.resize_with(
                         max(fp.path[i] as usize + 2, current_state.state.len() * 2),
                         || None,
@@ -307,14 +307,14 @@ impl FieldState {
 
 #[derive(Clone, Debug)]
 pub struct FieldPath {
-    pub(crate) path: [i32; 7],
+    pub(crate) path: [u8; 7],
     pub(crate) last: usize,
 }
 
 impl FieldPath {
     pub(crate) fn new() -> Self {
         FieldPath {
-            path: [-1, 0, 0, 0, 0, 0, 0],
+            path: [u8::MAX, 0, 0, 0, 0, 0, 0],
             last: 0,
         }
     }
@@ -323,6 +323,18 @@ impl FieldPath {
             self.path[self.last] = 0;
             self.last -= 1;
         }
+    }
+
+    pub fn inc(&mut self, n: usize, val: u8) {
+        self.path[n] = self.path[n].wrapping_add(val)
+    }
+
+    pub fn sub(&mut self, n: usize, val: u8) {
+        self.path[n] = self.path[n].wrapping_sub(val)
+    }
+
+    pub fn inc_curr(&mut self, val: u8) {
+        self.path[self.last] = self.path[self.last].wrapping_add(val)
     }
 }
 

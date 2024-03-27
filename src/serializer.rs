@@ -35,11 +35,11 @@ impl Serializer {
     pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> Result<()> {
         for (i, f) in self.fields.iter().enumerate() {
             if name == f.var_name.as_ref() {
-                fp.path[fp.last] = i as i32;
+                fp.path[fp.last] = i as u8;
                 return Ok(());
             }
             if name.starts_with(&format!("{}.", f.var_name)) {
-                fp.path[fp.last] = i as i32;
+                fp.path[fp.last] = i as u8;
                 fp.last += 1;
                 return f.get_field_path_for_name(fp, &name[(f.var_name.len() + 1)..]);
             }
@@ -52,7 +52,7 @@ impl Serializer {
             .iter()
             .enumerate()
             .flat_map(|(i, f)| {
-                fp.path[fp.last] = i as i32;
+                fp.path[fp.last] = i as u8;
                 f.get_field_paths(fp, st)
             })
             .collect()

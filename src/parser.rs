@@ -479,6 +479,7 @@ impl<'a> Parser<'a> {
             .get(&st.table_id.unwrap())
             .unwrap()
             .borrow_mut();
+
         let is_baseline = t.name == "instancebaseline";
 
         for item in t.parse(
@@ -512,6 +513,11 @@ impl<'a> Parser<'a> {
 
     fn create_string_table(&mut self, msg: &[u8]) -> Result<()> {
         let st = CsvcMsgCreateStringTable::decode(msg)?;
+
+        if st.name() == "decalprecache" {
+            self.string_tables.next_index += 1;
+            return Ok(());
+        }
 
         let mut t = StringTable {
             index: self.string_tables.next_index,
