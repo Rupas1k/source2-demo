@@ -31,6 +31,10 @@ impl Entities {
         }
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = &Entity> {
+        self.index_to_entity.values()
+    }
+
     pub fn get_by_index(&self, index: &i32) -> Result<&Entity> {
         self.index_to_entity
             .get(index)
@@ -52,21 +56,22 @@ impl Entities {
             .ok_or_else(|| anyhow!("No entities for class with name {name}"))
     }
 
-    pub fn get_all_by_class_id(&self, id: &i32) -> Vec<&Entity> {
+    pub fn get_all_by_class_id<'a>(&'a self, id: &'a i32) -> impl Iterator<Item = &Entity> {
         self.index_to_entity
             .values()
-            .filter(|entity| &entity.class.id == id)
-            .collect::<Vec<_>>()
+            .filter(|entity| entity.class.id == *id)
     }
 
-    pub fn get_all_by_class_name(&self, name: &str) -> Vec<&Entity> {
+    pub fn get_all_by_class_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &Entity> {
         self.index_to_entity
             .values()
-            .filter(|entity| entity.class.name.as_ref() == name)
-            .collect::<Vec<_>>()
+            .filter(|entity| entity.class.name == name.into())
     }
 
-    pub fn get_all_by_predicate(&self, predicate: &dyn Fn(&Entity) -> bool) -> Vec<&Entity> {
+    pub fn get_all_by_predicate<'a>(
+        &'a self,
+        predicate: &'a dyn Fn(&Entity) -> bool,
+    ) -> impl Iterator<Item = &Entity> {
         self.index_to_entity
             .values()
             .filter(|entity| predicate(entity))
