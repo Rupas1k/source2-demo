@@ -1,4 +1,3 @@
-use crate::decoder::Decoders;
 use crate::field::FieldPath;
 use crate::field::FieldState;
 use crate::field::FieldType;
@@ -9,7 +8,6 @@ use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-#[derive(Debug)]
 pub struct Classes {
     pub(crate) classes_by_id: IntMap<i32, Rc<Class>>,
     pub(crate) classes_by_name: FxHashMap<Box<str>, Rc<Class>>,
@@ -46,7 +44,7 @@ impl Classes {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Class {
     pub(crate) id: i32,
     pub(crate) name: Box<str>,
@@ -55,7 +53,7 @@ pub struct Class {
 }
 
 impl Class {
-    pub fn new(id: i32, name: &str, serializer: Rc<Serializer>) -> Self {
+    pub(crate) fn new(id: i32, name: &str, serializer: Rc<Serializer>) -> Self {
         Class {
             id,
             name: name.into(),
@@ -71,28 +69,24 @@ impl Class {
         self.id
     }
 
-    pub fn get_name_for_field_path(&self, fp: &FieldPath) -> String {
+    pub(crate) fn get_name_for_field_path(&self, fp: &FieldPath) -> String {
         self.serializer.get_name_for_field_path(fp, 0).join(".")
     }
 
-    pub fn get_type_for_field_path(&self, fp: &FieldPath) -> &FieldType {
+    pub(crate) fn get_type_for_field_path(&self, fp: &FieldPath) -> &FieldType {
         self.serializer.get_type_for_field_path(fp, 0)
     }
 
-    pub fn get_decoder_for_field_path(&self, fp: &FieldPath) -> &Decoders {
-        self.serializer.get_decoder_for_field_path(fp, 0)
-    }
-
-    pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> Result<()> {
+    pub(crate) fn get_field_path_for_name(&self, name: &str) -> Result<FieldPath> {
         if !self.fp_cache.borrow().contains_key(name) {
-            self.serializer.get_field_path_for_name(fp, name)?;
-            self.fp_cache.borrow_mut().insert(name.into(), fp.clone());
+            let mut fp = FieldPath::new();
+            self.serializer.get_field_path_for_name(&mut fp, name)?;
+            self.fp_cache.borrow_mut().insert(name.into(), fp);
         }
-        *fp = self.fp_cache.borrow_mut()[name].clone();
-        Ok(())
+        Ok(self.fp_cache.borrow_mut()[name])
     }
 
-    pub fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldState) -> Vec<FieldPath> {
+    pub(crate) fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldState) -> Vec<FieldPath> {
         self.serializer.get_field_paths(fp, st)
     }
 }

@@ -1,11 +1,8 @@
 use crate::class::Class;
 use crate::field::FieldPath;
 use crate::field::FieldState;
-use crate::field::StateType;
-use anyhow::{anyhow, bail, format_err, Result};
+use anyhow::{anyhow, format_err, Result};
 use nohash_hasher::IntMap;
-use rustc_hash::FxHashMap;
-use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
@@ -19,7 +16,6 @@ pub enum EntityAction {
     Left = 1 << 4,
 }
 
-#[derive(Debug)]
 pub struct Entities {
     pub(crate) entity_full_packets: u32,
     pub(crate) undone_entities: VecDeque<(i32, isize)>,
@@ -74,39 +70,16 @@ impl Entities {
         self.index_to_entity
             .values()
             .filter(|entity| predicate(entity))
-            .collect::<Vec<_>>()
     }
 }
 
-#[derive(Debug, Clone)]
-struct FpCache {
-    cache: FxHashMap<Box<str>, FieldPath>,
-}
-
-impl FpCache {
-    pub fn new() -> Self {
-        FpCache {
-            cache: FxHashMap::<Box<str>, FieldPath>::default(),
-        }
-    }
-
-    pub fn get(&self, name: &str) -> Option<&FieldPath> {
-        self.cache.get(name)
-    }
-
-    pub fn set(&mut self, name: &str, fp: FieldPath) {
-        self.cache.insert(name.into(), fp);
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Entity {
     pub(crate) index: i32,
     pub(crate) serial: i32,
     pub(crate) class: Rc<Class>,
     pub(crate) active: bool,
     pub(crate) state: FieldState,
-    fp_cache: RefCell<FpCache>,
 }
 
 impl Entity {
@@ -117,7 +90,6 @@ impl Entity {
             class,
             active: true,
             state: FieldState::new(16),
-            fp_cache: RefCell::new(FpCache::new()),
         }
     }
 
@@ -138,19 +110,7 @@ impl Entity {
     }
 
     pub fn get_property_by_name(&self, name: &str) -> Result<&FieldValue> {
-        if let Some(fp) = self.fp_cache.borrow().get(name) {
-            return self.get_property_by_field_path(fp);
-        }
-
-        let mut fp = FieldPath::new();
-        self.class
-            .get_field_path_for_name(&mut fp, name)
-            .and_then(|_| {
-                let property = self.get_property_by_field_path(&fp);
-                self.fp_cache.borrow_mut().set(name, fp);
-                property
-            })
-            .or_else(|_| bail!("No property for given name"))
+        self.get_property_by_field_path(&self.class.get_field_path_for_name(name)?)
     }
 
     pub fn get_property_by_field_path(&self, fp: &FieldPath) -> Result<&FieldValue> {
@@ -160,29 +120,83 @@ impl Entity {
     }
 }
 
+// ChatGPT -> refactor!!!!!
 impl Display for Entity {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // Function to generate a horizontal line
+        fn horizontal_line(width1: usize, width2: usize, width3: usize) -> String {
+            format!(
+                "+{:<width1$}+{:<width2$}+{:<width3$}+\n",
+                "-".repeat(width1 + 2),
+                "-".repeat(width2 + 2),
+                "-".repeat(width3 + 2),
+                width1 = width1 + 2,
+                width2 = width2 + 2,
+                width3 = width3 + 2
+            )
+        }
+
+        // Function to format a table row
+        fn format_row(
+            name: &str,
+            t: &str,
+            value: &str,
+            width1: usize,
+            width2: usize,
+            width3: usize,
+        ) -> String {
+            format!(
+                "| {:<width1$} | {:<width2$} | {:<width3$} |\n",
+                name,
+                t,
+                value,
+                width1 = width1,
+                width2 = width2,
+                width3 = width3
+            )
+        }
+
         let mut table = String::new();
 
+        // Calculate column widths based on the longest field name
+        let mut name_width = 5; // Minimum width for the "Field" column
+        for fp in self
+            .class
+            .get_field_paths(&mut FieldPath::new(), &self.state)
+            .iter()
+        {
+            let name = self.class.get_name_for_field_path(fp);
+            name_width = name.len().max(name_width);
+        }
+
+        let type_width = 35; // Fixed width for the "Type" column
+        let value_width = 35; // Fixed width for the "Value" column
+
         // Add header row
-        table += &format!("+-------------------------------------+-------------------------------------+-------------------------------------+\n");
-        table += &format!("| Field                               | Type                                | Value                               |\n");
-        table += &format!("+-------------------------------------+-------------------------------------+-------------------------------------+\n");
+        table += &horizontal_line(name_width, type_width, value_width);
+        table += &format_row(
+            "Field",
+            "Type",
+            "Value",
+            name_width,
+            type_width,
+            value_width,
+        );
+        table += &horizontal_line(name_width, type_width, value_width);
 
         // Add rows for each field
         for fp in self
             .class
             .get_field_paths(&mut FieldPath::new(), &self.state)
+            .iter()
         {
-            let t = self.class.get_type_for_field_path(&fp).base.clone();
-            let name = self.class.get_name_for_field_path(&fp);
-            let value = match self.state.get_value(&fp) {
+            let t = self.class.get_type_for_field_path(fp).base.clone();
+            let name = self.class.get_name_for_field_path(fp);
+            let value = match self.state.get_value(fp) {
                 Some(v) => match t.as_ref() {
-                    "bool" => format!("(bool) {}", v.as_bool()),
-                    "char" | "CUtlString" | "CUtlSymbolLarge" => {
-                        format!("(String) \"{}\"", v.as_string())
-                    }
-                    "int8" | "int16" | "int32" | "int64" => format!("(i64) {:?}", v),
+                    "bool" => format!("{}", v.as_bool()),
+                    "char" | "CUtlString" | "CUtlSymbolLarge" => format!("\"{}\"", v.as_string()),
+                    "int8" | "int16" | "int32" | "int64" => format!("{:?}", v),
                     "uint8"
                     | "uint16"
                     | "uint32"
@@ -196,9 +210,9 @@ impl Display for Entity {
                     | "CEntityHandle"
                     | "CBodyComponent"
                     | "CPhysicsComponent"
-                    | "CRenderComponent" => format!("(u64) {:?}", v),
+                    | "CRenderComponent" => format!("{:?}", v),
                     "float32" | "GameTime_t" | "CNetworkedQuantizedFloat" => {
-                        format!("(f32) {}", v.as_float())
+                        format!("{}", v.as_float())
                     }
                     "Vector2D" => format!(
                         "[{}]",
@@ -224,20 +238,20 @@ impl Display for Entity {
                             .collect::<Vec<String>>()
                             .join(" ")
                     ),
-                    _ => format!("(u32) {:?}", v),
+                    _ => format!("{:?}", v),
                 },
                 _ => "None".to_string(),
             };
-            table += &format!("| {:<35} | {:<35} | {:<35} |\n", name, t, value);
+            table += &format_row(&name, &t, &value, name_width, type_width, value_width);
         }
 
         // Add bottom border
-        table += &format!("+-------------------------------------+-------------------------------------+-------------------------------------+\n");
+        table += &horizontal_line(name_width, type_width, value_width);
+
         write!(f, "{}", table)?;
         Ok(())
     }
 }
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum FieldValue {
     Boolean(bool),
