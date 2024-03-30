@@ -6,18 +6,14 @@ use crate::field::FieldType;
 use anyhow::{bail, Result};
 use std::rc::Rc;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Serializer {
-    pub name: Box<str>,
     pub fields: Vec<Rc<Field>>,
 }
 
 impl Serializer {
-    pub fn new(name: String) -> Self {
-        Serializer {
-            name: name.into_boxed_str(),
-            fields: vec![],
-        }
+    pub fn new() -> Self {
+        Serializer { fields: vec![] }
     }
 
     pub fn get_name_for_field_path(&self, fp: &FieldPath, pos: i32) -> Vec<String> {
@@ -38,7 +34,7 @@ impl Serializer {
                 fp.path[fp.last] = i as u8;
                 return Ok(());
             }
-            if name.starts_with(&format!("{}.", f.var_name)) {
+            if name.as_bytes().get(f.var_name.len()) == Some(&".".as_bytes()[0]) {
                 fp.path[fp.last] = i as u8;
                 fp.last += 1;
                 return f.get_field_path_for_name(fp, &name[(f.var_name.len() + 1)..]);
