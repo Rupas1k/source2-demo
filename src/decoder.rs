@@ -2,11 +2,9 @@ use crate::entity::FieldValue;
 use crate::field::Field;
 use crate::utils::{QFloatDecoder, Reader};
 
-#[derive(Clone, Debug)]
 pub enum Decoders {
     VectorNormal,
     Fixed64,
-    Handle,
     Boolean,
     String,
     Default,
@@ -30,7 +28,7 @@ pub enum Decoders {
     QAngle(FieldProperties),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FieldProperties {
     encoder: Box<str>,
     encoder_flags: i32,
@@ -61,8 +59,8 @@ impl Decoders {
             "int16" => Decoders::Signed16,
             "int32" => Decoders::Signed32,
             "int64" => Decoders::Signed64,
-            "uint8" => Decoders::Signed8,
-            "uint16" => Decoders::Signed16,
+            "uint8" => Decoders::Unsigned8,
+            "uint16" => Decoders::Unsigned16,
             "uint32"
             | "color32"
             | "CGameSceneNodeHandle"
@@ -93,7 +91,6 @@ impl Decoders {
         match self {
             Decoders::VectorNormal => FieldValue::Vector3D(reader.read_3bit_normal()),
             Decoders::Fixed64 => FieldValue::Unsigned64(reader.read_le_u64()),
-            Decoders::Handle => FieldValue::Unsigned32(reader.read_var_u32()),
             Decoders::Boolean => FieldValue::Boolean(reader.read_bool()),
             Decoders::String => FieldValue::String(reader.read_string().unwrap()),
             Decoders::Default => FieldValue::Unsigned32(reader.read_var_u32()),

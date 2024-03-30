@@ -16,10 +16,6 @@ impl<'a> Reader<'a> {
         self.le_reader.bytes_remaining() as u32
     }
 
-    pub fn remain_bits(&mut self) -> u32 {
-        unsafe { self.le_reader.bits_remaining().unwrap_unchecked() as u32 }
-    }
-
     pub fn read_bits(&mut self, amount: u32) -> u32 {
         unsafe { self.le_reader.read_bits(amount).unwrap_unchecked() as u32 }
     }
@@ -40,10 +36,6 @@ impl<'a> Reader<'a> {
 
     pub fn read_bool(&mut self) -> bool {
         unsafe { self.le_reader.read_bit().unwrap_unchecked() }
-    }
-
-    pub fn read_bit(&mut self) -> u8 {
-        unsafe { self.le_reader.read_bit().unwrap_unchecked() as u8 }
     }
 
     pub fn read_f32(&mut self) -> f32 {
@@ -99,7 +91,7 @@ impl<'a> Reader<'a> {
         }
     }
 
-    pub fn read_ubit_var_fieldpath(&mut self) -> i32 {
+    pub fn read_ubit_var_fp(&mut self) -> i32 {
         if self.read_bool() {
             return self.read_bits(2) as i32;
         }

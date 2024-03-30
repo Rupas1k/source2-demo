@@ -1,7 +1,6 @@
 use crate::decoder::Decoders;
 use crate::entity::FieldValue;
 use crate::serializer::Serializer;
-use anyhow::bail;
 use anyhow::Result;
 use enum_as_inner::EnumAsInner;
 use lazy_static::lazy_static;
@@ -10,11 +9,8 @@ use rustc_hash::FxHashMap;
 use std::cmp::max;
 use std::rc::Rc;
 
-#[derive(Clone, Debug)]
 pub struct Field {
     pub var_name: Box<str>,
-    pub var_type: Box<str>,
-    pub serializer_name: Box<str>,
     pub encoder: Box<str>,
     pub encoder_flags: i32,
     pub bit_count: i32,
@@ -34,12 +30,12 @@ impl Field {
         let mut x = vec![self.var_name.as_ref().into()];
 
         match self.model {
-            FieldModels::Simple | FieldModels::FixedArray | FieldModels::VariableArray => {
+            FieldModels::FixedArray | FieldModels::VariableArray => {
                 if fp.last == pos as usize {
                     x.push(format!("{:04}", fp.path[pos as usize]));
                 }
             }
-            FieldModels::FixedTable | FieldModels::VariableTable => {
+            FieldModels::FixedTable => {
                 if fp.last >= pos as usize {
                     x.extend_from_slice(
                         &self
@@ -49,7 +45,9 @@ impl Field {
                             .get_name_for_field_path(fp, pos),
                     );
                 }
-                if self.model == FieldModels::VariableTable && fp.last != (pos - 1) as usize {
+            }
+            FieldModels::VariableTable => {
+                if fp.last != (pos - 1) as usize {
                     x.push(format!("{:04}", fp.path[pos as usize]));
                     if fp.last != pos as usize {
                         x.extend_from_slice(
@@ -62,6 +60,7 @@ impl Field {
                     }
                 }
             }
+            FieldModels::Simple => {}
         };
 
         x
@@ -160,14 +159,14 @@ impl Field {
         let mut vec: Vec<FieldPath> = vec![];
         match self.model {
             FieldModels::Simple => {
-                vec.push(fp.clone());
+                vec.push(*fp);
             }
             FieldModels::FixedArray | FieldModels::VariableArray => {
                 if let Some(s) = st.get_field_state(fp) {
                     fp.last += 1;
                     for (i, _) in s.state.iter().enumerate() {
                         fp.path[fp.last] = i as u8;
-                        vec.push(fp.clone());
+                        vec.push(*fp);
                     }
                     fp.pop(1);
                 }
@@ -198,13 +197,9 @@ impl Field {
         }
         vec
     }
-
-    pub fn get_name(&self) -> &str {
-        &self.var_name
-    }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Eq, PartialEq)]
 pub enum FieldModels {
     Simple,
     FixedArray,
@@ -229,13 +224,13 @@ impl FieldPatch {
     }
 }
 
-#[derive(Debug, Clone, EnumAsInner)]
+#[derive(Clone, EnumAsInner)]
 pub enum StateType {
     Value(FieldValue),
     FieldState(FieldState),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FieldState {
     pub(crate) state: Vec<Option<StateType>>,
 }
@@ -305,7 +300,7 @@ impl FieldState {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy)]
 pub struct FieldPath {
     pub(crate) path: [u8; 7],
     pub(crate) last: usize,

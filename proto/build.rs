@@ -1,5 +1,3 @@
-use std::any::Any;
-
 /// Script for updating protobufs
 fn main() -> std::io::Result<()> {
     let mut config = prost_build::Config::new();

@@ -7,20 +7,19 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-proto = { path = "./proto" }
+protogen = { path = "./proto" }
 
 snap = "1.1.1"
-regex = { version = "1.10.2", features = ["std"]}
+regex = { version = "1.10.2", features = ["std"] }
 strum = "0.26.2"
 strum_macros = "0.26.2"
 enum-as-inner = "0.6.0"
 bitter = "0.6.1"
 rustc-hash = "1.1.0"
 nohash-hasher = "0.2.0"
-mimalloc = { version = "0.1.39", default-features = false }
+mimalloc = { version = "0.1.39", default-features = false, optional = true }
 lazy_static = "1.4.0"
 anyhow = "1.0.81"
 
 [features]
 default = ["mimalloc"]
-mimalloc = []

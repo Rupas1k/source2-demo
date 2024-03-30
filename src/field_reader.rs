@@ -33,7 +33,7 @@ impl FieldReader {
                     if let FieldOp::FieldPathEncodeFinish = op {
                         break;
                     }
-                    paths.push(fp.clone());
+                    paths.push(fp);
                     node = &self.tree;
                 }
                 HTree::Node { .. } => {

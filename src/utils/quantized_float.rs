@@ -136,12 +136,6 @@ impl QFloatDecoder {
                 | QFloatFlags::EncodeZero as u32);
         }
 
-        // if flags & (QFloatFlags::RoundUp as u32 | QFloatFlags::RoundDown as u32)
-        //     == (QFloatFlags::RoundUp as u32 | QFloatFlags::RoundDown as u32)
-        // {
-        //     panic!("Roundup / Rounddown are mutually exclusive");
-        // }
-
         self.flags = flags;
     }
 

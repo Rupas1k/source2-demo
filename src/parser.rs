@@ -1,7 +1,10 @@
 use crate::class::{Class, Classes};
+use crate::combat_log::CombatLog;
 use crate::decoder::Decoders;
 use crate::entity::{Entities, Entity, EntityAction};
 use crate::field::{Field, FieldModels, FieldType, FIELD_PATCHES};
+use crate::field_reader::FieldReader;
+use crate::proto::*;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTables};
 use crate::utils::Reader;
@@ -12,19 +15,6 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
-
-use proto::prost::Message;
-use proto::{
-    CDemoClassInfo, CDemoFullPacket, CDemoPacket, CDemoSendTables, CnetMsgTick,
-    CsvcMsgCreateStringTable, CsvcMsgFlattenedSerializer, CsvcMsgPacketEntities, CsvcMsgServerInfo,
-    CsvcMsgUpdateStringTable, EBaseEntityMessages, EBaseGameEvents, EBaseUserMessages,
-    EDemoCommands, EDotaUserMessages, NetMessages, SvcMessages,
-};
-
-use crate::combat_log::CombatLog;
-use crate::field_reader::FieldReader;
-use crate::operation::FieldOp;
-use proto::CMsgDotaCombatLogEntry;
 
 #[derive(Debug)]
 struct OuterMessage {
@@ -58,7 +48,7 @@ pub struct Parser<'a> {
     serializers: FxHashMap<Box<str>, Rc<Serializer>>,
     baselines: IntMap<i32, Rc<Vec<u8>>>,
 
-    pub(crate) observers: Vec<Rc<RefCell<dyn Observer + 'static>>>,
+    pub(crate) observers: Vec<Rc<RefCell<dyn Observer + 'a>>>,
 
     combat_log: VecDeque<CMsgDotaCombatLogEntry>,
 
@@ -95,8 +85,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn register_observer<T: Observer + 'static>(&mut self, obs: Rc<RefCell<T>>) {
-        self.observers.push(obs)
+    pub fn register_observer(&mut self, obs: Rc<RefCell<dyn Observer + 'a>>) {
+        self.observers.push(obs);
     }
 
     fn on_packet(&mut self, cmd: EDemoCommands, msg: &[u8]) -> Result<()> {
@@ -115,8 +105,7 @@ impl<'a> Parser<'a> {
 
     fn on_net_message(&mut self, p: NetMessages, msg: &[u8]) -> Result<()> {
         if p == NetMessages::NetTick {
-            let t = CnetMsgTick::decode(msg)?;
-            self.net_tick = t.tick();
+            self.net_tick = CnetMsgTick::decode(msg)?.tick();
         }
 
         self.observers
@@ -221,7 +210,7 @@ impl<'a> Parser<'a> {
 
         for s in fs.serializers.iter() {
             let serializer_name = fs.symbols[s.serializer_name_sym() as usize].clone();
-            let mut serializer = Serializer::new(serializer_name.clone());
+            let mut serializer = Serializer::new();
 
             for i in s.fields_index.iter() {
                 let current_field = &fs.fields[*i as usize];
@@ -239,7 +228,7 @@ impl<'a> Parser<'a> {
                         );
                     }
 
-                    let field_type = Rc::clone(&field_types[&var_type_str]);
+                    let field_type = field_types[&var_type_str].clone();
 
                     let current_field_model = if current_field_serializer.is_some() {
                         if field_type.pointer || pointer_types.contains(field_type.base.as_ref()) {
@@ -262,14 +251,12 @@ impl<'a> Parser<'a> {
 
                     let mut field = Field {
                         var_name: resolve(current_field.var_name_sym),
-                        var_type: var_type_str,
-                        serializer_name: field_serializer_name,
                         encoder: resolve(current_field.var_encoder_sym),
                         encoder_flags: current_field.encode_flags(),
                         bit_count: current_field.bit_count(),
                         low_value: current_field.low_value(),
                         high_value: current_field.high_value(),
-                        field_type: Rc::clone(&field_type),
+                        field_type: field_type.clone(),
                         serializer: current_field_serializer,
                         model: current_field_model,
 
@@ -300,7 +287,7 @@ impl<'a> Parser<'a> {
                     };
                     fields.insert(*i, Rc::new(field));
                 }
-                serializer.fields.push(Rc::clone(&fields[i]));
+                serializer.fields.push(fields[i].clone());
             }
             let ser_name = serializer_name.clone();
             self.serializers
@@ -317,12 +304,12 @@ impl<'a> Parser<'a> {
             let c: Rc<Class> = Rc::new(Class::new(
                 class_id,
                 network_name.as_str(),
-                Rc::clone(&self.serializers[&network_name.clone().into_boxed_str()]),
+                self.serializers[&network_name.clone().into_boxed_str()].clone(),
             ));
-            self.classes.classes_by_id.insert(class_id, Rc::clone(&c));
+            self.classes.classes_by_id.insert(class_id, c.clone());
             self.classes
                 .classes_by_name
-                .insert(network_name.into(), Rc::clone(&c));
+                .insert(network_name.into(), c.clone());
         }
         Ok(())
     }
@@ -402,16 +389,14 @@ impl<'a> Parser<'a> {
     fn packet_entities(&mut self, msg: &[u8]) -> Result<()> {
         {
             let packet = CsvcMsgPacketEntities::decode(msg)?;
-            let packet_entity = packet.entity_data.unwrap();
+            let mut r = Reader::new(packet.entity_data());
 
-            let mut r = Reader::new(packet_entity.as_slice());
-
-            let updates = packet.updated_entries.unwrap();
+            let updates = packet.updated_entries();
 
             let mut index = -1;
             let mut op: isize;
 
-            if !packet.is_delta.unwrap() {
+            if !packet.legacy_is_delta() {
                 if self.entities.entity_full_packets > 0 {
                     return Ok(());
                 }
@@ -451,6 +436,13 @@ impl<'a> Parser<'a> {
                     } else {
                         op = EntityAction::Updated as isize;
                         let e = self.entities.index_to_entity.get_mut(&index).unwrap();
+                        if packet.has_pvs_vis_bits() != 0 {
+                            let pvs = r.read_bits(2);
+                            e.active = (pvs & 0x02) != 0;
+                            if (pvs & 0x01) == 1 {
+                                continue;
+                            }
+                        }
                         if !e.active {
                             e.active = true;
                             op |= EntityAction::Entered as isize;
@@ -467,7 +459,6 @@ impl<'a> Parser<'a> {
                 self.entities.undone_entities.push_back((index, op));
             }
         }
-
         self.process_entities()
     }
 
@@ -476,21 +467,18 @@ impl<'a> Parser<'a> {
         let mut t = self
             .string_tables
             .tables
-            .get(&st.table_id.unwrap())
+            .get(&st.table_id())
             .unwrap()
             .borrow_mut();
 
         let is_baseline = t.name == "instancebaseline";
 
-        for item in t.parse(
-            st.string_data.unwrap().as_slice(),
-            st.num_changed_entries.unwrap(),
-        )? {
+        for item in t.parse(st.string_data(), st.num_changed_entries())? {
             match t.items.get_mut(&item.index) {
                 Some(x) => {
                     if is_baseline {
                         self.baselines
-                            .insert(item.key.parse::<i32>()?, Rc::clone(&item.value));
+                            .insert(item.key.parse::<i32>()?, item.value.clone());
                     }
                     if item.value.len() > 0 {
                         x.value = item.value;
@@ -502,7 +490,7 @@ impl<'a> Parser<'a> {
                 None => {
                     if is_baseline {
                         self.baselines
-                            .insert(item.key.parse::<i32>()?, Rc::clone(&item.value));
+                            .insert(item.key.parse::<i32>()?, item.value.clone());
                     }
                     t.items.insert(item.index, item);
                 }
@@ -544,7 +532,7 @@ impl<'a> Parser<'a> {
         for item in t.parse(buf.as_slice(), st.num_entries.unwrap())? {
             if is_baseline {
                 self.baselines
-                    .insert(item.key.parse::<i32>()?, Rc::clone(&item.value));
+                    .insert(item.key.parse::<i32>()?, item.value.clone());
             }
             t.items.insert(item.index, item);
         }
@@ -552,10 +540,10 @@ impl<'a> Parser<'a> {
         let rc = Rc::new(RefCell::new(t));
         self.string_tables
             .tables
-            .insert(rc.borrow().index, Rc::clone(&rc));
+            .insert(rc.borrow().index, rc.clone());
         self.string_tables
             .names_to_table
-            .insert(rc.borrow().name.clone().into(), Rc::clone(&rc));
+            .insert(rc.borrow().name.clone().into(), rc.clone());
 
         Ok(())
     }
@@ -592,15 +580,15 @@ impl<'a> Parser<'a> {
             if op & EntityAction::Created as isize != 0 {
                 throw_event(self, &index, EntityAction::Created)?;
             }
-            if op & EntityAction::Entered as isize != 0 {
-                throw_event(self, &index, EntityAction::Entered)?;
-            }
+            // if op & EntityAction::Entered as isize != 0 {
+            //     throw_event(self, &index, EntityAction::Entered)?;
+            // }
             if op & EntityAction::Updated as isize != 0 {
                 throw_event(self, &index, EntityAction::Updated)?;
             }
-            if op & EntityAction::Left as isize != 0 {
-                throw_event(self, &index, EntityAction::Left)?;
-            }
+            // if op & EntityAction::Left as isize != 0 {
+            //     throw_event(self, &index, EntityAction::Left)?;
+            // }
             if op & EntityAction::Deleted as isize != 0 {
                 throw_event(self, &index, EntityAction::Deleted)?;
                 self.entities.index_to_entity.remove(&index);
@@ -652,7 +640,7 @@ pub trait Observer {
     fn on_base_user_message(
         &mut self,
         ctx: &Parser,
-        emsg: EBaseUserMessages,
+        msg_type: EBaseUserMessages,
         msg: &[u8],
     ) -> Result<()> {
         Ok(())
@@ -660,7 +648,7 @@ pub trait Observer {
     fn on_base_entity_message(
         &mut self,
         ctx: &Parser,
-        emsg: EBaseEntityMessages,
+        msg_type: EBaseEntityMessages,
         msg: &[u8],
     ) -> Result<()> {
         Ok(())
@@ -668,7 +656,7 @@ pub trait Observer {
     fn on_base_game_event(
         &mut self,
         ctx: &Parser,
-        emsg: EBaseGameEvents,
+        msg_type: EBaseGameEvents,
         msg: &[u8],
     ) -> Result<()> {
         Ok(())
@@ -676,7 +664,7 @@ pub trait Observer {
     fn on_dota_user_message(
         &mut self,
         ctx: &Parser,
-        emsg: EDotaUserMessages,
+        msg_type: EDotaUserMessages,
         msg: &[u8],
     ) -> Result<()> {
         Ok(())

@@ -11,22 +11,36 @@ mod string_table;
 mod utils;
 
 pub mod prelude {
-    pub use proto::*;
-
-    pub use prost::Message;
-
-    pub use anyhow::Result;
-
     pub use crate::parser::{Observer, Parser};
 
-    pub use crate::string_table::{StringTable, StringTableItem};
+    pub use crate::string_table::{StringTable, StringTableEntry};
 
     pub use crate::entity::{Entity, EntityAction, FieldValue};
+
+    pub use crate::class::Class;
 
     pub use crate::combat_log::CombatLog;
 }
 
-pub use proto;
+pub use crate::parser::{Observer, Parser};
+
+pub use crate::string_table::{StringTable, StringTableEntry, StringTables};
+
+pub use crate::entity::{Entities, Entity, EntityAction, FieldValue};
+
+pub use crate::class::{Class, Classes};
+
+pub use crate::combat_log::CombatLog;
+
+pub use anyhow::Error;
+
+pub use anyhow::Result;
+
+pub mod proto {
+    pub use protogen::prost::Message;
+
+    pub use protogen::*;
+}
 
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;

@@ -2,7 +2,7 @@ use crate::field::FieldPath;
 use crate::utils::Reader;
 use strum_macros::EnumIter;
 
-#[derive(Debug, EnumIter)]
+#[derive(EnumIter)]
 pub(crate) enum FieldOp {
     PlusOne,
     PlusTwo,
@@ -53,14 +53,14 @@ impl FieldOp {
             FieldOp::PlusTwo => fp.inc_curr(2),
             FieldOp::PlusThree => fp.inc_curr(3),
             FieldOp::PlusFour => fp.inc_curr(4),
-            FieldOp::PlusN => fp.inc_curr(r.read_ubit_var_fieldpath() as u8 + 5),
+            FieldOp::PlusN => fp.inc_curr(r.read_ubit_var_fp() as u8 + 5),
             FieldOp::PushOneLeftDeltaZeroRightZero => {
                 fp.last += 1;
                 fp.path[fp.last] = 0;
             }
             FieldOp::PushOneLeftDeltaZeroRightNonZero => {
                 fp.last += 1;
-                fp.path[fp.last] = r.read_ubit_var_fieldpath() as u8;
+                fp.path[fp.last] = r.read_ubit_var_fp() as u8;
             }
             FieldOp::PushOneLeftDeltaOneRightZero => {
                 fp.inc_curr(1);
@@ -70,17 +70,17 @@ impl FieldOp {
             FieldOp::PushOneLeftDeltaOneRightNonZero => {
                 fp.inc_curr(1);
                 fp.last += 1;
-                fp.path[fp.last] = r.read_ubit_var_fieldpath() as u8;
+                fp.path[fp.last] = r.read_ubit_var_fp() as u8;
             }
             FieldOp::PushOneLeftDeltaNRightZero => {
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
                 fp.last += 1;
                 fp.path[fp.last] = 0;
             }
             FieldOp::PushOneLeftDeltaNRightNonZero => {
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8 + 2);
+                fp.inc_curr(r.read_ubit_var_fp() as u8 + 2);
                 fp.last += 1;
-                fp.path[fp.last] = r.read_ubit_var_fieldpath() as u8 + 1;
+                fp.path[fp.last] = r.read_ubit_var_fp() as u8 + 1;
             }
             FieldOp::PushOneLeftDeltaNRightNonZeroPack6Bits => {
                 fp.inc_curr(r.read_bits(3) as u8 + 2);
@@ -94,9 +94,9 @@ impl FieldOp {
             }
             FieldOp::PushTwoLeftDeltaZero => {
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
             }
             FieldOp::PushTwoPack5LeftDeltaZero => {
                 fp.last += 1;
@@ -106,11 +106,11 @@ impl FieldOp {
             }
             FieldOp::PushThreeLeftDeltaZero => {
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
             }
             FieldOp::PushThreePack5LeftDeltaZero => {
                 fp.last += 1;
@@ -123,9 +123,9 @@ impl FieldOp {
             FieldOp::PushTwoLeftDeltaOne => {
                 fp.inc_curr(1);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
             }
             FieldOp::PushTwoPack5LeftDeltaOne => {
                 fp.inc_curr(1);
@@ -137,11 +137,11 @@ impl FieldOp {
             FieldOp::PushThreeLeftDeltaOne => {
                 fp.inc_curr(1);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
             }
             FieldOp::PushThreePack5LeftDeltaOne => {
                 fp.inc_curr(1);
@@ -155,9 +155,9 @@ impl FieldOp {
             FieldOp::PushTwoLeftDeltaN => {
                 fp.inc_curr(r.read_ubit_var() as u8 + 2);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
             }
             FieldOp::PushTwoPack5LeftDeltaN => {
                 fp.inc_curr(r.read_ubit_var() as u8 + 2);
@@ -169,11 +169,11 @@ impl FieldOp {
             FieldOp::PushThreeLeftDeltaN => {
                 fp.inc_curr(r.read_ubit_var() as u8 + 2);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                fp.inc_curr(r.read_ubit_var_fp() as u8);
             }
             FieldOp::PushThreePack5LeftDeltaN => {
                 // fp.path[fp.last] += r.read_ubit_var() as u8 + 2;
@@ -190,7 +190,7 @@ impl FieldOp {
                 fp.inc_curr(r.read_ubit_var() as u8);
                 for _ in 0..n {
                     fp.last += 1;
-                    fp.inc_curr(r.read_ubit_var_fieldpath() as u8);
+                    fp.inc_curr(r.read_ubit_var_fp() as u8);
                 }
             }
             FieldOp::PushNAndNonTopological => {
@@ -202,7 +202,7 @@ impl FieldOp {
                 let count = r.read_ubit_var() as usize;
                 for _ in 0..count {
                     fp.last += 1;
-                    fp.path[fp.last] = r.read_ubit_var_fieldpath() as u8;
+                    fp.path[fp.last] = r.read_ubit_var_fp() as u8;
                 }
             }
             FieldOp::PopOnePlusOne => {
@@ -212,7 +212,7 @@ impl FieldOp {
 
             FieldOp::PopOnePlusN => {
                 fp.pop(1);
-                fp.inc_curr(r.read_ubit_var_fieldpath() as u8 + 1);
+                fp.inc_curr(r.read_ubit_var_fp() as u8 + 1);
             }
             FieldOp::PopAllButOnePlusOne => {
                 fp.pop(fp.last);
@@ -220,7 +220,7 @@ impl FieldOp {
             }
             FieldOp::PopAllButOnePlusN => {
                 fp.pop(fp.last);
-                fp.inc(0, r.read_ubit_var_fieldpath() as u8 + 1);
+                fp.inc(0, r.read_ubit_var_fp() as u8 + 1);
             }
             FieldOp::PopAllButOnePlusNPack3Bits => {
                 fp.pop(fp.last);
@@ -231,15 +231,15 @@ impl FieldOp {
                 fp.inc(0, r.read_bits(6) as u8 + 1);
             }
             FieldOp::PopNPlusOne => {
-                fp.pop(r.read_ubit_var_fieldpath() as usize);
+                fp.pop(r.read_ubit_var_fp() as usize);
                 fp.inc_curr(1);
             }
             FieldOp::PopNPlusN => {
-                fp.pop(r.read_ubit_var_fieldpath() as usize);
+                fp.pop(r.read_ubit_var_fp() as usize);
                 fp.inc_curr(r.read_var_i32() as u8);
             }
             FieldOp::PopNAndNonTopographical => {
-                fp.pop(r.read_ubit_var_fieldpath() as usize);
+                fp.pop(r.read_ubit_var_fp() as usize);
                 for i in 0..=fp.last {
                     if r.read_bool() {
                         fp.inc(i, r.read_var_i32() as u8);

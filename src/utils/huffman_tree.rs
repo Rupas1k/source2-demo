@@ -58,12 +58,12 @@ impl HTree {
     }
 }
 
-pub fn build_huffman_tree(freqs: Vec<i32>) -> Option<HTree> {
-    if freqs.is_empty() {
+pub fn build_huffman_tree(frequencies: Vec<i32>) -> Option<HTree> {
+    if frequencies.is_empty() {
         return None;
     }
 
-    let mut trees = freqs
+    let mut trees = frequencies
         .iter()
         .enumerate()
         .map(|(v, w)| HTree::Leaf {
