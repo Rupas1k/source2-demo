@@ -24,45 +24,75 @@ impl StringTables {
     pub fn get_by_id(&self, id: &i32) -> Result<Ref<StringTable>> {
         self.tables
             .get(id)
-            .ok_or(anyhow!("No string table for given id"))
+            .ok_or_else(|| anyhow!("No string table for given id"))
             .map(|table| table.borrow())
     }
 
     pub fn get_by_name(&self, name: &str) -> Result<Ref<StringTable>> {
         self.names_to_table
             .get(name)
-            .ok_or(anyhow!("No string table for given name"))
+            .ok_or_else(|| anyhow!("No string table for given name"))
             .map(|table| table.borrow())
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct StringTableItem {
-    pub index: i32,
-    pub key: String,
-    pub value: Rc<Vec<u8>>,
+#[derive(Clone)]
+pub struct StringTableEntry {
+    pub(crate) index: i32,
+    pub(crate) key: String,
+    pub(crate) value: Rc<Vec<u8>>,
 }
 
-impl StringTableItem {
-    pub fn new(index: i32, key: String, value: Rc<Vec<u8>>) -> Self {
-        StringTableItem { index, key, value }
+impl StringTableEntry {
+    pub(crate) fn new(index: i32, key: String, value: Rc<Vec<u8>>) -> Self {
+        StringTableEntry { index, key, value }
+    }
+
+    pub fn index(&self) -> i32 {
+        self.index
+    }
+
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+
+    pub fn value(&self) -> &[u8] {
+        self.value.as_slice()
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct StringTable {
-    pub index: i32,
-    pub name: String,
-    pub items: IntMap<i32, StringTableItem>,
-    pub user_data_fixed_size: bool,
-    pub user_data_size: i32,
-    pub flags: u32,
-    pub var_int_bit_counts: bool,
+    pub(crate) index: i32,
+    pub(crate) name: String,
+    pub(crate) items: IntMap<i32, StringTableEntry>,
+    pub(crate) user_data_fixed_size: bool,
+    pub(crate) user_data_size: i32,
+    pub(crate) flags: u32,
+    pub(crate) var_int_bit_counts: bool,
 }
 
 impl StringTable {
-    pub fn parse(&self, buf: &[u8], num_updates: i32) -> Result<Vec<StringTableItem>> {
-        let mut items = Vec::<StringTableItem>::new();
+    pub fn index(&self) -> i32 {
+        self.index
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &StringTableEntry> {
+        self.items.values()
+    }
+
+    pub fn get_entry_by_index(&self, idx: &i32) -> Result<&StringTableEntry> {
+        self.items
+            .get(idx)
+            .ok_or_else(|| anyhow!("No string table entry for given idx"))
+    }
+
+    pub(crate) fn parse(&self, buf: &[u8], num_updates: i32) -> Result<Vec<StringTableEntry>> {
+        let mut items = Vec::<StringTableEntry>::new();
         if buf.is_empty() {
             return Ok(items);
         }
@@ -92,12 +122,12 @@ impl StringTable {
                     if delta_pos < pos as u32 || keys[pos].len() < size {
                         key = r.read_string()?;
                     } else {
-                        key = key + &keys[pos][..(size)] + &r.read_string()?;
+                        key = key + &keys[pos][..size] + &r.read_string()?;
                     }
                 } else {
                     key = r.read_string()?
                 }
-                keys[(delta_pos & 31) as usize] = key.clone();
+                keys[(delta_pos & 31) as usize].clone_from(&key);
                 delta_pos += 1;
             }
 
@@ -122,7 +152,7 @@ impl StringTable {
                     value = decoder.decompress_vec(&value)?;
                 }
             }
-            items.push(StringTableItem::new(index, key, Rc::new(value)));
+            items.push(StringTableEntry::new(index, key, Rc::new(value)));
         }
         Ok(items)
     }
