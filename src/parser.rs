@@ -2,7 +2,7 @@ use crate::class::{Class, Classes};
 use crate::combat_log::CombatLog;
 use crate::decoder::Decoders;
 use crate::entity::{Entities, Entity, EntityAction};
-use crate::field::{Field, FieldModels, FieldType, FIELD_PATCHES};
+use crate::field::{Encoder, Field, FieldModels, FieldProperties, FieldType, FIELD_PATCHES};
 use crate::field_reader::FieldReader;
 use crate::proto::*;
 use crate::serializer::Serializer;
@@ -251,11 +251,13 @@ impl<'a> Parser<'a> {
 
                     let mut field = Field {
                         var_name: resolve(current_field.var_name_sym),
-                        encoder: resolve(current_field.var_encoder_sym),
-                        encoder_flags: current_field.encode_flags(),
-                        bit_count: current_field.bit_count(),
-                        low_value: current_field.low_value(),
-                        high_value: current_field.high_value(),
+                        properties: FieldProperties {
+                            encoder: Encoder::from_str(&resolve(current_field.var_encoder_sym)),
+                            encoder_flags: current_field.encode_flags(),
+                            bit_count: current_field.bit_count(),
+                            low_value: current_field.low_value(),
+                            high_value: current_field.high_value(),
+                        },
                         field_type: field_type.clone(),
                         serializer: current_field_serializer,
                         model: current_field_model,
@@ -299,12 +301,12 @@ impl<'a> Parser<'a> {
     fn class_info(&mut self, msg: &[u8]) -> Result<()> {
         let info = CDemoClassInfo::decode(msg)?;
         for class in info.classes {
-            let class_id = class.class_id.unwrap();
-            let network_name = class.network_name.unwrap();
+            let class_id = class.class_id();
+            let network_name = class.network_name();
             let c: Rc<Class> = Rc::new(Class::new(
                 class_id,
-                network_name.as_str(),
-                self.serializers[&network_name.clone().into_boxed_str()].clone(),
+                network_name,
+                self.serializers[network_name].clone(),
             ));
             self.classes.classes_by_id.insert(class_id, c.clone());
             self.classes
@@ -387,89 +389,82 @@ impl<'a> Parser<'a> {
     }
 
     fn packet_entities(&mut self, msg: &[u8]) -> Result<()> {
-        {
-            let packet = CsvcMsgPacketEntities::decode(msg)?;
-            let mut r = Reader::new(packet.entity_data());
+        let packet = CsvcMsgPacketEntities::decode(msg)?;
+        let mut r = Reader::new(packet.entity_data());
 
-            let updates = packet.updated_entries();
+        let updates = packet.updated_entries();
 
-            let mut index = -1;
-            let mut op: isize;
+        let mut index = -1;
+        let mut op: isize;
 
-            if !packet.legacy_is_delta() {
-                if self.entities.entity_full_packets > 0 {
-                    return Ok(());
-                }
-                self.entities.entity_full_packets += 1;
+        if !packet.legacy_is_delta() {
+            if self.entities.entity_full_packets > 0 {
+                return Ok(());
             }
+            self.entities.entity_full_packets += 1;
+        }
 
-            for _ in 0..updates {
-                index += r.read_ubit_var() as i32 + 1;
+        for _ in 0..updates {
+            index += r.read_ubit_var() as i32 + 1;
 
-                let cmd = r.read_bits(2);
+            let cmd = r.read_bits(2);
 
-                if cmd & 0x01 == 0 {
-                    if cmd & 0x02 != 0 {
-                        let class_id = r.read_bits(self.classes.class_id_size.unwrap()) as i32;
-                        let serial = r.read_bits(17) as i32;
+            if cmd & 0x01 == 0 {
+                if cmd & 0x02 != 0 {
+                    let class_id = r.read_bits(self.classes.class_id_size.unwrap()) as i32;
+                    let serial = r.read_bits(17) as i32;
 
-                        r.read_var_u32();
+                    r.read_var_u32();
 
-                        let class = Rc::clone(self.classes.get_by_id_rc(&class_id)?);
-                        let baseline = self.baselines[&class_id].as_slice();
+                    let class = Rc::clone(self.classes.get_by_id_rc(&class_id)?);
+                    let baseline = self.baselines[&class_id].as_slice();
 
-                        self.entities
-                            .index_to_entity
-                            .insert(index, Entity::new(index, serial, Rc::clone(&class)));
-                        let e = self.entities.index_to_entity.get_mut(&index).unwrap();
+                    self.entities
+                        .index_to_entity
+                        .insert(index, Entity::new(index, serial, Rc::clone(&class)));
+                    let e = self.entities.index_to_entity.get_mut(&index).unwrap();
 
-                        self.field_reader.read_fields(
-                            &mut Reader::new(baseline),
-                            &e.class.serializer,
-                            &mut e.state,
-                        );
+                    self.field_reader.read_fields(
+                        &mut Reader::new(baseline),
+                        &e.class.serializer,
+                        &mut e.state,
+                    );
 
-                        self.field_reader
-                            .read_fields(&mut r, &e.class.serializer, &mut e.state);
+                    self.field_reader
+                        .read_fields(&mut r, &e.class.serializer, &mut e.state);
 
-                        op = EntityAction::Created as isize | EntityAction::Entered as isize;
-                    } else {
-                        op = EntityAction::Updated as isize;
-                        let e = self.entities.index_to_entity.get_mut(&index).unwrap();
-                        if packet.has_pvs_vis_bits() != 0 {
-                            let pvs = r.read_bits(2);
-                            e.active = (pvs & 0x02) != 0;
-                            if (pvs & 0x01) == 1 {
-                                continue;
-                            }
-                        }
-                        if !e.active {
-                            e.active = true;
-                            op |= EntityAction::Entered as isize;
-                        }
-                        self.field_reader
-                            .read_fields(&mut r, &e.class.serializer, &mut e.state);
-                    }
+                    op = EntityAction::Created as isize | EntityAction::Entered as isize;
                 } else {
-                    op = EntityAction::Left as isize;
-                    if cmd & 0x02 != 0 {
-                        op |= EntityAction::Deleted as isize;
+                    op = EntityAction::Updated as isize;
+                    let e = self.entities.index_to_entity.get_mut(&index).unwrap();
+                    if packet.has_pvs_vis_bits() != 0 {
+                        let pvs = r.read_bits(2);
+                        e.active = (pvs & 0x02) != 0;
+                        if (pvs & 0x01) == 1 {
+                            continue;
+                        }
                     }
+                    if !e.active {
+                        e.active = true;
+                        op |= EntityAction::Entered as isize;
+                    }
+                    self.field_reader
+                        .read_fields(&mut r, &e.class.serializer, &mut e.state);
                 }
-                self.entities.undone_entities.push_back((index, op));
+            } else {
+                op = EntityAction::Left as isize;
+                if cmd & 0x02 != 0 {
+                    op |= EntityAction::Deleted as isize;
+                }
             }
+            self.entities.undone_entities.push_back((index, op));
         }
         self.process_entities()
     }
 
     fn update_string_table(&mut self, msg: &[u8]) -> Result<()> {
         let st = CsvcMsgUpdateStringTable::decode(msg)?;
-        let mut t = self
-            .string_tables
-            .tables
-            .get(&st.table_id())
-            .unwrap()
-            .borrow_mut();
+        let mut t = self.string_tables.tables[&st.table_id()].borrow_mut();
 
         let is_baseline = t.name == "instancebaseline";
 
@@ -519,17 +514,17 @@ impl<'a> Parser<'a> {
 
         self.string_tables.next_index += 1;
 
-        let buf = match st.data_compressed.unwrap() {
+        let buf = match st.data_compressed() {
             true => {
                 let mut decoder = snap::raw::Decoder::new();
-                decoder.decompress_vec(st.string_data.unwrap().as_slice())?
+                decoder.decompress_vec(st.string_data())?
             }
-            false => st.string_data.unwrap(),
+            false => st.string_data().into(),
         };
 
         let is_baseline = t.name == "instancebaseline";
 
-        for item in t.parse(buf.as_slice(), st.num_entries.unwrap())? {
+        for item in t.parse(buf.as_slice(), st.num_entries())? {
             if is_baseline {
                 self.baselines
                     .insert(item.key.parse::<i32>()?, item.value.clone());

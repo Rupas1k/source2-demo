@@ -43,14 +43,14 @@ impl Serializer {
         bail!("No field path for given name")
     }
 
-    pub fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldState) -> Vec<FieldPath> {
-        self.fields
-            .iter()
-            .enumerate()
-            .flat_map(|(i, f)| {
-                fp.path[fp.last] = i as u8;
-                f.get_field_paths(fp, st)
-            })
-            .collect()
+    pub fn get_field_paths<'a>(
+        &'a self,
+        fp: &'a mut FieldPath,
+        st: &'a FieldState,
+    ) -> impl Iterator<Item = FieldPath> + 'a {
+        self.fields.iter().enumerate().flat_map(|(i, f)| {
+            fp.path[fp.last] = i as u8;
+            f.get_field_paths(fp, st)
+        })
     }
 }

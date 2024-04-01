@@ -168,9 +168,8 @@ impl Display for Entity {
         for fp in self
             .class
             .get_field_paths(&mut FieldPath::new(), &self.state)
-            .iter()
         {
-            let name = self.class.get_name_for_field_path(fp);
+            let name = self.class.get_name_for_field_path(&fp);
             name_width = name.len().max(name_width);
         }
 
@@ -193,11 +192,10 @@ impl Display for Entity {
         for fp in self
             .class
             .get_field_paths(&mut FieldPath::new(), &self.state)
-            .iter()
         {
-            let t = self.class.get_type_for_field_path(fp).base.clone();
-            let name = self.class.get_name_for_field_path(fp);
-            let value = match self.state.get_value(fp) {
+            let t = self.class.get_type_for_field_path(&fp).base.clone();
+            let name = self.class.get_name_for_field_path(&fp);
+            let value = match self.state.get_value(&fp) {
                 Some(v) => match t.as_ref() {
                     "bool" => format!("{}", v.as_bool()),
                     "char" | "CUtlString" | "CUtlSymbolLarge" => format!("\"{}\"", v.as_string()),

@@ -1,5 +1,5 @@
 use crate::entity::FieldValue;
-use crate::field::Field;
+use crate::field::{Encoder, Field, FieldProperties};
 use crate::utils::{QFloatDecoder, Reader};
 
 pub enum Decoders {
@@ -28,25 +28,8 @@ pub enum Decoders {
     QAngle(FieldProperties),
 }
 
-#[derive(Clone)]
-pub struct FieldProperties {
-    encoder: Box<str>,
-    encoder_flags: i32,
-    bit_count: i32,
-    low_value: f32,
-    high_value: f32,
-}
-
 impl Decoders {
     pub fn from_field(field: &Field, generic: bool) -> Self {
-        let field_properties = FieldProperties {
-            encoder: field.encoder.to_string().into_boxed_str(),
-            encoder_flags: field.encoder_flags,
-            bit_count: field.bit_count,
-            high_value: field.high_value,
-            low_value: field.low_value,
-        };
-
         let match_var = match generic {
             true => field.field_type.generic.as_ref().unwrap().base.as_ref(),
             false => field.field_type.base.as_ref(),
@@ -71,17 +54,17 @@ impl Decoders {
             "GameTime_t" => Decoders::NoScale,
             "CBodyComponent" | "CPhysicsComponent" | "CRenderComponent" => Decoders::Component,
 
-            "CNetworkedQuantizedFloat" => Decoders::QuantizedFloat(field_properties),
+            "CNetworkedQuantizedFloat" => Decoders::QuantizedFloat(field.properties),
 
-            "float32" => Decoders::Float32(field_properties),
+            "float32" => Decoders::Float32(field.properties),
 
-            "Vector" => Decoders::Vector(field_properties, 3),
-            "Vector2D" => Decoders::Vector(field_properties, 2),
-            "Vector4D" => Decoders::Vector(field_properties, 4),
+            "Vector" => Decoders::Vector(field.properties, 3),
+            "Vector2D" => Decoders::Vector(field.properties, 2),
+            "Vector4D" => Decoders::Vector(field.properties, 4),
 
-            "uint64" | "CStrongHandle" => Decoders::Unsigned64(field_properties),
+            "uint64" | "CStrongHandle" => Decoders::Unsigned64(field.properties),
 
-            "QAngle" => Decoders::QAngle(field_properties),
+            "QAngle" => Decoders::QAngle(field.properties),
 
             _ => Decoders::Default,
         }
@@ -108,46 +91,46 @@ impl Decoders {
             Decoders::Unsigned16 => FieldValue::Unsigned16(reader.read_var_u32() as u16),
             Decoders::Unsigned32 => FieldValue::Unsigned32(reader.read_var_u32()),
             Decoders::Component => FieldValue::Boolean(reader.read_bool()),
-            Decoders::Float32(fp) => match fp.encoder.as_ref() {
-                "coord" => Decoders::FloatCoordinate.decode(reader),
-                "simtime" => Decoders::SimulationTime.decode(reader),
-                "runetime" => Decoders::RuneTime.decode(reader),
+            Decoders::Float32(fp) => match fp.encoder {
+                Some(Encoder::Coord) => Decoders::FloatCoordinate.decode(reader),
+                Some(Encoder::SimTime) => Decoders::SimulationTime.decode(reader),
+                Some(Encoder::RuneTime) => Decoders::RuneTime.decode(reader),
                 _ => {
                     if fp.bit_count <= 0 || fp.bit_count >= 32 {
                         return Decoders::NoScale.decode(reader);
                     }
-                    Decoders::QuantizedFloat(fp.clone()).decode(reader)
+                    Decoders::QuantizedFloat(*fp).decode(reader)
                 }
             },
             Decoders::Vector(fp, n) => {
                 if *n == 2 {
                     return FieldValue::Vector2D([
-                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
-                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
+                        Decoders::Float32(*fp).decode(reader).as_float(),
+                        Decoders::Float32(*fp).decode(reader).as_float(),
                     ]);
                 }
                 if *n == 3 {
-                    if fp.encoder.as_ref() == "normal" {
+                    if fp.encoder == Some(Encoder::Normal) {
                         return Decoders::VectorNormal.decode(reader);
                     }
                     return FieldValue::Vector3D([
-                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
-                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
-                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
+                        Decoders::Float32(*fp).decode(reader).as_float(),
+                        Decoders::Float32(*fp).decode(reader).as_float(),
+                        Decoders::Float32(*fp).decode(reader).as_float(),
                     ]);
                 }
                 if *n == 4 {
                     return FieldValue::Vector4D([
-                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
-                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
-                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
-                        Decoders::Float32(fp.clone()).decode(reader).as_float(),
+                        Decoders::Float32(*fp).decode(reader).as_float(),
+                        Decoders::Float32(*fp).decode(reader).as_float(),
+                        Decoders::Float32(*fp).decode(reader).as_float(),
+                        Decoders::Float32(*fp).decode(reader).as_float(),
                     ]);
                 }
                 panic!("Unsupported size");
             }
             Decoders::Unsigned64(fp) => {
-                if fp.encoder.as_ref() == "fixed64" {
+                if fp.encoder == Some(Encoder::Fixed64) {
                     return Decoders::Fixed64.decode(reader);
                 }
                 FieldValue::Unsigned64(reader.read_var_u64())
@@ -158,7 +141,7 @@ impl Decoders {
                 FieldValue::Float(qd.decode(reader))
             }
             Decoders::QAngle(fp) => {
-                if fp.encoder.as_ref() == "qangle_pitch_yaw" {
+                if fp.encoder == Some(Encoder::QAnglePitchYaw) {
                     let n = fp.bit_count as u32;
                     return FieldValue::Vector3D([reader.read_angle(n), reader.read_angle(n), 0.0]);
                 }

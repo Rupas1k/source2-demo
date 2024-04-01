@@ -9,13 +9,42 @@ use rustc_hash::FxHashMap;
 use std::cmp::max;
 use std::rc::Rc;
 
-pub struct Field {
-    pub var_name: Box<str>,
-    pub encoder: Box<str>,
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub enum Encoder {
+    Coord,
+    SimTime,
+    RuneTime,
+    Normal,
+    Fixed64,
+    QAnglePitchYaw,
+}
+
+impl Encoder {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "coord" => Some(Encoder::Coord),
+            "simtime" => Some(Encoder::SimTime),
+            "runetime" => Some(Encoder::RuneTime),
+            "normal" => Some(Encoder::Normal),
+            "fixed64" => Some(Encoder::Fixed64),
+            "qangle_pitch_yaw" => Some(Encoder::QAnglePitchYaw),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct FieldProperties {
+    pub encoder: Option<Encoder>,
     pub encoder_flags: i32,
     pub bit_count: i32,
     pub low_value: f32,
     pub high_value: f32,
+}
+
+pub struct Field {
+    pub var_name: Box<str>,
+    pub properties: FieldProperties,
     pub field_type: Rc<FieldType>,
     pub serializer: Option<Rc<Serializer>>,
     pub model: FieldModels,
@@ -155,7 +184,11 @@ impl Field {
         }
     }
 
-    pub fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldState) -> Vec<FieldPath> {
+    pub fn get_field_paths(
+        &self,
+        fp: &mut FieldPath,
+        st: &FieldState,
+    ) -> impl Iterator<Item = FieldPath> {
         let mut vec: Vec<FieldPath> = vec![];
         match self.model {
             FieldModels::Simple => {
@@ -174,9 +207,7 @@ impl Field {
             FieldModels::FixedTable => {
                 if let Some(v) = st.get_field_state(fp) {
                     fp.last += 1;
-                    vec.extend_from_slice(
-                        &self.serializer.as_ref().unwrap().get_field_paths(fp, v),
-                    );
+                    vec.extend(self.serializer.as_ref().unwrap().get_field_paths(fp, v));
                     fp.pop(1);
                 }
             }
@@ -186,16 +217,14 @@ impl Field {
                     for (i, v) in x.state.iter().enumerate() {
                         if let Some(StateType::FieldState(vv)) = v.as_ref() {
                             fp.path[fp.last - 1] = i as u8;
-                            vec.extend_from_slice(
-                                &self.serializer.as_ref().unwrap().get_field_paths(fp, vv),
-                            );
+                            vec.extend(self.serializer.as_ref().unwrap().get_field_paths(fp, vv));
                         }
                     }
                     fp.pop(2);
                 }
             }
         }
-        vec
+        vec.into_iter()
     }
 }
 
@@ -373,10 +402,10 @@ lazy_static! {
         max_build: 0,
         patch: |f: &mut Field| match f.var_name.as_ref() {
             "m_flSimulationTime" | "m_flAnimTime" => {
-                f.encoder = "simtime".into();
+                f.properties.encoder = Some(Encoder::SimTime);
             }
             "m_flRuneTime" => {
-                f.encoder = "runetime".into();
+                f.properties.encoder = Some(Encoder::RuneTime);
             }
             _ => {}
         },

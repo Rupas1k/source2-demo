@@ -86,7 +86,11 @@ impl Class {
         Ok(self.fp_cache.borrow_mut()[name])
     }
 
-    pub(crate) fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldState) -> Vec<FieldPath> {
+    pub(crate) fn get_field_paths<'a>(
+        &'a self,
+        fp: &'a mut FieldPath,
+        st: &'a FieldState,
+    ) -> impl Iterator<Item = FieldPath> + 'a {
         self.serializer.get_field_paths(fp, st)
     }
 }
