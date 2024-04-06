@@ -1,6 +1,7 @@
 use crate::entity::FieldValue;
 use crate::field::{Encoder, Field, FieldProperties};
-use crate::utils::{QFloatDecoder, Reader};
+use crate::quantized_float::QFloatDecoder;
+use crate::reader::Reader;
 
 pub enum Decoders {
     VectorNormal,
@@ -136,14 +137,15 @@ impl Decoders {
                 FieldValue::Unsigned64(reader.read_var_u64())
             }
             Decoders::QuantizedFloat(fp) => {
-                let qd =
-                    QFloatDecoder::new(fp.bit_count, fp.encoder_flags, fp.low_value, fp.high_value);
-                FieldValue::Float(qd.decode(reader))
+                FieldValue::Float(QFloatDecoder::new(fp).decode(reader))
             }
             Decoders::QAngle(fp) => {
                 if fp.encoder == Some(Encoder::QAnglePitchYaw) {
-                    let n = fp.bit_count as u32;
-                    return FieldValue::Vector3D([reader.read_angle(n), reader.read_angle(n), 0.0]);
+                    return FieldValue::Vector3D([
+                        reader.read_angle(fp.bit_count as u32),
+                        reader.read_angle(fp.bit_count as u32),
+                        0.0,
+                    ]);
                 }
 
                 if fp.bit_count != 0 {

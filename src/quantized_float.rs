@@ -1,4 +1,5 @@
-use crate::utils::Reader;
+use crate::field::FieldProperties;
+use crate::reader::Reader;
 
 enum QFloatFlags {
     RoundDown = 1 << 0,
@@ -19,8 +20,8 @@ pub(crate) struct QFloatDecoder {
 }
 
 impl QFloatDecoder {
-    pub(crate) fn new(bit_count: i32, flags: i32, low_value: f32, high_value: f32) -> Self {
-        if bit_count == 0 || bit_count >= 32 {
+    pub(crate) fn new(field_properties: &FieldProperties) -> Self {
+        if field_properties.bit_count == 0 || field_properties.bit_count >= 32 {
             return QFloatDecoder {
                 bit_count: 32,
                 low: 0.0,
@@ -33,11 +34,11 @@ impl QFloatDecoder {
         }
 
         let mut decoder = QFloatDecoder {
-            bit_count: bit_count as u32,
+            bit_count: field_properties.bit_count as u32,
             offset: 0.0,
-            low: low_value,
-            high: high_value,
-            flags: flags as u32,
+            low: field_properties.low_value,
+            high: field_properties.high_value,
+            flags: field_properties.encoder_flags as u32,
             high_low_mul: 0.0,
             dec_mul: 0.0,
         };

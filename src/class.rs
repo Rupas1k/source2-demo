@@ -83,7 +83,7 @@ impl Class {
             self.serializer.get_field_path_for_name(&mut fp, name)?;
             self.fp_cache.borrow_mut().insert(name.into(), fp);
         }
-        Ok(self.fp_cache.borrow_mut()[name])
+        Ok(self.fp_cache.borrow()[name])
     }
 
     pub(crate) fn get_field_paths<'a>(

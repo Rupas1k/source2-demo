@@ -118,7 +118,7 @@ impl Entity {
         self.get_property_by_field_path(&self.class.get_field_path_for_name(name)?)
     }
 
-    pub fn get_property_by_field_path(&self, fp: &FieldPath) -> Result<&FieldValue> {
+    pub(crate) fn get_property_by_field_path(&self, fp: &FieldPath) -> Result<&FieldValue> {
         self.state
             .get_value(fp)
             .ok_or_else(|| anyhow!("No property for given field path"))
@@ -298,13 +298,57 @@ impl Display for FieldValue {
     }
 }
 
+impl TryInto<String> for FieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<String, anyhow::Error> {
+        match self {
+            FieldValue::String(x) => Ok(x),
+            _ => Err(format_err!("Error converting {} into String", self)),
+        }
+    }
+}
+
+impl TryInto<String> for &FieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<String, anyhow::Error> {
+        match self {
+            FieldValue::String(x) => Ok(x.to_owned()),
+            _ => Err(format_err!("Error converting {} into String", self)),
+        }
+    }
+}
+
+impl TryInto<Box<str>> for FieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<Box<str>, anyhow::Error> {
+        match self {
+            FieldValue::String(x) => Ok(x.into()),
+            _ => Err(anyhow!("Error converting {} into Box<str>", self)),
+        }
+    }
+}
+
+impl TryInto<Box<str>> for &FieldValue {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<Box<str>, anyhow::Error> {
+        match self {
+            FieldValue::String(x) => Ok(x.to_owned().into()),
+            _ => Err(anyhow!("Error converting {} into Box<str>", self)),
+        }
+    }
+}
+
 impl TryInto<[f32; 2]> for FieldValue {
     type Error = anyhow::Error;
 
     fn try_into(self) -> Result<[f32; 2], anyhow::Error> {
         match self {
             FieldValue::Vector2D(x) => Ok(x),
-            _ => Err(format_err!("Error converting {} into [f32; 2]", self,)),
+            _ => Err(format_err!("Error converting {} into [f32; 2]", self)),
         }
     }
 }
@@ -549,6 +593,7 @@ macro_rules! impl_try_into_for_integers {
         }
     };
 }
+
 impl_try_into_for_integers!(i8);
 impl_try_into_for_integers!(i16);
 impl_try_into_for_integers!(i32);

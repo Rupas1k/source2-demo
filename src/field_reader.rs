@@ -1,9 +1,9 @@
 use crate::field::FieldPath;
 use crate::field::FieldState;
+use crate::huffman_tree::{build_huffman_tree, HTree};
 use crate::operation::FieldOp;
+use crate::reader::Reader;
 use crate::serializer::Serializer;
-use crate::utils::Reader;
-use crate::utils::{build_huffman_tree, HTree};
 use strum::IntoEnumIterator;
 
 pub struct FieldReader {

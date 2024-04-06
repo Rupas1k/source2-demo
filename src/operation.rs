@@ -1,5 +1,5 @@
 use crate::field::FieldPath;
-use crate::utils::Reader;
+use crate::reader::Reader;
 use strum_macros::EnumIter;
 
 #[derive(EnumIter)]

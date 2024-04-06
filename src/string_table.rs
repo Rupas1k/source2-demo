@@ -1,4 +1,4 @@
-use crate::utils::Reader;
+use crate::reader::Reader;
 use anyhow::{anyhow, Result};
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
@@ -88,7 +88,7 @@ impl StringTable {
     pub fn get_entry_by_index(&self, idx: &i32) -> Result<&StringTableEntry> {
         self.items
             .get(idx)
-            .ok_or_else(|| anyhow!("No string table entry for given idx"))
+            .ok_or_else(|| anyhow!("No string table entry for given index {idx}"))
     }
 
     pub(crate) fn parse(&self, buf: &[u8], num_updates: i32) -> Result<Vec<StringTableEntry>> {

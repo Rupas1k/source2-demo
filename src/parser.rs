@@ -5,9 +5,9 @@ use crate::entity::{Entities, Entity, EntityAction};
 use crate::field::{Encoder, Field, FieldModels, FieldProperties, FieldType, FIELD_PATCHES};
 use crate::field_reader::FieldReader;
 use crate::proto::*;
+use crate::reader::Reader;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTables};
-use crate::utils::Reader;
 use anyhow::{bail, Result};
 use nohash_hasher::IntMap;
 use regex::Regex;
@@ -575,15 +575,15 @@ impl<'a> Parser<'a> {
             if op & EntityAction::Created as isize != 0 {
                 throw_event(self, &index, EntityAction::Created)?;
             }
-            // if op & EntityAction::Entered as isize != 0 {
-            //     throw_event(self, &index, EntityAction::Entered)?;
-            // }
+            if op & EntityAction::Entered as isize != 0 {
+                throw_event(self, &index, EntityAction::Entered)?;
+            }
             if op & EntityAction::Updated as isize != 0 {
                 throw_event(self, &index, EntityAction::Updated)?;
             }
-            // if op & EntityAction::Left as isize != 0 {
-            //     throw_event(self, &index, EntityAction::Left)?;
-            // }
+            if op & EntityAction::Left as isize != 0 {
+                throw_event(self, &index, EntityAction::Left)?;
+            }
             if op & EntityAction::Deleted as isize != 0 {
                 throw_event(self, &index, EntityAction::Deleted)?;
                 self.entities.index_to_entity.remove(&index);

@@ -9,39 +9,6 @@ use rustc_hash::FxHashMap;
 use std::cmp::max;
 use std::rc::Rc;
 
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub enum Encoder {
-    Coord,
-    SimTime,
-    RuneTime,
-    Normal,
-    Fixed64,
-    QAnglePitchYaw,
-}
-
-impl Encoder {
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "coord" => Some(Encoder::Coord),
-            "simtime" => Some(Encoder::SimTime),
-            "runetime" => Some(Encoder::RuneTime),
-            "normal" => Some(Encoder::Normal),
-            "fixed64" => Some(Encoder::Fixed64),
-            "qangle_pitch_yaw" => Some(Encoder::QAnglePitchYaw),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-pub struct FieldProperties {
-    pub encoder: Option<Encoder>,
-    pub encoder_flags: i32,
-    pub bit_count: i32,
-    pub low_value: f32,
-    pub high_value: f32,
-}
-
 pub struct Field {
     pub var_name: Box<str>,
     pub properties: FieldProperties,
@@ -226,6 +193,39 @@ impl Field {
         }
         vec.into_iter()
     }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub enum Encoder {
+    Coord,
+    SimTime,
+    RuneTime,
+    Normal,
+    Fixed64,
+    QAnglePitchYaw,
+}
+
+impl Encoder {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "coord" => Some(Encoder::Coord),
+            "simtime" => Some(Encoder::SimTime),
+            "runetime" => Some(Encoder::RuneTime),
+            "normal" => Some(Encoder::Normal),
+            "fixed64" => Some(Encoder::Fixed64),
+            "qangle_pitch_yaw" => Some(Encoder::QAnglePitchYaw),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct FieldProperties {
+    pub encoder: Option<Encoder>,
+    pub encoder_flags: i32,
+    pub bit_count: i32,
+    pub low_value: f32,
+    pub high_value: f32,
 }
 
 #[derive(Eq, PartialEq)]

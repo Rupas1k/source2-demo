@@ -4,11 +4,13 @@ mod decoder;
 mod entity;
 mod field;
 mod field_reader;
+mod huffman_tree;
 mod operation;
 mod parser;
+mod quantized_float;
+mod reader;
 mod serializer;
 mod string_table;
-mod utils;
 
 pub mod prelude {
     pub use crate::parser::{Observer, Parser};

@@ -34,7 +34,9 @@ impl Serializer {
                 fp.path[fp.last] = i as u8;
                 return Ok(());
             }
-            if name.as_bytes().get(f.var_name.len()) == Some(&".".as_bytes()[0]) {
+            if name.as_bytes().get(f.var_name.len()) == Some(&b"."[0])
+                && &name[0..f.var_name.len()] == f.var_name.as_ref()
+            {
                 fp.path[fp.last] = i as u8;
                 fp.last += 1;
                 return f.get_field_path_for_name(fp, &name[(f.var_name.len() + 1)..]);
