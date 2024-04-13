@@ -1,7 +1,4 @@
 .idea
-/target
-/protogen
-*.exe
-*.proto
+target
 *.lock
 *.dem

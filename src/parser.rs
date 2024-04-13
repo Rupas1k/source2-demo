@@ -41,6 +41,7 @@ impl PendingMessage {
 }
 
 pub struct Parser<'a> {
+    replay: &'a [u8],
     reader: Reader<'a>,
     field_reader: FieldReader,
 
@@ -64,6 +65,7 @@ pub struct Parser<'a> {
 impl<'a> Parser<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
         Parser {
+            replay: buf,
             reader: Reader::new(buf),
             field_reader: FieldReader::new(),
 
@@ -158,7 +160,12 @@ impl<'a> Parser<'a> {
     }
 
     pub fn run(&mut self) -> Result<()> {
-        self.reader.read_bytes(16);
+        if self.reader.read_bytes(8) != b"PBDEMS2\0" {
+            bail!("Supports only Source 2 replays")
+        };
+
+        self.reader.read_bytes(8);
+
         {
             while let Some(message) = self.read_outer_message()? {
                 self.on_tick_start()?;
@@ -172,7 +179,12 @@ impl<'a> Parser<'a> {
         .map_err(|e: anyhow::Error| anyhow!("{} at tick {}", e, self.tick))
     }
     pub fn run_to_tick(&mut self, tick: u32) -> Result<()> {
-        self.reader.read_bytes(16);
+        if self.reader.read_bytes(8) != b"PBDEMS2\0" {
+            bail!("Supports only Source 2 replays")
+        };
+
+        self.reader.read_bytes(8);
+
         {
             while let Some(message) = self.read_outer_message()? {
                 self.on_tick_start()?;
@@ -367,8 +379,7 @@ impl<'a> Parser<'a> {
         let raw_command = self.reader.read_var_u32() as i32;
         let msg_type =
             EDemoCommands::try_from(raw_command & !(EDemoCommands::DemIsCompressed as i32))?;
-        let msg_compressed = (raw_command & EDemoCommands::DemIsCompressed as i32)
-            == EDemoCommands::DemIsCompressed as i32;
+        let msg_compressed = raw_command & EDemoCommands::DemIsCompressed as i32 != 0;
         let tick = match self.reader.read_var_u32() {
             0xffffffff => 0,
             x => x,
@@ -699,6 +710,24 @@ pub trait Observer {
     fn on_entity(&mut self, ctx: &Parser, event: EntityAction, entity: &Entity) -> Result<()> {
         Ok(())
     }
+
+    /// Called when a combat log entry is received. The `combat_log` parameter provides information about the combat log entry.
+    /// ```
+    /// use stampede::proto::DotaCombatlogTypes;
+    /// use stampede::prelude::*;
+    ///
+    /// struct CombatLogObserver;
+    ///
+    /// impl Observer for CombatLogObserver {
+    ///     fn on_combat_log(&mut self, ctx: &Parser, combat_log: &CombatLog) -> stampede::Result<()> {
+    ///         if combat_log.type_() == DotaCombatlogTypes::DotaCombatlogPurchase
+    ///         && combat_log.inflictor_name()? == "dota_divine_rapier" {
+    ///             println!("Divine Rapier purchased!");
+    ///         }
+    ///         Ok(())
+    ///     }
+    /// }
+    /// ```
     fn on_combat_log(&mut self, ctx: &Parser, combat_log: &CombatLog) -> Result<()> {
         Ok(())
     }
