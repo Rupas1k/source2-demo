@@ -22,17 +22,17 @@ pub struct Field {
 }
 
 impl Field {
-    pub fn get_name_for_field_path(&self, fp: &FieldPath, pos: i32) -> Vec<String> {
+    pub fn get_name_for_field_path(&self, fp: &FieldPath, pos: usize) -> Vec<String> {
         let mut x = vec![self.var_name.as_ref().into()];
 
         match self.model {
             FieldModels::FixedArray | FieldModels::VariableArray => {
-                if fp.last == pos as usize {
-                    x.push(format!("{:04}", fp.path[pos as usize]));
+                if fp.last == pos {
+                    x.push(format!("{:04}", fp.path[pos]));
                 }
             }
             FieldModels::FixedTable => {
-                if fp.last >= pos as usize {
+                if fp.last >= pos {
                     x.extend_from_slice(
                         &self
                             .serializer
@@ -43,9 +43,9 @@ impl Field {
                 }
             }
             FieldModels::VariableTable => {
-                if fp.last != (pos - 1) as usize {
-                    x.push(format!("{:04}", fp.path[pos as usize]));
-                    if fp.last != pos as usize {
+                if fp.last != (pos - 1) {
+                    x.push(format!("{:04}", fp.path[pos]));
+                    if fp.last != pos {
                         x.extend_from_slice(
                             &self
                                 .serializer
@@ -62,14 +62,14 @@ impl Field {
         x
     }
 
-    pub fn get_type_for_field_path(&self, fp: &FieldPath, pos: i32) -> &FieldType {
+    pub fn get_type_for_field_path(&self, fp: &FieldPath, pos: usize) -> &FieldType {
         match self.model {
             FieldModels::Simple => {}
             FieldModels::FixedArray => {
                 return self.field_type.as_ref();
             }
             FieldModels::FixedTable => {
-                if fp.last as i32 != pos - 1 {
+                if fp.last != pos - 1 {
                     return self
                         .serializer
                         .as_ref()
@@ -78,12 +78,12 @@ impl Field {
                 }
             }
             FieldModels::VariableArray => {
-                if fp.last as i32 == pos {
+                if fp.last == pos {
                     return self.field_type.as_ref().generic.as_ref().unwrap();
                 }
             }
             FieldModels::VariableTable => {
-                if fp.last as i32 > pos {
+                if fp.last > pos {
                     return self
                         .serializer
                         .as_ref()

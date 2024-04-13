@@ -16,12 +16,12 @@ impl Serializer {
         Serializer { fields: vec![] }
     }
 
-    pub fn get_name_for_field_path(&self, fp: &FieldPath, pos: i32) -> Vec<String> {
-        self.fields[fp.path[pos as usize] as usize].get_name_for_field_path(fp, pos + 1)
+    pub fn get_name_for_field_path(&self, fp: &FieldPath, pos: usize) -> Vec<String> {
+        self.fields[fp.path[pos] as usize].get_name_for_field_path(fp, pos + 1)
     }
 
-    pub fn get_type_for_field_path(&self, fp: &FieldPath, pos: i32) -> &FieldType {
-        self.fields[fp.path[pos as usize] as usize].get_type_for_field_path(fp, pos + 1)
+    pub fn get_type_for_field_path(&self, fp: &FieldPath, pos: usize) -> &FieldType {
+        self.fields[fp.path[pos] as usize].get_type_for_field_path(fp, pos + 1)
     }
 
     pub fn get_decoder_for_field_path(&self, fp: &FieldPath, pos: usize) -> &Decoders {

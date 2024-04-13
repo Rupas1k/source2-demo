@@ -8,7 +8,7 @@ use crate::proto::*;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTables};
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use nohash_hasher::IntMap;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -89,8 +89,8 @@ impl<'a> Parser<'a> {
         self.observers.push(obs);
     }
 
-    fn on_packet(&mut self, cmd: EDemoCommands, msg: &[u8]) -> Result<()> {
-        match cmd {
+    fn on_packet(&mut self, msg_type: EDemoCommands, msg: &[u8]) -> Result<()> {
+        match msg_type {
             EDemoCommands::DemSendTables => self.send_tables(msg)?,
             EDemoCommands::DemClassInfo => self.class_info(msg)?,
             EDemoCommands::DemPacket | EDemoCommands::DemSignonPacket => self.dem_packet(msg)?,
@@ -100,21 +100,23 @@ impl<'a> Parser<'a> {
 
         self.observers
             .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_packet(self, cmd, msg))
+            .try_for_each(|obs| obs.borrow_mut().on_packet(self, msg_type, msg))
     }
 
-    fn on_net_message(&mut self, p: NetMessages, msg: &[u8]) -> Result<()> {
-        if p == NetMessages::NetTick {
+    fn on_net_message(&mut self, msg_type: NetMessages, msg: &[u8]) -> Result<()> {
+        if msg_type == NetMessages::NetTick {
             self.net_tick = CnetMsgTick::decode(msg)?.tick();
         }
 
+        // if let Some()
+
         self.observers
             .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_net_message(self, p, msg))
+            .try_for_each(|obs| obs.borrow_mut().on_net_message(self, msg_type, msg))
     }
 
-    fn on_svc_message(&mut self, p: SvcMessages, msg: &[u8]) -> Result<()> {
-        match p {
+    fn on_svc_message(&mut self, msg_type: SvcMessages, msg: &[u8]) -> Result<()> {
+        match msg_type {
             SvcMessages::SvcServerInfo => self.server_info(msg)?,
             SvcMessages::SvcCreateStringTable => self.create_string_table(msg)?,
             SvcMessages::SvcUpdateStringTable => self.update_string_table(msg)?,
@@ -124,48 +126,68 @@ impl<'a> Parser<'a> {
 
         self.observers
             .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_svc_message(self, p, msg))
+            .try_for_each(|obs| obs.borrow_mut().on_svc_message(self, msg_type, msg))
     }
 
-    fn on_base_user_message(&mut self, p: EBaseUserMessages, msg: &[u8]) -> Result<()> {
+    fn on_base_user_message(&mut self, msg_type: EBaseUserMessages, msg: &[u8]) -> Result<()> {
         self.observers
             .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_base_user_message(self, p, msg))
+            .try_for_each(|obs| obs.borrow_mut().on_base_user_message(self, msg_type, msg))
     }
 
-    fn on_base_entity_message(&mut self, p: EBaseEntityMessages, msg: &[u8]) -> Result<()> {
+    fn on_base_entity_message(&mut self, msg_type: EBaseEntityMessages, msg: &[u8]) -> Result<()> {
         self.observers
             .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_base_entity_message(self, p, msg))
+            .try_for_each(|obs| obs.borrow_mut().on_base_entity_message(self, msg_type, msg))
     }
 
-    fn on_base_game_event(&mut self, p: EBaseGameEvents, msg: &[u8]) -> Result<()> {
+    fn on_base_game_event(&mut self, msg_type: EBaseGameEvents, msg: &[u8]) -> Result<()> {
         self.observers
             .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_base_game_event(self, p, msg))
+            .try_for_each(|obs| obs.borrow_mut().on_base_game_event(self, msg_type, msg))
     }
 
-    fn on_dota_user_message(&mut self, p: EDotaUserMessages, msg: &[u8]) -> Result<()> {
-        if p == EDotaUserMessages::DotaUmCombatLogDataHltv {
+    fn on_dota_user_message(&mut self, msg_type: EDotaUserMessages, msg: &[u8]) -> Result<()> {
+        if msg_type == EDotaUserMessages::DotaUmCombatLogDataHltv {
             let entry = CMsgDotaCombatLogEntry::decode(msg)?;
             self.combat_log.push_back(entry);
         }
         self.observers
             .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_dota_user_message(self, p, msg))
+            .try_for_each(|obs| obs.borrow_mut().on_dota_user_message(self, msg_type, msg))
     }
 
-    pub fn process(&mut self) -> Result<()> {
+    pub fn run(&mut self) -> Result<()> {
         self.reader.read_bytes(16);
-        while let Some(message) = self.read_outer_message()? {
-            self.on_tick_start()?;
-            self.on_packet(message.msg_type, message.buf.as_slice())?;
-            self.on_tick_end()?;
+        {
+            while let Some(message) = self.read_outer_message()? {
+                self.on_tick_start()?;
+                self.on_packet(message.msg_type, message.buf.as_slice())?;
+                self.on_tick_end()?;
+            }
+            self.observers
+                .iter()
+                .try_for_each(|obs| obs.borrow_mut().epilogue(self))
         }
+        .map_err(|e: anyhow::Error| anyhow!("{} at tick {}", e, self.tick))
+    }
+    pub fn run_to_tick(&mut self, tick: u32) -> Result<()> {
+        self.reader.read_bytes(16);
+        {
+            while let Some(message) = self.read_outer_message()? {
+                self.on_tick_start()?;
+                self.on_packet(message.msg_type, message.buf.as_slice())?;
+                self.on_tick_end()?;
+                if self.tick >= tick {
+                    break;
+                }
+            }
 
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().epilogue(self))
+            self.observers
+                .iter()
+                .try_for_each(|obs| obs.borrow_mut().epilogue(self))
+        }
+        .map_err(|e: anyhow::Error| anyhow!("{} at tick {}", e, self.tick))
     }
 
     fn send_tables(&mut self, msg: &[u8]) -> Result<()> {
@@ -174,7 +196,7 @@ impl<'a> Parser<'a> {
         let amount = r.read_var_u32();
         let buf = r.read_bytes(amount);
 
-        let fs: CsvcMsgFlattenedSerializer = CsvcMsgFlattenedSerializer::decode(buf.as_slice())?;
+        let fs = CsvcMsgFlattenedSerializer::decode(buf.as_slice())?;
 
         let resolve = |p: Option<i32>| -> Box<str> {
             if let Some(i) = p {
@@ -303,15 +325,15 @@ impl<'a> Parser<'a> {
         for class in info.classes {
             let class_id = class.class_id();
             let network_name = class.network_name();
-            let c: Rc<Class> = Rc::new(Class::new(
+            let class = Rc::new(Class::new(
                 class_id,
                 network_name,
                 self.serializers[network_name].clone(),
             ));
-            self.classes.classes_by_id.insert(class_id, c.clone());
+            self.classes.classes_by_id.insert(class_id, class.clone());
             self.classes
                 .classes_by_name
-                .insert(network_name.into(), c.clone());
+                .insert(network_name.into(), class.clone());
         }
         Ok(())
     }
@@ -623,13 +645,13 @@ impl<'a> Parser<'a> {
 
 #[allow(unused_variables)]
 pub trait Observer {
-    fn on_packet(&mut self, ctx: &Parser, cmd: EDemoCommands, msg: &[u8]) -> Result<()> {
+    fn on_packet(&mut self, ctx: &Parser, msg_type: EDemoCommands, msg: &[u8]) -> Result<()> {
         Ok(())
     }
-    fn on_net_message(&mut self, ctx: &Parser, emsg: NetMessages, msg: &[u8]) -> Result<()> {
+    fn on_net_message(&mut self, ctx: &Parser, msg_type: NetMessages, msg: &[u8]) -> Result<()> {
         Ok(())
     }
-    fn on_svc_message(&mut self, ctx: &Parser, emsg: SvcMessages, msg: &[u8]) -> Result<()> {
+    fn on_svc_message(&mut self, ctx: &Parser, msg_type: SvcMessages, msg: &[u8]) -> Result<()> {
         Ok(())
     }
     fn on_base_user_message(
@@ -656,6 +678,7 @@ pub trait Observer {
     ) -> Result<()> {
         Ok(())
     }
+
     fn on_dota_user_message(
         &mut self,
         ctx: &Parser,
@@ -664,18 +687,22 @@ pub trait Observer {
     ) -> Result<()> {
         Ok(())
     }
+
     fn on_tick_start(&mut self, ctx: &Parser) -> Result<()> {
         Ok(())
     }
+
     fn on_tick_end(&mut self, ctx: &Parser) -> Result<()> {
         Ok(())
     }
+
     fn on_entity(&mut self, ctx: &Parser, event: EntityAction, entity: &Entity) -> Result<()> {
         Ok(())
     }
     fn on_combat_log(&mut self, ctx: &Parser, combat_log: &CombatLog) -> Result<()> {
         Ok(())
     }
+
     fn epilogue(&mut self, ctx: &Parser) -> Result<()> {
         Ok(())
     }

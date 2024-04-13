@@ -5,7 +5,6 @@ use rustc_hash::FxHashMap;
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
-#[derive(Clone, Debug)]
 pub struct StringTables {
     pub(crate) tables: IntMap<i32, Rc<RefCell<StringTable>>>,
     pub(crate) names_to_table: FxHashMap<Box<str>, Rc<RefCell<StringTable>>>,
@@ -19,6 +18,10 @@ impl StringTables {
             names_to_table: FxHashMap::default(),
             next_index: 0,
         }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = Ref<StringTable>> {
+        self.tables.values().map(|table| table.borrow())
     }
 
     pub fn get_by_id(&self, id: &i32) -> Result<Ref<StringTable>> {
@@ -99,7 +102,7 @@ impl StringTable {
 
         let mut r = Reader::new(buf);
         let mut index = -1;
-        let mut delta_pos = 0;
+        let mut delta_pos: usize = 0;
         let mut keys = vec![String::new(); 32];
 
         for _ in 0..num_updates {
@@ -116,10 +119,10 @@ impl StringTable {
                 let delta_zero = if delta_pos > 32 { delta_pos & 31 } else { 0 };
                 // use history
                 if r.read_bool() {
-                    let pos = ((delta_zero + r.read_bits(5)) & 31) as usize;
+                    let pos = (delta_zero + r.read_bits(5) as usize) & 31;
                     let size = r.read_bits(5) as usize;
 
-                    if delta_pos < pos as u32 || keys[pos].len() < size {
+                    if delta_pos < pos || keys[pos].len() < size {
                         key = r.read_string()?;
                     } else {
                         key = key + &keys[pos][..size] + &r.read_string()?;
@@ -127,7 +130,7 @@ impl StringTable {
                 } else {
                     key = r.read_string()?
                 }
-                keys[(delta_pos & 31) as usize].clone_from(&key);
+                keys[delta_pos & 31].clone_from(&key);
                 delta_pos += 1;
             }
 

@@ -46,35 +46,26 @@ impl Entities {
     pub fn get_by_class_id(&self, id: &i32) -> Result<&Entity> {
         self.index_to_entity
             .values()
-            .find(|&entity| &entity.class.id == id)
+            .find(|&entity| &entity.class().id() == id)
             .ok_or_else(|| anyhow!("No entities for class with id {id}"))
     }
     pub fn get_by_class_name(&self, name: &str) -> Result<&Entity> {
         self.index_to_entity
             .values()
-            .find(|&entity| entity.class.name.as_ref() == name)
+            .find(|&entity| entity.class().name() == name)
             .ok_or_else(|| anyhow!("No entities for class with name {name}"))
     }
 
     pub fn get_all_by_class_id<'a>(&'a self, id: &'a i32) -> impl Iterator<Item = &Entity> {
         self.index_to_entity
             .values()
-            .filter(|entity| entity.class.id == *id)
+            .filter(|&entity| entity.class().id() == *id)
     }
 
     pub fn get_all_by_class_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &Entity> {
         self.index_to_entity
             .values()
-            .filter(|entity| entity.class.name == name.into())
-    }
-
-    pub fn get_all_by_predicate<'a>(
-        &'a self,
-        predicate: &'a dyn Fn(&Entity) -> bool,
-    ) -> impl Iterator<Item = &Entity> {
-        self.index_to_entity
-            .values()
-            .filter(|entity| predicate(entity))
+            .filter(move |&entity| entity.class().name() == name)
     }
 }
 

@@ -4,10 +4,7 @@ mod decoder;
 mod entity;
 mod field;
 mod field_reader;
-mod huffman_tree;
-mod operation;
 mod parser;
-mod quantized_float;
 mod reader;
 mod serializer;
 mod string_table;
@@ -22,6 +19,8 @@ pub mod prelude {
     pub use crate::class::Class;
 
     pub use crate::combat_log::CombatLog;
+
+    pub use protogen::prost::Message;
 }
 
 pub use crate::parser::{Observer, Parser};
