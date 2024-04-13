@@ -17,11 +17,25 @@ impl<'a> Reader<'a> {
     }
 
     pub fn read_bits(&mut self, amount: u32) -> u32 {
-        unsafe { self.le_reader.read_bits(amount).unwrap_unchecked() as u32 }
+        #[cfg(unsafe_reader)]
+        unsafe {
+            self.le_reader.read_bits(amount).unwrap_unchecked() as u32
+        }
+        #[cfg(not(unsafe_reader))]
+        {
+            self.le_reader.read_bits(amount).unwrap() as u32
+        }
     }
 
     pub fn read_next_byte(&mut self) -> u8 {
-        unsafe { self.le_reader.read_u8().unwrap_unchecked() }
+        #[cfg(unsafe_reader)]
+        unsafe {
+            self.le_reader.read_u8().unwrap_unchecked()
+        }
+        #[cfg(not(unsafe_reader))]
+        {
+            self.le_reader.read_u8().unwrap()
+        }
     }
 
     pub fn read_byte(&mut self) -> u8 {
@@ -35,11 +49,25 @@ impl<'a> Reader<'a> {
     }
 
     pub fn read_bool(&mut self) -> bool {
-        unsafe { self.le_reader.read_bit().unwrap_unchecked() }
+        #[cfg(unsafe_reader)]
+        unsafe {
+            self.le_reader.read_bit().unwrap_unchecked()
+        }
+        #[cfg(not(unsafe_reader))]
+        {
+            self.le_reader.read_bit().unwrap()
+        }
     }
 
     pub fn read_f32(&mut self) -> f32 {
-        unsafe { self.le_reader.read_f32().unwrap_unchecked() }
+        #[cfg(unsafe_reader)]
+        unsafe {
+            self.le_reader.read_f32().unwrap_unchecked()
+        }
+        #[cfg(not(unsafe_reader))]
+        {
+            self.le_reader.read_f32().unwrap()
+        }
     }
 
     pub fn read_var_u32(&mut self) -> u32 {
@@ -139,7 +167,14 @@ impl<'a> Reader<'a> {
     }
 
     pub fn read_le_u64(&mut self) -> u64 {
-        unsafe { u64::from_le_bytes((&self.read_bytes(8)[..8]).try_into().unwrap_unchecked()) }
+        #[cfg(unsafe_reader)]
+        unsafe {
+            u64::from_le_bytes((&self.read_bytes(8)[..8]).try_into().unwrap_unchecked())
+        }
+        #[cfg(not(unsafe_reader))]
+        {
+            u64::from_le_bytes((&self.read_bytes(8)[..8]).try_into().unwrap())
+        }
     }
 
     pub fn read_string(&mut self) -> Result<String> {
@@ -192,8 +227,13 @@ impl<'a> Reader<'a> {
         let mut tmp = vec![0; bytes as usize];
         self.le_reader.read_bytes(&mut tmp);
         if bits > 0 {
+            #[cfg(unsafe_reader)]
             unsafe {
                 tmp.push(self.le_reader.read_bits(bits).unwrap_unchecked() as u8);
+            }
+            #[cfg(not(unsafe_reader))]
+            {
+                tmp.push(self.le_reader.read_bits(bits).unwrap() as u8);
             }
         }
         tmp
