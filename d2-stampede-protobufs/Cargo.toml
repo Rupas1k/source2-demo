@@ -1,9 +1,9 @@
 [package]
-name = "protogen"
+name = "d2-stampede-protobufs"
 version = "0.1.0"
 edition = "2021"
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 build = "build.rs"
+exclude = ["protos/*"]
 
 [lib]
 path = "./lib.rs"

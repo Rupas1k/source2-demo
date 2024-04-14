@@ -11,6 +11,7 @@ fn main() -> std::io::Result<()> {
             &[
                 "./protos/demo.proto",
                 "./protos/dota_commonmessages.proto",
+                "./protos/dota_modifiers.proto",
                 "./protos/dota_shared_enums.proto",
                 "./protos/dota_usermessages.proto",
                 "./protos/gameevents.proto",

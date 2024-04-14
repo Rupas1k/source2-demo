@@ -1036,6 +1036,107 @@ pub enum EdotaVersusScenePlayerBehavior {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CdotaModifierBuffTableEntry {
+    #[prost(
+        enumeration = "DotaModifierEntryType",
+        required,
+        tag = "1",
+        default = "Active"
+    )]
+    pub entry_type: i32,
+    #[prost(uint32, required, tag = "2", default = "16777215")]
+    pub parent: u32,
+    #[prost(int32, required, tag = "3")]
+    pub index: i32,
+    #[prost(int32, required, tag = "4")]
+    pub serial_num: i32,
+    #[prost(int32, optional, tag = "5")]
+    pub modifier_class: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "6")]
+    pub ability_level: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "7")]
+    pub stack_count: ::core::option::Option<i32>,
+    #[prost(float, optional, tag = "8")]
+    pub creation_time: ::core::option::Option<f32>,
+    #[prost(float, optional, tag = "9", default = "-1")]
+    pub duration: ::core::option::Option<f32>,
+    #[prost(uint32, optional, tag = "10", default = "16777215")]
+    pub caster: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "11", default = "16777215")]
+    pub ability: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "12")]
+    pub armor: ::core::option::Option<i32>,
+    #[prost(float, optional, tag = "13")]
+    pub fade_time: ::core::option::Option<f32>,
+    #[prost(bool, optional, tag = "14")]
+    pub subtle: ::core::option::Option<bool>,
+    #[prost(float, optional, tag = "15")]
+    pub channel_time: ::core::option::Option<f32>,
+    #[prost(message, optional, tag = "16")]
+    pub v_start: ::core::option::Option<CMsgVector>,
+    #[prost(message, optional, tag = "17")]
+    pub v_end: ::core::option::Option<CMsgVector>,
+    #[prost(string, optional, tag = "18")]
+    pub portal_loop_appear: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "19")]
+    pub portal_loop_disappear: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "20")]
+    pub hero_loop_appear: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "21")]
+    pub hero_loop_disappear: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(int32, optional, tag = "22")]
+    pub movement_speed: ::core::option::Option<i32>,
+    #[prost(bool, optional, tag = "23")]
+    pub aura: ::core::option::Option<bool>,
+    #[prost(int32, optional, tag = "24")]
+    pub activity: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "25")]
+    pub damage: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "26")]
+    pub range: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "27")]
+    pub dd_modifier_index: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "28", default = "-1")]
+    pub dd_ability_id: ::core::option::Option<i32>,
+    #[prost(string, optional, tag = "29")]
+    pub illusion_label: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(bool, optional, tag = "30")]
+    pub active: ::core::option::Option<bool>,
+    #[prost(string, optional, tag = "31", default = "-1")]
+    pub player_ids: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "32")]
+    pub lua_name: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(int32, optional, tag = "33")]
+    pub attack_speed: ::core::option::Option<i32>,
+    #[prost(uint32, optional, tag = "34", default = "16777215")]
+    pub aura_owner: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "35")]
+    pub bonus_all_stats: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "36")]
+    pub bonus_health: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "37")]
+    pub bonus_mana: ::core::option::Option<i32>,
+    #[prost(uint32, optional, tag = "38", default = "16777215")]
+    pub custom_entity: ::core::option::Option<u32>,
+    #[prost(bool, optional, tag = "39")]
+    pub aura_within_range: ::core::option::Option<bool>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CdotaLuaModifierEntry {
+    #[prost(int32, required, tag = "1")]
+    pub modifier_type: i32,
+    #[prost(string, required, tag = "2")]
+    pub modifier_filename: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum DotaModifierEntryType {
+    Active = 1,
+    Removed = 2,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CdotaClientHardwareSpecs {
     #[prost(uint32, optional, tag = "1")]
     pub logical_processors: ::core::option::Option<u32>,

@@ -20,7 +20,7 @@ pub mod prelude {
 
     pub use crate::combat_log::CombatLog;
 
-    pub use protogen::prost::Message;
+    pub use d2_stampede_protobufs::prost::Message;
 }
 
 pub use crate::parser::{Observer, Parser};
@@ -38,9 +38,9 @@ pub use anyhow::Error;
 pub use anyhow::Result;
 
 pub mod proto {
-    pub use protogen::prost::Message;
+    pub use d2_stampede_protobufs::prost::Message;
 
-    pub use protogen::*;
+    pub use d2_stampede_protobufs::*;
 }
 
 #[cfg(feature = "mimalloc")]

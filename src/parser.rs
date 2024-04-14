@@ -214,7 +214,7 @@ impl<'a> Parser<'a> {
             if let Some(i) = p {
                 return fs.symbols[i as usize].clone().into();
             }
-            "".to_string().into()
+            "".into()
         };
 
         let pointer_types: FxHashSet<&'static str> = [
@@ -711,23 +711,6 @@ pub trait Observer {
         Ok(())
     }
 
-    /// Called when a combat log entry is received. The `combat_log` parameter provides information about the combat log entry.
-    /// ```
-    /// use stampede::proto::DotaCombatlogTypes;
-    /// use stampede::prelude::*;
-    ///
-    /// struct CombatLogObserver;
-    ///
-    /// impl Observer for CombatLogObserver {
-    ///     fn on_combat_log(&mut self, ctx: &Parser, combat_log: &CombatLog) -> stampede::Result<()> {
-    ///         if combat_log.type_() == DotaCombatlogTypes::DotaCombatlogPurchase
-    ///         && combat_log.inflictor_name()? == "dota_divine_rapier" {
-    ///             println!("Divine Rapier purchased!");
-    ///         }
-    ///         Ok(())
-    ///     }
-    /// }
-    /// ```
     fn on_combat_log(&mut self, ctx: &Parser, combat_log: &CombatLog) -> Result<()> {
         Ok(())
     }
