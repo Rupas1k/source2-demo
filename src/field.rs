@@ -5,8 +5,9 @@ use anyhow::Result;
 use enum_as_inner::EnumAsInner;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHasher};
 use std::cmp::max;
+use std::hash::Hash;
 use std::rc::Rc;
 
 pub struct Field {
@@ -333,6 +334,12 @@ impl FieldState {
 pub struct FieldPath {
     pub(crate) path: [u8; 7],
     pub(crate) last: usize,
+}
+
+impl Hash for FieldPath {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.path.hash(state)
+    }
 }
 
 impl FieldPath {

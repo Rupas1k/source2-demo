@@ -22,5 +22,5 @@ lazy_static = "1.4.0"
 anyhow = "1.0.81"
 
 [features]
-default = ["mimalloc"]
+default = ["mimalloc", "unsafe_reader"]
 unsafe_reader = []

@@ -1,8 +1,5 @@
 use crate::decoder::Decoders;
-use crate::field::Field;
-use crate::field::FieldPath;
-use crate::field::FieldState;
-use crate::field::FieldType;
+use crate::field::{Field, FieldPath, FieldState, FieldType};
 use anyhow::{bail, Result};
 use std::rc::Rc;
 

@@ -1,12 +1,9 @@
-use crate::field::FieldPath;
-use crate::field::FieldState;
-use crate::field::FieldType;
+use crate::field::{FieldPath, FieldState, FieldType};
 use crate::serializer::Serializer;
 use anyhow::{anyhow, Result};
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 pub struct Classes {
     pub(crate) classes_by_id: IntMap<i32, Rc<Class>>,

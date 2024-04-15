@@ -1,5 +1,4 @@
-use crate::field::FieldPath;
-use crate::field::FieldState;
+use crate::field::{FieldPath, FieldState};
 use crate::reader::Reader;
 use crate::serializer::Serializer;
 use std::cmp::Ordering;

@@ -41,7 +41,6 @@ impl PendingMessage {
 }
 
 pub struct Parser<'a> {
-    replay: &'a [u8],
     reader: Reader<'a>,
     field_reader: FieldReader,
 
@@ -65,7 +64,6 @@ pub struct Parser<'a> {
 impl<'a> Parser<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
         Parser {
-            replay: buf,
             reader: Reader::new(buf),
             field_reader: FieldReader::new(),
 

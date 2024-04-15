@@ -1,6 +1,5 @@
 use crate::class::Class;
-use crate::field::FieldPath;
-use crate::field::FieldState;
+use crate::field::{FieldPath, FieldState};
 use anyhow::{anyhow, format_err, Result};
 use nohash_hasher::IntMap;
 use std::collections::VecDeque;
