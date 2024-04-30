@@ -1,7 +1,7 @@
 use crate::class::{Class, Classes};
 use crate::combat_log::CombatLog;
 use crate::decoder::Decoders;
-use crate::entity::{Entities, Entity, EntityAction};
+use crate::entity::{Entities, Entity, EntityEvent};
 use crate::field::{Encoder, Field, FieldModels, FieldProperties, FieldType, FIELD_PATCHES};
 use crate::field_reader::FieldReader;
 use crate::proto::*;
@@ -18,7 +18,6 @@ use std::rc::Rc;
 
 #[derive(Debug)]
 struct OuterMessage {
-    // tick: u32,
     msg_type: EDemoCommands,
     buf: Vec<u8>,
 }
@@ -107,8 +106,6 @@ impl<'a> Parser<'a> {
         if msg_type == NetMessages::NetTick {
             self.net_tick = CnetMsgTick::decode(msg)?.tick();
         }
-
-        // if let Some()
 
         self.observers
             .iter()
@@ -393,11 +390,7 @@ impl<'a> Parser<'a> {
 
         self.tick = tick;
 
-        Ok(Some(OuterMessage {
-            // tick,
-            msg_type,
-            buf,
-        }))
+        Ok(Some(OuterMessage { msg_type, buf }))
     }
 
     fn process_messages(&mut self) -> Result<()> {
@@ -464,28 +457,28 @@ impl<'a> Parser<'a> {
                     self.field_reader
                         .read_fields(&mut r, &e.class.serializer, &mut e.state);
 
-                    op = EntityAction::Created as isize | EntityAction::Entered as isize;
+                    op = EntityEvent::Created as isize | EntityEvent::Entered as isize;
                 } else {
-                    op = EntityAction::Updated as isize;
+                    op = EntityEvent::Updated as isize;
                     let e = self.entities.index_to_entity.get_mut(&index).unwrap();
-                    if packet.has_pvs_vis_bits() != 0 {
-                        let pvs = r.read_bits(2);
-                        e.active = (pvs & 0x02) != 0;
-                        if (pvs & 0x01) == 1 {
-                            continue;
-                        }
-                    }
+                    // if packet.has_pvs_vis_bits() != 0 {
+                    //     let pvs = r.read_bits(2);
+                    //     e.active = (pvs & 0x02) != 0;
+                    //     if (pvs & 0x01) == 1 {
+                    //         continue;
+                    //     }
+                    // }
                     if !e.active {
                         e.active = true;
-                        op |= EntityAction::Entered as isize;
+                        op |= EntityEvent::Entered as isize;
                     }
                     self.field_reader
                         .read_fields(&mut r, &e.class.serializer, &mut e.state);
                 }
             } else {
-                op = EntityAction::Left as isize;
+                op = EntityEvent::Left as isize;
                 if cmd & 0x02 != 0 {
-                    op |= EntityAction::Deleted as isize;
+                    op |= EntityEvent::Deleted as isize;
                 }
             }
             self.entities.undone_entities.push_back((index, op));
@@ -595,7 +588,7 @@ impl<'a> Parser<'a> {
     }
 
     fn process_entities(&mut self) -> Result<()> {
-        let throw_event = |ctx: &Parser, index: &i32, event: EntityAction| -> Result<()> {
+        let throw_event = |ctx: &Parser, index: &i32, event: EntityEvent| -> Result<()> {
             self.observers.iter().try_for_each(|obs| {
                 obs.borrow_mut()
                     .on_entity(ctx, event, &ctx.entities.index_to_entity[index])
@@ -603,20 +596,20 @@ impl<'a> Parser<'a> {
         };
 
         while let Some((index, op)) = self.entities.undone_entities.pop_front() {
-            if op & EntityAction::Created as isize != 0 {
-                throw_event(self, &index, EntityAction::Created)?;
+            if op & EntityEvent::Created as isize != 0 {
+                throw_event(self, &index, EntityEvent::Created)?;
             }
-            if op & EntityAction::Entered as isize != 0 {
-                throw_event(self, &index, EntityAction::Entered)?;
+            if op & EntityEvent::Entered as isize != 0 {
+                throw_event(self, &index, EntityEvent::Entered)?;
             }
-            if op & EntityAction::Updated as isize != 0 {
-                throw_event(self, &index, EntityAction::Updated)?;
+            if op & EntityEvent::Updated as isize != 0 {
+                throw_event(self, &index, EntityEvent::Updated)?;
             }
-            if op & EntityAction::Left as isize != 0 {
-                throw_event(self, &index, EntityAction::Left)?;
+            if op & EntityEvent::Left as isize != 0 {
+                throw_event(self, &index, EntityEvent::Left)?;
             }
-            if op & EntityAction::Deleted as isize != 0 {
-                throw_event(self, &index, EntityAction::Deleted)?;
+            if op & EntityEvent::Deleted as isize != 0 {
+                throw_event(self, &index, EntityEvent::Deleted)?;
                 self.entities.index_to_entity.remove(&index);
             }
         }
@@ -705,7 +698,7 @@ pub trait Observer {
         Ok(())
     }
 
-    fn on_entity(&mut self, ctx: &Parser, event: EntityAction, entity: &Entity) -> Result<()> {
+    fn on_entity(&mut self, ctx: &Parser, event: EntityEvent, entity: &Entity) -> Result<()> {
         Ok(())
     }
 

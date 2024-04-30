@@ -1,9 +1,8 @@
-use crate::field::{FieldPath, FieldState, FieldType};
 use crate::serializer::Serializer;
 use anyhow::{anyhow, Result};
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 pub struct Classes {
     pub(crate) classes_by_id: IntMap<i32, Rc<Class>>,
@@ -46,7 +45,6 @@ pub struct Class {
     pub(crate) id: i32,
     pub(crate) name: Box<str>,
     pub(crate) serializer: Rc<Serializer>,
-    pub(crate) fp_cache: RefCell<FxHashMap<Box<str>, FieldPath>>,
 }
 
 impl Class {
@@ -55,7 +53,6 @@ impl Class {
             id,
             name: name.into(),
             serializer,
-            fp_cache: RefCell::new(FxHashMap::default()),
         }
     }
 
@@ -64,30 +61,5 @@ impl Class {
     }
     pub fn id(&self) -> i32 {
         self.id
-    }
-
-    pub(crate) fn get_name_for_field_path(&self, fp: &FieldPath) -> String {
-        self.serializer.get_name_for_field_path(fp, 0).join(".")
-    }
-
-    pub(crate) fn get_type_for_field_path(&self, fp: &FieldPath) -> &FieldType {
-        self.serializer.get_type_for_field_path(fp, 0)
-    }
-
-    pub(crate) fn get_field_path_for_name(&self, name: &str) -> Result<FieldPath> {
-        if !self.fp_cache.borrow().contains_key(name) {
-            let mut fp = FieldPath::new();
-            self.serializer.get_field_path_for_name(&mut fp, name)?;
-            self.fp_cache.borrow_mut().insert(name.into(), fp);
-        }
-        Ok(self.fp_cache.borrow()[name])
-    }
-
-    pub(crate) fn get_field_paths<'a>(
-        &'a self,
-        fp: &'a mut FieldPath,
-        st: &'a FieldState,
-    ) -> impl Iterator<Item = FieldPath> + 'a {
-        self.serializer.get_field_paths(fp, st)
     }
 }

@@ -1,5 +1,5 @@
-use crate::entity::FieldValue;
 use crate::field::{Encoder, Field, FieldProperties};
+use crate::field_value::FieldValue;
 use crate::reader::Reader;
 
 pub enum Decoders {

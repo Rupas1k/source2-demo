@@ -1,26 +1,8 @@
-[package]
-name = "d2-stampede"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = [
+    "d2-stampede",
+    "d2-stampede-observers",
+    "d2-stampede-protobufs",
+]
 
-[lib]
-path = "src/lib.rs"
-
-[dependencies]
-d2-stampede-protobufs = { path = "d2-stampede-protobufs", version = "0.1.0" }
-
-snap = "1.1.1"
-regex = { version = "1.10.2", features = ["std"] }
-strum = "0.26.2"
-strum_macros = "0.26.2"
-enum-as-inner = "0.6.0"
-bitter = "0.6.1"
-rustc-hash = "1.1.0"
-nohash-hasher = "0.2.0"
-mimalloc = { version = "0.1.39", default-features = false, optional = true }
-lazy_static = "1.4.0"
-anyhow = "1.0.81"
-
-[features]
-default = ["mimalloc", "unsafe_reader"]
-unsafe_reader = []
+resolver = "2"

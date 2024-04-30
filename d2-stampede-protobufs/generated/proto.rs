@@ -189,6 +189,16 @@ pub struct CDemoCustomDataCallbacks {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CDemoAnimationHeader {
+    #[prost(sint32, optional, tag = "1")]
+    pub entity_id: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "2")]
+    pub tick: ::core::option::Option<i32>,
+    #[prost(bytes = "vec", optional, tag = "3")]
+    pub data: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CDemoAnimationData {
     #[prost(sint32, optional, tag = "1")]
     pub entity_id: ::core::option::Option<i32>,
@@ -268,7 +278,8 @@ pub enum EDemoCommands {
     DemSaveGame = 14,
     DemSpawnGroups = 15,
     DemAnimationData = 16,
-    DemMax = 17,
+    DemAnimationHeader = 17,
+    DemMax = 18,
     DemIsCompressed = 64,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -1102,7 +1113,7 @@ pub struct CdotaModifierBuffTableEntry {
     pub illusion_label: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(bool, optional, tag = "30")]
     pub active: ::core::option::Option<bool>,
-    #[prost(string, optional, tag = "31", default = "-1")]
+    #[prost(string, optional, tag = "31")]
     pub player_ids: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "32")]
     pub lua_name: ::core::option::Option<::prost::alloc::string::String>,
@@ -2144,6 +2155,14 @@ pub enum EOverwatchReportReason {
     KEOverwatchReportReasonGriefing = 3,
     KEOverwatchReportReasonSuspicious = 4,
     KEOverwatchReportReasonAbilityAbuse = 5,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ECandyShopUpgrade {
+    KECandyShopUpgradeInvalid = -1,
+    KECandyShopUpgradeInventorySize = 0,
+    KECandyShopUpgradeRewardShelf = 1,
+    KECandyShopUpgradeExtraExchangeRecipe = 2,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -6543,6 +6562,14 @@ pub struct CUserMsgParticleManager {
     pub freeze_particle_involving: ::core::option::Option<
         c_user_msg_particle_manager::FreezeParticleInvolving,
     >,
+    #[prost(message, optional, tag = "33")]
+    pub add_modellist_override_element: ::core::option::Option<
+        c_user_msg_particle_manager::AddModellistOverrideElement,
+    >,
+    #[prost(message, optional, tag = "34")]
+    pub clear_modellist_override: ::core::option::Option<
+        c_user_msg_particle_manager::ClearModellistOverride,
+    >,
 }
 /// Nested message and enum types in `CUserMsg_ParticleManager`.
 pub mod c_user_msg_particle_manager {
@@ -6801,6 +6828,22 @@ pub mod c_user_msg_particle_manager {
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct AddModellistOverrideElement {
+        #[prost(string, optional, tag = "1")]
+        pub model_name: ::core::option::Option<::prost::alloc::string::String>,
+        #[prost(float, optional, tag = "2")]
+        pub spawn_probability: ::core::option::Option<f32>,
+        #[prost(uint32, optional, tag = "3")]
+        pub groupid: ::core::option::Option<u32>,
+    }
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct ClearModellistOverride {
+        #[prost(uint32, optional, tag = "1")]
+        pub groupid: ::core::option::Option<u32>,
+    }
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct SetParticleNamedValueContext {
         #[prost(message, repeated, tag = "1")]
         pub float_values: ::prost::alloc::vec::Vec<
@@ -6900,31 +6943,6 @@ pub struct CUserMessageAnimStateGraphState {
     pub entity_index: ::core::option::Option<i32>,
     #[prost(bytes = "vec", optional, tag = "2")]
     pub data: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CUserMessageCommandQueueState {
-    #[prost(int32, optional, tag = "1", default = "-1")]
-    pub player_slot: ::core::option::Option<i32>,
-    #[prost(message, optional, tag = "2")]
-    pub command_queue_info: ::core::option::Option<
-        c_user_message_command_queue_state::CommandQueueInfoT,
-    >,
-}
-/// Nested message and enum types in `CUserMessageCommandQueueState`.
-pub mod c_user_message_command_queue_state {
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct CommandQueueInfoT {
-        #[prost(uint32, optional, tag = "1")]
-        pub commands_queued: ::core::option::Option<u32>,
-        #[prost(uint32, optional, tag = "2")]
-        pub command_queue_desired_size: ::core::option::Option<u32>,
-        #[prost(uint32, optional, tag = "3")]
-        pub starved_command_ticks: ::core::option::Option<u32>,
-        #[prost(int32, optional, tag = "4")]
-        pub time_dilation_percent: ::core::option::Option<i32>,
-    }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -7245,6 +7263,33 @@ pub struct CUserMessageExtraUserData {
     #[prost(bytes = "vec", repeated, tag = "5")]
     pub detail2: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CUserMessageNotifyResponseFound {
+    #[prost(int32, optional, tag = "1", default = "-1")]
+    pub ent_index: ::core::option::Option<i32>,
+    #[prost(string, optional, tag = "2")]
+    pub rule_name: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "3")]
+    pub response_value: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "4")]
+    pub response_concept: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(message, repeated, tag = "5")]
+    pub criteria: ::prost::alloc::vec::Vec<
+        c_user_message_notify_response_found::Criteria,
+    >,
+}
+/// Nested message and enum types in `CUserMessage_NotifyResponseFound`.
+pub mod c_user_message_notify_response_found {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct Criteria {
+        #[prost(string, optional, tag = "1")]
+        pub name: ::core::option::Option<::prost::alloc::string::String>,
+        #[prost(string, optional, tag = "2")]
+        pub value: ::core::option::Option<::prost::alloc::string::String>,
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum EBaseUserMessages {
@@ -7297,6 +7342,7 @@ pub enum EBaseUserMessages {
     UmRequestDiagnostic = 162,
     UmDiagnosticResponse = 163,
     UmExtraUserData = 164,
+    UmNotifyResponseFound = 165,
     UmMaxBase = 200,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -7351,6 +7397,8 @@ pub enum ParticleMessage {
     GameParticleManagerEventUpdateTransform = 27,
     GameParticleManagerEventFreezeTransitionOverride = 28,
     GameParticleManagerEventFreezeInvolving = 29,
+    GameParticleManagerEventAddModellistOverrideElement = 30,
+    GameParticleManagerEventClearModellistOverride = 31,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]

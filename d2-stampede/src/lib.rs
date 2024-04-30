@@ -4,6 +4,7 @@ mod decoder;
 mod entity;
 mod field;
 mod field_reader;
+mod field_value;
 mod parser;
 mod reader;
 mod serializer;
@@ -14,7 +15,9 @@ pub mod prelude {
 
     pub use crate::string_table::{StringTable, StringTableEntry};
 
-    pub use crate::entity::{Entity, EntityAction, FieldValue};
+    pub use crate::entity::{Entity, EntityEvent};
+
+    pub use crate::field_value::FieldValue;
 
     pub use crate::class::Class;
 

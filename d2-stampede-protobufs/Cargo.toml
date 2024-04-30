@@ -1,5 +1,6 @@
 [package]
 name = "d2-stampede-protobufs"
+description = "Dota 2 Protobufs"
 version = "0.1.0"
 edition = "2021"
 build = "build.rs"

@@ -1,11 +1,9 @@
 use crate::decoder::Decoders;
-use crate::entity::FieldValue;
+use crate::field_value::FieldValue;
 use crate::serializer::Serializer;
-use anyhow::Result;
-use enum_as_inner::EnumAsInner;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rustc_hash::{FxHashMap, FxHasher};
+use rustc_hash::FxHashMap;
 use std::cmp::max;
 use std::hash::Hash;
 use std::rc::Rc;
@@ -23,135 +21,6 @@ pub struct Field {
 }
 
 impl Field {
-    pub fn get_name_for_field_path(&self, fp: &FieldPath, pos: usize) -> Vec<String> {
-        let mut x = vec![self.var_name.as_ref().into()];
-
-        match self.model {
-            FieldModels::FixedArray | FieldModels::VariableArray => {
-                if fp.last == pos {
-                    x.push(format!("{:04}", fp.path[pos]));
-                }
-            }
-            FieldModels::FixedTable => {
-                if fp.last >= pos {
-                    x.extend_from_slice(
-                        &self
-                            .serializer
-                            .as_ref()
-                            .unwrap()
-                            .get_name_for_field_path(fp, pos),
-                    );
-                }
-            }
-            FieldModels::VariableTable => {
-                if fp.last != (pos - 1) {
-                    x.push(format!("{:04}", fp.path[pos]));
-                    if fp.last != pos {
-                        x.extend_from_slice(
-                            &self
-                                .serializer
-                                .as_ref()
-                                .unwrap()
-                                .get_name_for_field_path(fp, pos + 1),
-                        )
-                    }
-                }
-            }
-            FieldModels::Simple => {}
-        };
-
-        x
-    }
-
-    pub fn get_type_for_field_path(&self, fp: &FieldPath, pos: usize) -> &FieldType {
-        match self.model {
-            FieldModels::Simple => {}
-            FieldModels::FixedArray => {
-                return self.field_type.as_ref();
-            }
-            FieldModels::FixedTable => {
-                if fp.last != pos - 1 {
-                    return self
-                        .serializer
-                        .as_ref()
-                        .unwrap()
-                        .get_type_for_field_path(fp, pos);
-                }
-            }
-            FieldModels::VariableArray => {
-                if fp.last == pos {
-                    return self.field_type.as_ref().generic.as_ref().unwrap();
-                }
-            }
-            FieldModels::VariableTable => {
-                if fp.last > pos {
-                    return self
-                        .serializer
-                        .as_ref()
-                        .unwrap()
-                        .get_type_for_field_path(fp, pos + 1);
-                }
-            }
-        };
-        self.field_type.as_ref()
-    }
-
-    pub fn get_decoder_for_field_path(&self, fp: &FieldPath, pos: usize) -> &Decoders {
-        match self.model {
-            FieldModels::Simple => &self.decoder,
-            FieldModels::FixedArray => &self.decoder,
-            FieldModels::FixedTable => {
-                if fp.last == pos - 1 {
-                    return &self.base_decoder;
-                }
-                return self
-                    .serializer
-                    .as_ref()
-                    .unwrap()
-                    .get_decoder_for_field_path(fp, pos);
-            }
-            FieldModels::VariableArray => {
-                if fp.last == pos {
-                    return &self.child_decoder;
-                }
-                &self.base_decoder
-            }
-            FieldModels::VariableTable => {
-                if fp.last > pos {
-                    return self
-                        .serializer
-                        .as_ref()
-                        .unwrap()
-                        .get_decoder_for_field_path(fp, pos + 1);
-                }
-                &self.base_decoder
-            }
-        }
-    }
-
-    pub fn get_field_path_for_name(&self, fp: &mut FieldPath, name: &str) -> Result<()> {
-        match self.model {
-            FieldModels::FixedArray | FieldModels::VariableArray => {
-                fp.path[fp.last] = name.parse::<u8>()?;
-                Ok(())
-            }
-            FieldModels::FixedTable => self
-                .serializer
-                .as_ref()
-                .unwrap()
-                .get_field_path_for_name(fp, name),
-            FieldModels::VariableTable => {
-                fp.path[fp.last] = name[0..4].parse::<u8>()?;
-                fp.last += 1;
-                self.serializer
-                    .as_ref()
-                    .unwrap()
-                    .get_field_path_for_name(fp, &name[5..])
-            }
-            FieldModels::Simple => unreachable!(),
-        }
-    }
-
     pub fn get_field_paths(
         &self,
         fp: &mut FieldPath,
@@ -175,7 +44,12 @@ impl Field {
             FieldModels::FixedTable => {
                 if let Some(v) = st.get_field_state(fp) {
                     fp.last += 1;
-                    vec.extend(self.serializer.as_ref().unwrap().get_field_paths(fp, v));
+                    vec.extend(unsafe {
+                        self.serializer
+                            .as_ref()
+                            .unwrap_unchecked()
+                            .get_field_paths(fp, v)
+                    });
                     fp.pop(1);
                 }
             }
@@ -185,7 +59,12 @@ impl Field {
                     for (i, v) in x.state.iter().enumerate() {
                         if let Some(StateType::FieldState(vv)) = v.as_ref() {
                             fp.path[fp.last - 1] = i as u8;
-                            vec.extend(self.serializer.as_ref().unwrap().get_field_paths(fp, vv));
+                            vec.extend(unsafe {
+                                self.serializer
+                                    .as_ref()
+                                    .unwrap_unchecked()
+                                    .get_field_paths(fp, vv)
+                            });
                         }
                     }
                     fp.pop(2);
@@ -254,10 +133,36 @@ impl FieldPatch {
     }
 }
 
-#[derive(Clone, EnumAsInner)]
+#[derive(Clone)]
 pub enum StateType {
     Value(FieldValue),
     FieldState(FieldState),
+}
+
+impl StateType {
+    pub fn as_field_state(&self) -> Option<&FieldState> {
+        if let StateType::FieldState(x) = self {
+            Some(x)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_field_state_mut(&mut self) -> Option<&mut FieldState> {
+        if let StateType::FieldState(x) = self {
+            Some(x)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_value(&self) -> Option<&FieldValue> {
+        if let StateType::Value(x) = self {
+            Some(x)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -312,10 +217,12 @@ impl FieldState {
                     return;
                 }
                 if current_state.state[fp.path[i] as usize].is_none()
-                    || !current_state.state[fp.path[i] as usize]
-                        .as_ref()
-                        .unwrap_unchecked()
-                        .is_field_state()
+                    || !matches!(
+                        current_state.state[fp.path[i] as usize]
+                            .as_ref()
+                            .unwrap_unchecked(),
+                        StateType::FieldState(_)
+                    )
                 {
                     current_state.state[fp.path[i] as usize] =
                         Some(StateType::FieldState(FieldState::new(16)));

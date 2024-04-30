@@ -3,8 +3,6 @@ use crate::reader::Reader;
 use crate::serializer::Serializer;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
-use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
 
 pub struct FieldReader {
     tree: HTree,
@@ -12,7 +10,50 @@ pub struct FieldReader {
 
 impl FieldReader {
     pub fn new() -> Self {
-        let tree = build_huffman_tree(FieldOp::iter().map(|op| op.weight() as i32).collect());
+        let op_iter = [
+            FieldOp::PlusOne,
+            FieldOp::PlusTwo,
+            FieldOp::PlusThree,
+            FieldOp::PlusFour,
+            FieldOp::PlusN,
+            FieldOp::PushOneLeftDeltaZeroRightZero,
+            FieldOp::PushOneLeftDeltaZeroRightNonZero,
+            FieldOp::PushOneLeftDeltaOneRightZero,
+            FieldOp::PushOneLeftDeltaOneRightNonZero,
+            FieldOp::PushOneLeftDeltaNRightZero,
+            FieldOp::PushOneLeftDeltaNRightNonZero,
+            FieldOp::PushOneLeftDeltaNRightNonZeroPack6Bits,
+            FieldOp::PushOneLeftDeltaNRightNonZeroPack8Bits,
+            FieldOp::PushTwoLeftDeltaZero,
+            FieldOp::PushTwoPack5LeftDeltaZero,
+            FieldOp::PushThreeLeftDeltaZero,
+            FieldOp::PushThreePack5LeftDeltaZero,
+            FieldOp::PushTwoLeftDeltaOne,
+            FieldOp::PushTwoPack5LeftDeltaOne,
+            FieldOp::PushThreeLeftDeltaOne,
+            FieldOp::PushThreePack5LeftDeltaOne,
+            FieldOp::PushTwoLeftDeltaN,
+            FieldOp::PushTwoPack5LeftDeltaN,
+            FieldOp::PushThreeLeftDeltaN,
+            FieldOp::PushThreePack5LeftDeltaN,
+            FieldOp::PushN,
+            FieldOp::PushNAndNonTopological,
+            FieldOp::PopOnePlusOne,
+            FieldOp::PopOnePlusN,
+            FieldOp::PopAllButOnePlusOne,
+            FieldOp::PopAllButOnePlusN,
+            FieldOp::PopAllButOnePlusNPack3Bits,
+            FieldOp::PopAllButOnePlusNPack6Bits,
+            FieldOp::PopNPlusOne,
+            FieldOp::PopNPlusN,
+            FieldOp::PopNAndNonTopographical,
+            FieldOp::NonTopoComplex,
+            FieldOp::NonTopoPenultimatePlusOne,
+            FieldOp::NonTopoComplexPack4Bits,
+            FieldOp::FieldPathEncodeFinish,
+        ];
+
+        let tree = build_huffman_tree(op_iter.map(|op| op.weight() as i32).into());
         FieldReader { tree }
     }
 
@@ -46,7 +87,7 @@ impl FieldReader {
     pub(crate) fn read_fields(&self, reader: &mut Reader, s: &Serializer, st: &mut FieldState) {
         self.read_field_paths(reader)
             .iter()
-            .for_each(|fp| st.set(fp, s.get_decoder_for_field_path(fp, 0).decode(reader)))
+            .for_each(|fp| st.set(fp, s.get_decoder_for_field_path(fp).decode(reader)))
     }
 }
 
@@ -136,7 +177,6 @@ pub fn build_huffman_tree(frequencies: Vec<i32>) -> HTree {
     trees.pop().unwrap()
 }
 
-#[derive(EnumIter)]
 pub(crate) enum FieldOp {
     PlusOne,
     PlusTwo,
