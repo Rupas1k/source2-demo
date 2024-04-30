@@ -12,7 +12,6 @@ pub struct Field {
     pub var_name: Box<str>,
     pub properties: FieldProperties,
     pub field_type: Rc<FieldType>,
-    pub serializer: Option<Rc<Serializer>>,
     pub model: FieldModels,
 
     pub decoder: Decoders,
@@ -27,7 +26,7 @@ impl Field {
         st: &FieldState,
     ) -> impl Iterator<Item = FieldPath> {
         let mut vec: Vec<FieldPath> = vec![];
-        match self.model {
+        match &self.model {
             FieldModels::Simple => {
                 vec.push(*fp);
             }
@@ -41,30 +40,20 @@ impl Field {
                     fp.pop(1);
                 }
             }
-            FieldModels::FixedTable => {
+            FieldModels::FixedTable(serializer) => {
                 if let Some(v) = st.get_field_state(fp) {
                     fp.last += 1;
-                    vec.extend(unsafe {
-                        self.serializer
-                            .as_ref()
-                            .unwrap_unchecked()
-                            .get_field_paths(fp, v)
-                    });
+                    vec.extend(serializer.get_field_paths(fp, v));
                     fp.pop(1);
                 }
             }
-            FieldModels::VariableTable => {
+            FieldModels::VariableTable(serializer) => {
                 if let Some(x) = st.get_field_state(fp) {
                     fp.last += 2;
                     for (i, v) in x.state.iter().enumerate() {
                         if let Some(StateType::FieldState(vv)) = v.as_ref() {
                             fp.path[fp.last - 1] = i as u8;
-                            vec.extend(unsafe {
-                                self.serializer
-                                    .as_ref()
-                                    .unwrap_unchecked()
-                                    .get_field_paths(fp, vv)
-                            });
+                            vec.extend(serializer.get_field_paths(fp, vv));
                         }
                     }
                     fp.pop(2);
@@ -108,13 +97,12 @@ pub struct FieldProperties {
     pub high_value: f32,
 }
 
-#[derive(Eq, PartialEq)]
 pub enum FieldModels {
     Simple,
     FixedArray,
-    FixedTable,
     VariableArray,
-    VariableTable,
+    FixedTable(Rc<Serializer>),
+    VariableTable(Rc<Serializer>),
 }
 
 pub struct FieldPatch {

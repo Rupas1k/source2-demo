@@ -26,19 +26,19 @@ impl Serializer {
         let mut name = String::new();
         loop {
             name += &current_field.var_name;
-            match current_field.model {
+            match &current_field.model {
                 FieldModels::FixedArray | FieldModels::VariableArray => {
                     name += &format!(".{:04}", fp.path[i + 1]);
                     break;
                 }
-                FieldModels::VariableTable => {
+                FieldModels::VariableTable(serializer) => {
                     i += 1;
                     name += &format!(".{:04}.", fp.path[i]);
+                    current_serializer = serializer;
                 }
-                FieldModels::FixedTable | FieldModels::Simple => break,
+                FieldModels::FixedTable(_) | FieldModels::Simple => break,
             }
             i += 1;
-            current_serializer = current_field.serializer.as_ref().unwrap();
             current_field = &current_serializer.fields[fp.path[i] as usize];
         }
         name
@@ -49,14 +49,15 @@ impl Serializer {
         let mut current_serializer = self;
         let mut current_field = &current_serializer.fields[fp.path[i] as usize];
         loop {
-            match current_field.model {
+            match &current_field.model {
                 FieldModels::Simple | FieldModels::FixedArray => {
                     return current_field.field_type.as_ref()
                 }
-                FieldModels::FixedTable => {
+                FieldModels::FixedTable(serializer) => {
                     if fp.last == i - 1 {
                         return current_field.field_type.as_ref();
                     }
+                    current_serializer = serializer;
                 }
                 FieldModels::VariableArray => {
                     if fp.last == i {
@@ -64,15 +65,15 @@ impl Serializer {
                     }
                     return current_field.field_type.as_ref();
                 }
-                FieldModels::VariableTable => {
+                FieldModels::VariableTable(serializer) => {
                     if i >= fp.last {
                         return current_field.field_type.as_ref();
                     }
                     i += 1;
+                    current_serializer = serializer;
                 }
             }
             i += 1;
-            current_serializer = current_field.serializer.as_ref().unwrap();
             current_field = &current_serializer.fields[fp.path[i] as usize];
         }
     }
@@ -83,12 +84,13 @@ impl Serializer {
         let mut current_field = &current_serializer.fields[fp.path[i] as usize];
         loop {
             i += 1;
-            match current_field.model {
+            match &current_field.model {
                 FieldModels::Simple | FieldModels::FixedArray => return &current_field.decoder,
-                FieldModels::FixedTable => {
+                FieldModels::FixedTable(serializer) => {
                     if fp.last + 1 == i {
                         return &current_field.base_decoder;
                     }
+                    current_serializer = serializer;
                 }
                 FieldModels::VariableArray => {
                     if fp.last == i {
@@ -96,14 +98,14 @@ impl Serializer {
                     }
                     return &current_field.base_decoder;
                 }
-                FieldModels::VariableTable => {
+                FieldModels::VariableTable(serializer) => {
                     if i >= fp.last {
                         return &current_field.base_decoder;
                     }
                     i += 1;
+                    current_serializer = serializer;
                 }
             }
-            current_serializer = current_field.serializer.as_ref().unwrap();
             current_field = &current_serializer.fields[fp.path[i] as usize];
         }
     }
@@ -125,20 +127,20 @@ impl Serializer {
                         fp.path[fp.last] = i as u8;
                         fp.last += 1;
                         offset += f.var_name.len() + 1;
-                        match f.model {
+                        match &f.model {
                             FieldModels::FixedArray | FieldModels::VariableArray => {
                                 fp.path[fp.last] = name[..offset].parse::<u8>()?;
                                 break 'outer;
                             }
-                            FieldModels::FixedTable => {
-                                current_serializer = f.serializer.as_ref().unwrap();
+                            FieldModels::FixedTable(serializer) => {
+                                current_serializer = serializer;
                                 continue 'outer;
                             }
-                            FieldModels::VariableTable => {
+                            FieldModels::VariableTable(serializer) => {
                                 fp.path[fp.last] = name[offset..(offset + 4)].parse::<u8>()?;
                                 fp.last += 1;
                                 offset += 5;
-                                current_serializer = f.serializer.as_ref().unwrap();
+                                current_serializer = serializer;
                                 continue 'outer;
                             }
                             FieldModels::Simple => unreachable!(),

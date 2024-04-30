@@ -259,11 +259,11 @@ impl<'a> Parser<'a> {
 
                     let field_type = field_types[&var_type_str].clone();
 
-                    let current_field_model = if current_field_serializer.is_some() {
+                    let current_field_model = if let Some(serializer) = current_field_serializer {
                         if field_type.pointer || pointer_types.contains(field_type.base.as_ref()) {
-                            FieldModels::FixedTable
+                            FieldModels::FixedTable(serializer)
                         } else {
-                            FieldModels::VariableTable
+                            FieldModels::VariableTable(serializer)
                         }
                     } else if field_type.count.is_some()
                         && field_type.count.unwrap() > 0
@@ -288,7 +288,6 @@ impl<'a> Parser<'a> {
                             high_value: current_field.high_value(),
                         },
                         field_type: field_type.clone(),
-                        serializer: current_field_serializer,
                         model: current_field_model,
 
                         decoder: Decoders::Default,
@@ -304,12 +303,12 @@ impl<'a> Parser<'a> {
                         FieldModels::FixedArray => {
                             field.decoder = Decoders::from_field(&field, false);
                         }
-                        FieldModels::FixedTable => field.base_decoder = Decoders::Boolean,
+                        FieldModels::FixedTable(_) => field.base_decoder = Decoders::Boolean,
                         FieldModels::VariableArray => {
                             field.base_decoder = Decoders::Unsigned32;
                             field.child_decoder = Decoders::from_field(&field, true)
                         }
-                        FieldModels::VariableTable => {
+                        FieldModels::VariableTable(_) => {
                             field.base_decoder = Decoders::Unsigned32;
                         }
                         FieldModels::Simple => {
