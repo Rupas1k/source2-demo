@@ -27,7 +27,7 @@ impl Serializer {
         loop {
             name += &current_field.var_name;
             match &current_field.model {
-                FieldModels::FixedArray | FieldModels::VariableArray => {
+                FieldModels::FixedArray | FieldModels::VariableArray(_) => {
                     name += &format!(".{:04}", fp.path[i + 1]);
                     break;
                 }
@@ -59,7 +59,7 @@ impl Serializer {
                     }
                     current_serializer = serializer;
                 }
-                FieldModels::VariableArray => {
+                FieldModels::VariableArray(_) => {
                     if fp.last == i {
                         return current_field.field_type.as_ref().generic.as_ref().unwrap();
                     }
@@ -88,19 +88,19 @@ impl Serializer {
                 FieldModels::Simple | FieldModels::FixedArray => return &current_field.decoder,
                 FieldModels::FixedTable(serializer) => {
                     if fp.last + 1 == i {
-                        return &current_field.base_decoder;
+                        return &current_field.decoder;
                     }
                     current_serializer = serializer;
                 }
-                FieldModels::VariableArray => {
+                FieldModels::VariableArray(child_decoder) => {
                     if fp.last == i {
-                        return &current_field.child_decoder;
+                        return child_decoder;
                     }
-                    return &current_field.base_decoder;
+                    return &current_field.decoder;
                 }
                 FieldModels::VariableTable(serializer) => {
                     if i >= fp.last {
-                        return &current_field.base_decoder;
+                        return &current_field.decoder;
                     }
                     i += 1;
                     current_serializer = serializer;
@@ -128,7 +128,7 @@ impl Serializer {
                         fp.last += 1;
                         offset += f.var_name.len() + 1;
                         match &f.model {
-                            FieldModels::FixedArray | FieldModels::VariableArray => {
+                            FieldModels::FixedArray | FieldModels::VariableArray(_) => {
                                 fp.path[fp.last] = name[..offset].parse::<u8>()?;
                                 break 'outer;
                             }

@@ -10,13 +10,10 @@ use std::rc::Rc;
 
 pub struct Field {
     pub var_name: Box<str>,
-    pub properties: FieldProperties,
     pub field_type: Rc<FieldType>,
     pub model: FieldModels,
 
     pub decoder: Decoders,
-    pub base_decoder: Decoders,
-    pub child_decoder: Decoders,
 }
 
 impl Field {
@@ -30,7 +27,7 @@ impl Field {
             FieldModels::Simple => {
                 vec.push(*fp);
             }
-            FieldModels::FixedArray | FieldModels::VariableArray => {
+            FieldModels::FixedArray | FieldModels::VariableArray(_) => {
                 if let Some(s) = st.get_field_state(fp) {
                     fp.last += 1;
                     for (i, _) in s.state.iter().enumerate() {
@@ -100,7 +97,7 @@ pub struct FieldProperties {
 pub enum FieldModels {
     Simple,
     FixedArray,
-    VariableArray,
+    VariableArray(Decoders),
     FixedTable(Rc<Serializer>),
     VariableTable(Rc<Serializer>),
 }
@@ -108,7 +105,7 @@ pub enum FieldModels {
 pub struct FieldPatch {
     min_build: u32,
     max_build: u32,
-    pub patch: fn(&mut Field),
+    pub patch: fn(&mut FieldProperties, &str),
 }
 
 impl FieldPatch {
@@ -189,7 +186,7 @@ impl FieldState {
             .as_field_state()
     }
 
-    // REFACTOR!!!!!!
+    #[inline]
     pub fn set(&mut self, fp: &FieldPath, v: FieldValue) {
         unsafe {
             let mut current_state = self;
@@ -205,12 +202,11 @@ impl FieldState {
                     return;
                 }
                 if current_state.state[fp.path[i] as usize].is_none()
-                    || !matches!(
-                        current_state.state[fp.path[i] as usize]
-                            .as_ref()
-                            .unwrap_unchecked(),
-                        StateType::FieldState(_)
-                    )
+                    || current_state.state[fp.path[i] as usize]
+                        .as_ref()
+                        .unwrap_unchecked()
+                        .as_field_state()
+                        .is_none()
                 {
                     current_state.state[fp.path[i] as usize] =
                         Some(StateType::FieldState(FieldState::new(16)));
@@ -244,6 +240,7 @@ impl FieldPath {
             last: 0,
         }
     }
+
     pub fn pop(&mut self, n: usize) {
         for _ in 0..n {
             self.path[self.last] = 0;
@@ -302,12 +299,12 @@ lazy_static! {
     pub static ref FIELD_PATCHES: [FieldPatch; 1] = [FieldPatch {
         min_build: 0,
         max_build: 0,
-        patch: |f: &mut Field| match f.var_name.as_ref() {
+        patch: |properties: &mut FieldProperties, var_name: &str| match var_name {
             "m_flSimulationTime" | "m_flAnimTime" => {
-                f.properties.encoder = Some(Encoder::SimTime);
+                properties.encoder = Some(Encoder::SimTime);
             }
             "m_flRuneTime" => {
-                f.properties.encoder = Some(Encoder::RuneTime);
+                properties.encoder = Some(Encoder::RuneTime);
             }
             _ => {}
         },

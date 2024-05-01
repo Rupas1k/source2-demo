@@ -257,9 +257,21 @@ impl<'a> Parser<'a> {
                         );
                     }
 
+                    let var_name = resolve(current_field.var_name_sym);
                     let field_type = field_types[&var_type_str].clone();
+                    let mut properties = FieldProperties {
+                        encoder: Encoder::from_str(&resolve(current_field.var_encoder_sym)),
+                        encoder_flags: current_field.encode_flags(),
+                        bit_count: current_field.bit_count(),
+                        low_value: current_field.low_value(),
+                        high_value: current_field.high_value(),
+                    };
 
-                    let current_field_model = if let Some(serializer) = current_field_serializer {
+                    for patch in patches.iter() {
+                        (patch.patch)(&mut properties, var_name.as_ref())
+                    }
+
+                    let model = if let Some(serializer) = current_field_serializer {
                         if field_type.pointer || pointer_types.contains(field_type.base.as_ref()) {
                             FieldModels::FixedTable(serializer)
                         } else {
@@ -273,47 +285,29 @@ impl<'a> Parser<'a> {
                     } else if field_type.base.as_ref() == "CUtlVector"
                         || field_type.base.as_ref() == "CNetworkUtlVectorBase"
                     {
-                        FieldModels::VariableArray
+                        FieldModels::VariableArray(Decoders::from_field(
+                            field_type.generic.as_ref().unwrap(),
+                            properties,
+                        ))
                     } else {
                         FieldModels::Simple
                     };
 
-                    let mut field = Field {
-                        var_name: resolve(current_field.var_name_sym),
-                        properties: FieldProperties {
-                            encoder: Encoder::from_str(&resolve(current_field.var_encoder_sym)),
-                            encoder_flags: current_field.encode_flags(),
-                            bit_count: current_field.bit_count(),
-                            low_value: current_field.low_value(),
-                            high_value: current_field.high_value(),
-                        },
-                        field_type: field_type.clone(),
-                        model: current_field_model,
-
-                        decoder: Decoders::Default,
-                        base_decoder: Decoders::Default,
-                        child_decoder: Decoders::Default,
+                    let decoder = match model {
+                        FieldModels::Simple | FieldModels::FixedArray => {
+                            Decoders::from_field(&field_type, properties)
+                        }
+                        FieldModels::VariableArray(_) => Decoders::Unsigned32,
+                        FieldModels::FixedTable(_) => Decoders::Boolean,
+                        FieldModels::VariableTable(_) => Decoders::Unsigned32,
                     };
 
-                    for patch in patches.iter() {
-                        (patch.patch)(&mut field);
-                    }
+                    let field = Field {
+                        var_name,
+                        field_type,
+                        model,
 
-                    match field.model {
-                        FieldModels::FixedArray => {
-                            field.decoder = Decoders::from_field(&field, false);
-                        }
-                        FieldModels::FixedTable(_) => field.base_decoder = Decoders::Boolean,
-                        FieldModels::VariableArray => {
-                            field.base_decoder = Decoders::Unsigned32;
-                            field.child_decoder = Decoders::from_field(&field, true)
-                        }
-                        FieldModels::VariableTable(_) => {
-                            field.base_decoder = Decoders::Unsigned32;
-                        }
-                        FieldModels::Simple => {
-                            field.decoder = Decoders::from_field(&field, false);
-                        }
+                        decoder,
                     };
                     fields.insert(*i, Rc::new(field));
                 }

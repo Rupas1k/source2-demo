@@ -83,7 +83,6 @@ impl FieldReader {
         }
         paths
     }
-
     pub(crate) fn read_fields(&self, reader: &mut Reader, s: &Serializer, st: &mut FieldState) {
         self.read_field_paths(reader)
             .iter()

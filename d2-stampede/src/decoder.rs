@@ -1,4 +1,4 @@
-use crate::field::{Encoder, Field, FieldProperties};
+use crate::field::{Encoder, FieldProperties, FieldType};
 use crate::field_value::FieldValue;
 use crate::reader::Reader;
 
@@ -29,13 +29,8 @@ pub enum Decoders {
 }
 
 impl Decoders {
-    pub fn from_field(field: &Field, generic: bool) -> Self {
-        let match_var = match generic {
-            true => field.field_type.generic.as_ref().unwrap().base.as_ref(),
-            false => field.field_type.base.as_ref(),
-        };
-
-        match match_var {
+    pub fn from_field(field_type: &FieldType, properties: FieldProperties) -> Self {
+        match field_type.base.as_ref() {
             "bool" => Decoders::Boolean,
             "char" | "CUtlString" | "CUtlSymbolLarge" => Decoders::String,
             "int8" => Decoders::Signed8,
@@ -54,17 +49,17 @@ impl Decoders {
             "GameTime_t" => Decoders::NoScale,
             "CBodyComponent" | "CPhysicsComponent" | "CRenderComponent" => Decoders::Component,
 
-            "CNetworkedQuantizedFloat" => Decoders::QuantizedFloat(field.properties),
+            "CNetworkedQuantizedFloat" => Decoders::QuantizedFloat(properties),
 
-            "float32" => Decoders::Float32(field.properties),
+            "float32" => Decoders::Float32(properties),
 
-            "Vector" => Decoders::Vector(field.properties, 3),
-            "Vector2D" => Decoders::Vector(field.properties, 2),
-            "Vector4D" => Decoders::Vector(field.properties, 4),
+            "Vector" => Decoders::Vector(properties, 3),
+            "Vector2D" => Decoders::Vector(properties, 2),
+            "Vector4D" => Decoders::Vector(properties, 4),
 
-            "uint64" | "CStrongHandle" => Decoders::Unsigned64(field.properties),
+            "uint64" | "CStrongHandle" => Decoders::Unsigned64(properties),
 
-            "QAngle" => Decoders::QAngle(field.properties),
+            "QAngle" => Decoders::QAngle(properties),
 
             _ => Decoders::Default,
         }
