@@ -30,7 +30,9 @@ pub use crate::parser::{Observer, Parser};
 
 pub use crate::string_table::{StringTable, StringTableEntry, StringTables};
 
-pub use anyhow::{Error, Result};
+pub use anyhow::Error;
+
+pub use anyhow::Result;
 
 pub mod proto {
     pub use d2_stampede_protobufs::prost::Message;

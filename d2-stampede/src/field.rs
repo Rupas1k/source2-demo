@@ -221,7 +221,7 @@ impl FieldState {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct FieldPath {
     pub(crate) path: [u8; 7],
     pub(crate) last: usize,

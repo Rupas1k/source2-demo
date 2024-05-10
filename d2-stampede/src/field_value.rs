@@ -6,6 +6,7 @@ pub enum FieldValue {
     Boolean(bool),
     String(String),
     Float(f32),
+
     Vector2D([f32; 2]),
     Vector3D([f32; 3]),
     Vector4D([f32; 4]),
@@ -51,7 +52,7 @@ impl TryInto<String> for FieldValue {
         if let FieldValue::String(x) = self {
             Ok(x)
         } else {
-            bail!("Error converting {} into String", self)
+            bail!("Error converting \"{}\" into String", self)
         }
     }
 }
@@ -63,7 +64,7 @@ impl TryInto<String> for &FieldValue {
         if let FieldValue::String(x) = self {
             Ok(x.to_owned())
         } else {
-            bail!("Error converting {} into String", self)
+            bail!("Error converting \"{}\" into String", self)
         }
     }
 }
@@ -75,7 +76,7 @@ impl TryInto<[f32; 2]> for FieldValue {
         if let FieldValue::Vector2D(x) = self {
             Ok(x)
         } else {
-            bail!("Error converting {} into [f32; 2]", self)
+            bail!("Error converting \"{}\" into [f32; 2]", self)
         }
     }
 }
@@ -87,7 +88,7 @@ impl TryInto<[f32; 2]> for &FieldValue {
         if let FieldValue::Vector2D(x) = self {
             Ok(*x)
         } else {
-            bail!("Error converting {} into [f32; 2]", self)
+            bail!("Error converting \"{}\" into [f32; 2]", self)
         }
     }
 }
@@ -99,7 +100,7 @@ impl TryInto<(f32, f32)> for FieldValue {
         if let FieldValue::Vector2D(x) = self {
             Ok(x.into())
         } else {
-            bail!("Error converting {} into (f32, f32))", self)
+            bail!("Error converting \"{}\" into (f32, f32))", self)
         }
     }
 }
@@ -111,7 +112,7 @@ impl TryInto<(f32, f32)> for &FieldValue {
         if let FieldValue::Vector2D(x) = self {
             Ok((*x).into())
         } else {
-            bail!("Error converting {} into (f32, f32))", self)
+            bail!("Error converting \"{}\" into (f32, f32))", self)
         }
     }
 }
@@ -123,7 +124,7 @@ impl TryInto<[f32; 3]> for FieldValue {
         if let FieldValue::Vector3D(x) = self {
             Ok(x)
         } else {
-            bail!("Error converting {} into [f32; 3]", self)
+            bail!("Error converting \"{}\" into [f32; 3]", self)
         }
     }
 }
@@ -135,7 +136,7 @@ impl TryInto<[f32; 3]> for &FieldValue {
         if let FieldValue::Vector3D(x) = self {
             Ok(*x)
         } else {
-            bail!("Error converting {} into [f32; 3]", self)
+            bail!("Error converting \"{}\" into [f32; 3]", self)
         }
     }
 }
@@ -147,7 +148,7 @@ impl TryInto<(f32, f32, f32)> for FieldValue {
         if let FieldValue::Vector3D(x) = self {
             Ok(x.into())
         } else {
-            bail!("Error converting {} into (f32, f32, f32)", self)
+            bail!("Error converting \"{}\" into (f32, f32, f32)", self)
         }
     }
 }
@@ -159,7 +160,7 @@ impl TryInto<(f32, f32, f32)> for &FieldValue {
         if let FieldValue::Vector3D(x) = self {
             Ok((*x).into())
         } else {
-            bail!("Error converting {} into (f32, f32, f32)", self)
+            bail!("Error converting \"{}\" into (f32, f32, f32)", self)
         }
     }
 }
@@ -171,7 +172,7 @@ impl TryInto<[f32; 4]> for FieldValue {
         if let FieldValue::Vector4D(x) = self {
             Ok(x)
         } else {
-            bail!("Error converting {} into [f32; 4]", self)
+            bail!("Error converting \"{}\" into [f32; 4]", self)
         }
     }
 }
@@ -183,7 +184,7 @@ impl TryInto<[f32; 4]> for &FieldValue {
         if let FieldValue::Vector4D(x) = self {
             Ok(*x)
         } else {
-            bail!("Error converting {} into [f32; 4]", self)
+            bail!("Error converting \"{}\" into [f32; 4]", self)
         }
     }
 }
@@ -195,7 +196,7 @@ impl TryInto<(f32, f32, f32, f32)> for FieldValue {
         if let FieldValue::Vector4D(x) = self {
             Ok(x.into())
         } else {
-            bail!("Error converting {} into (f32, f32, f32, f32)", self)
+            bail!("Error converting \"{}\" into (f32, f32, f32, f32)", self)
         }
     }
 }
@@ -207,7 +208,7 @@ impl TryInto<(f32, f32, f32, f32)> for &FieldValue {
         if let FieldValue::Vector4D(x) = self {
             Ok((*x).into())
         } else {
-            bail!("Error converting {} into (f32, f32, f32, f32)", self)
+            bail!("Error converting \"{}\" into (f32, f32, f32, f32)", self)
         }
     }
 }
@@ -220,7 +221,7 @@ impl TryInto<Vec<f32>> for FieldValue {
             FieldValue::Vector2D(x) => Ok(x.to_vec()),
             FieldValue::Vector3D(x) => Ok(x.to_vec()),
             FieldValue::Vector4D(x) => Ok(x.to_vec()),
-            _ => bail!("Error converting {} into Vec<f32>", self),
+            _ => bail!("Error converting \"{}\" into Vec<f32>", self),
         }
     }
 }
@@ -233,7 +234,7 @@ impl TryInto<Vec<f32>> for &FieldValue {
             FieldValue::Vector2D(x) => Ok(x.to_vec()),
             FieldValue::Vector3D(x) => Ok(x.to_vec()),
             FieldValue::Vector4D(x) => Ok(x.to_vec()),
-            _ => bail!("Error converting {} into Vec<f32>", self),
+            _ => bail!("Error converting \"{}\" into Vec<f32>", self),
         }
     }
 }
@@ -245,7 +246,7 @@ impl TryInto<f32> for FieldValue {
         if let FieldValue::Float(x) = self {
             Ok(x)
         } else {
-            bail!("Error converting {} into f32", self)
+            bail!("Error converting \"{}\" into f32", self)
         }
     }
 }
@@ -257,7 +258,7 @@ impl TryInto<f32> for &FieldValue {
         if let FieldValue::Float(x) = self {
             Ok(*x)
         } else {
-            bail!("Error converting {} into f32", self)
+            bail!("Error converting \"{}\" into f32", self)
         }
     }
 }
@@ -269,7 +270,7 @@ impl TryInto<bool> for FieldValue {
         if let FieldValue::Boolean(x) = self {
             Ok(x)
         } else {
-            bail!("Error converting {} into bool", self)
+            bail!("Error converting \"{}\" into bool", self)
         }
     }
 }
@@ -281,7 +282,7 @@ impl TryInto<bool> for &FieldValue {
         if let FieldValue::Boolean(x) = self {
             Ok(*x)
         } else {
-            bail!("Error converting {} into bool", self)
+            bail!("Error converting \"{}\" into bool", self)
         }
     }
 }
@@ -296,47 +297,47 @@ macro_rules! impl_try_into_for_integers {
                     // EntityFieldType::Boolean(x) => Ok((x == 1) as $target),
                     FieldValue::Signed8(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Signed16(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Signed32(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Signed64(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Unsigned8(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Unsigned16(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Unsigned32(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Unsigned64(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Float(x) => Ok(x as $target),
                     _ => Err(anyhow!(
-                        "Cannot convert {} into {}",
+                        "Cannot convert \"{}\" into {}",
                         self,
                         stringify!($target)
                     )),
@@ -352,46 +353,46 @@ macro_rules! impl_try_into_for_integers {
                     // EntityFieldType::Boolean(x) => Ok(x == 1 as $target),
                     FieldValue::Signed8(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Signed16(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Signed32(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            format_err!("Error converting {x} into {}", stringify!($target))
+                            format_err!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Signed64(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Unsigned8(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Unsigned16(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Unsigned32(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Unsigned64(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Error converting {x} into {}", stringify!($target))
+                            anyhow!("Error converting \"{x}\" into {}", stringify!($target))
                         })?)
                     }
                     FieldValue::Float(x) => Ok(*x as $target),
-                    _ => bail!("Cannot convert {} into {}", self, stringify!($target)),
+                    _ => bail!("Cannot convert \"{}\" into {}", self, stringify!($target)),
                 }
             }
         }

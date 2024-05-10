@@ -1,7 +1,7 @@
 use crate::class::Class;
 use crate::field::{FieldPath, FieldState};
 use crate::field_value::FieldValue;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use nohash_hasher::IntMap;
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
@@ -38,22 +38,23 @@ impl Entities {
     pub fn get_by_index(&self, index: &i32) -> Result<&Entity> {
         self.index_to_entity
             .get(index)
-            .ok_or_else(|| anyhow!("No entities for index {index}"))
+            .with_context(|| anyhow!("No entities for index \"{index}\""))
     }
     pub fn get_by_handle(&self, handle: &i32) -> Result<&Entity> {
         self.get_by_index(&(handle & 0x3fff))
+            .with_context(|| anyhow!("No entities for handle \"{handle}\""))
     }
     pub fn get_by_class_id(&self, id: &i32) -> Result<&Entity> {
         self.index_to_entity
             .values()
             .find(|&entity| &entity.class().id() == id)
-            .ok_or_else(|| anyhow!("No entities for class with id {id}"))
+            .with_context(|| anyhow!("No entities for class with id {id}"))
     }
     pub fn get_by_class_name(&self, name: &str) -> Result<&Entity> {
         self.index_to_entity
             .values()
             .find(|&entity| entity.class().name() == name)
-            .ok_or_else(|| anyhow!("No entities for class with name {name}"))
+            .with_context(|| anyhow!("No entities for class with name {name}"))
     }
 
     pub fn get_all_by_class_id<'a>(&'a self, id: &'a i32) -> impl Iterator<Item = &Entity> {
@@ -106,17 +107,19 @@ impl Entity {
     }
 
     pub fn get_property_by_name(&self, name: &str) -> Result<&FieldValue> {
-        self.get_property_by_field_path(&self.class.serializer.get_field_path_for_name(name)?)
+        self.get_property_by_field_path(
+            &self.class.serializer.get_field_path_for_name(name)?, // .with_contextwith_context(|| anyhow!("No property for given name \"{}\"", name))?,
+        )
     }
 
     pub(crate) fn get_property_by_field_path(&self, fp: &FieldPath) -> Result<&FieldValue> {
         self.state
             .get_value(fp)
-            .ok_or_else(|| anyhow!("No property for given field path"))
+            .ok_or_else(|| anyhow!("No property for given field path {:?}", fp))
     }
 }
 
-// ChatGPT -> refactor!!!!!
+// ChatGPT
 impl Display for Entity {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // Function to generate a horizontal line

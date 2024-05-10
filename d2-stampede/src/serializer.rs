@@ -147,7 +147,7 @@ impl Serializer {
                         }
                     }
                 }
-                bail!("No field path for given name")
+                bail!("No field path for given name \"{}\"", name)
             }
             self.fp_cache.borrow_mut().insert(name.into(), fp);
         }

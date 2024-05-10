@@ -1,5 +1,5 @@
 use crate::serializer::Serializer;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
 use std::rc::Rc;
@@ -22,20 +22,20 @@ impl Classes {
     pub(crate) fn get_by_id_rc(&self, id: &i32) -> Result<&Rc<Class>> {
         self.classes_by_id
             .get(id)
-            .ok_or(anyhow!("No class for given id"))
+            .with_context(|| anyhow!("No class for given id {}", id))
     }
 
     pub fn get_by_id(&self, id: &i32) -> Result<&Class> {
         self.classes_by_id
             .get(id)
-            .ok_or(anyhow!("No class for given id"))
+            .with_context(|| anyhow!("No class for given id {}", id))
             .map(|class| class.as_ref())
     }
 
     pub fn get_by_name(&self, name: &str) -> Result<&Class> {
         self.classes_by_name
             .get(name)
-            .ok_or(anyhow!("No class for given name"))
+            .with_context(|| anyhow!("No class for given name \"{}\"", name))
             .map(|class| class.as_ref())
     }
 }

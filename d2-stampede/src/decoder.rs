@@ -120,7 +120,7 @@ impl Decoders {
                         Decoders::Float32(*fp).decode(reader).as_float(),
                     ]);
                 }
-                panic!("Unsupported size");
+                unreachable!()
             }
             Decoders::Unsigned64(fp) => {
                 if fp.encoder == Some(Encoder::Fixed64) {

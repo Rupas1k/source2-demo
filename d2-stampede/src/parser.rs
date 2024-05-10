@@ -8,7 +8,7 @@ use crate::proto::*;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTables};
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use nohash_hasher::IntMap;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -24,18 +24,13 @@ struct OuterMessage {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct PendingMessage {
-    pub tick: u32,
     pub msg_type: i32,
     pub buf: Vec<u8>,
 }
 
 impl PendingMessage {
-    pub fn new(tick: u32, msg_type: i32, buf: Vec<u8>) -> Self {
-        PendingMessage {
-            tick,
-            msg_type,
-            buf,
-        }
+    pub fn new(msg_type: i32, buf: Vec<u8>) -> Self {
+        PendingMessage { msg_type, buf }
     }
 }
 
@@ -84,8 +79,13 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn register_observer(&mut self, obs: Rc<RefCell<dyn Observer + 'a>>) {
-        self.observers.push(obs);
+    pub fn register_observer<T>(&mut self) -> Rc<RefCell<T>>
+    where
+        T: Observer + Default + 'static,
+    {
+        let rc = Rc::new(RefCell::new(T::default()));
+        self.observers.push(rc.clone());
+        rc.clone()
     }
 
     fn on_packet(&mut self, msg_type: EDemoCommands, msg: &[u8]) -> Result<()> {
@@ -161,17 +161,18 @@ impl<'a> Parser<'a> {
 
         self.reader.read_bytes(8);
 
-        {
-            while let Some(message) = self.read_outer_message()? {
-                self.on_tick_start()?;
-                self.on_packet(message.msg_type, message.buf.as_slice())?;
-                self.on_tick_end()?;
+        let process_ticks = |ctx: &mut Parser| -> Result<()> {
+            while let Some(message) = ctx.read_outer_message()? {
+                ctx.on_tick_start()?;
+                ctx.on_packet(message.msg_type, message.buf.as_slice())?;
+                ctx.on_tick_end()?;
             }
-            self.observers
+            ctx.observers
                 .iter()
-                .try_for_each(|obs| obs.borrow_mut().epilogue(self))
-        }
-        .map_err(|e: anyhow::Error| anyhow!("{} at tick {}", e, self.tick))
+                .try_for_each(|obs| obs.borrow_mut().epilogue(ctx))
+        };
+
+        process_ticks(self).with_context(|| anyhow!("Error while processing tick {}", self.tick))
     }
     pub fn run_to_tick(&mut self, tick: u32) -> Result<()> {
         if self.reader.read_bytes(8) != b"PBDEMS2\0" {
@@ -180,21 +181,18 @@ impl<'a> Parser<'a> {
 
         self.reader.read_bytes(8);
 
-        {
-            while let Some(message) = self.read_outer_message()? {
-                self.on_tick_start()?;
-                self.on_packet(message.msg_type, message.buf.as_slice())?;
-                self.on_tick_end()?;
-                if self.tick >= tick {
-                    break;
-                }
+        while let Some(message) = self.read_outer_message()? {
+            self.on_tick_start()?;
+            self.on_packet(message.msg_type, message.buf.as_slice())?;
+            self.on_tick_end()?;
+            if self.tick >= tick {
+                break;
             }
-
-            self.observers
-                .iter()
-                .try_for_each(|obs| obs.borrow_mut().epilogue(self))
         }
-        .map_err(|e: anyhow::Error| anyhow!("{} at tick {}", e, self.tick))
+
+        self.observers
+            .iter()
+            .try_for_each(|obs| obs.borrow_mut().epilogue(self))
     }
 
     fn send_tables(&mut self, msg: &[u8]) -> Result<()> {
@@ -345,7 +343,7 @@ impl<'a> Parser<'a> {
             let t = packet_reader.read_ubit_var() as i32;
             let size = packet_reader.read_var_u32();
             let packet_buf = packet_reader.read_bytes(size);
-            let message = PendingMessage::new(self.tick, t, packet_buf);
+            let message = PendingMessage::new(t, packet_buf);
             self.pending_messages.push_back(message);
         }
         self.process_messages()
@@ -481,12 +479,12 @@ impl<'a> Parser<'a> {
 
     fn update_string_table(&mut self, msg: &[u8]) -> Result<()> {
         let st = CsvcMsgUpdateStringTable::decode(msg)?;
-        let mut t = self.string_tables.tables[&st.table_id()].borrow_mut();
+        let mut table = self.string_tables.tables[&st.table_id()].borrow_mut();
 
-        let is_baseline = t.name == "instancebaseline";
+        let is_baseline = table.name == "instancebaseline";
 
-        for item in t.parse(st.string_data(), st.num_changed_entries())? {
-            match t.items.get_mut(&item.index) {
+        for item in table.parse(st.string_data(), st.num_changed_entries())? {
+            match table.items.get_mut(&item.index) {
                 Some(x) => {
                     if is_baseline {
                         self.baselines
@@ -504,7 +502,7 @@ impl<'a> Parser<'a> {
                         self.baselines
                             .insert(item.key.parse::<i32>()?, item.value.clone());
                     }
-                    t.items.insert(item.index, item);
+                    table.items.insert(item.index, item);
                 }
             }
         }
@@ -643,12 +641,15 @@ pub trait Observer {
     fn on_packet(&mut self, ctx: &Parser, msg_type: EDemoCommands, msg: &[u8]) -> Result<()> {
         Ok(())
     }
+
     fn on_net_message(&mut self, ctx: &Parser, msg_type: NetMessages, msg: &[u8]) -> Result<()> {
         Ok(())
     }
+
     fn on_svc_message(&mut self, ctx: &Parser, msg_type: SvcMessages, msg: &[u8]) -> Result<()> {
         Ok(())
     }
+
     fn on_base_user_message(
         &mut self,
         ctx: &Parser,
@@ -657,6 +658,7 @@ pub trait Observer {
     ) -> Result<()> {
         Ok(())
     }
+
     fn on_base_entity_message(
         &mut self,
         ctx: &Parser,
@@ -665,6 +667,7 @@ pub trait Observer {
     ) -> Result<()> {
         Ok(())
     }
+
     fn on_base_game_event(
         &mut self,
         ctx: &Parser,
