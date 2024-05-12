@@ -1,0 +1,14 @@
+[package]
+name = "lifestate"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+bench = []
+
+[dependencies]
+d2-stampede = { path = "../../../d2-stampede" }
+memmap2 = "0.9.4"
+nohash-hasher = "0.2.0"
