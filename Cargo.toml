@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "d2-stampede",
-    "d2-stampede-observers",
     "d2-stampede-protobufs",
 ]
 
