@@ -73,6 +73,18 @@ impl<'a> CombatLog<'a> {
             .with_context(|| anyhow!("No inflictor name for {:?}", self.type_()))
     }
 
+    pub fn value_name(&self) -> Result<&str> {
+        self.log
+            .value
+            .and_then(|id| {
+                self.names
+                    .items
+                    .get(&id.try_into().unwrap())
+                    .map(|name| name.key.as_str())
+            })
+            .with_context(|| anyhow!("No value name for {:?}", self.type_()))
+    }
+
     pub fn attacker_illusion(&self) -> Result<bool> {
         self.log
             .is_attacker_illusion
