@@ -2,6 +2,7 @@
 members = [
     "d2-stampede",
     "d2-stampede-protobufs",
+    "d2-stampede-observers"
 ]
 
 resolver = "2"
