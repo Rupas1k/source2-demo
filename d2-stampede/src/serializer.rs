@@ -129,7 +129,7 @@ impl Serializer {
                         offset += f.var_name.len() + 1;
                         match &f.model {
                             FieldModels::FixedArray | FieldModels::VariableArray(_) => {
-                                fp.path[fp.last] = name[..offset].parse::<u8>()?;
+                                fp.path[fp.last] = name[offset..].parse::<u8>()?;
                                 break 'outer;
                             }
                             FieldModels::FixedTable(serializer) => {
