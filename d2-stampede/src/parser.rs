@@ -174,6 +174,7 @@ impl<'a> Parser<'a> {
 
         process_ticks(self).with_context(|| anyhow!("Error while processing tick {}", self.tick))
     }
+
     pub fn run_to_tick(&mut self, tick: u32) -> Result<()> {
         if self.reader.read_bytes(8) != b"PBDEMS2\0" {
             bail!("Supports only Source 2 replays")
@@ -181,18 +182,21 @@ impl<'a> Parser<'a> {
 
         self.reader.read_bytes(8);
 
-        while let Some(message) = self.read_outer_message()? {
-            self.on_tick_start()?;
-            self.on_packet(message.msg_type, message.buf.as_slice())?;
-            self.on_tick_end()?;
-            if self.tick >= tick {
-                break;
+        let process_ticks = |ctx: &mut Parser| -> Result<()> {
+            while let Some(message) = ctx.read_outer_message()? {
+                ctx.on_tick_start()?;
+                ctx.on_packet(message.msg_type, message.buf.as_slice())?;
+                ctx.on_tick_end()?;
+                if ctx.tick >= tick {
+                    break;
+                }
             }
-        }
+            ctx.observers
+                .iter()
+                .try_for_each(|obs| obs.borrow_mut().epilogue(ctx))
+        };
 
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().epilogue(self))
+        process_ticks(self).with_context(|| anyhow!("Error while processing tick {}", self.tick))
     }
 
     fn send_tables(&mut self, msg: &[u8]) -> Result<()> {
