@@ -1,9 +1,19 @@
 use d2_stampede::prelude::*;
 use nohash_hasher::IntMap;
+use std::io::Write;
 
-#[derive(Default)]
 struct LifeStateObserver {
     current_life_state: IntMap<i32, i32>,
+    output: Box<dyn Write>,
+}
+
+impl Default for LifeStateObserver {
+    fn default() -> Self {
+        LifeStateObserver {
+            current_life_state: IntMap::default(),
+            output: Box::new(std::io::stdout()),
+        }
+    }
 }
 
 impl Observer for LifeStateObserver {
@@ -20,21 +30,23 @@ impl Observer for LifeStateObserver {
                 if old_state != new_state {
                     match new_state {
                         0 => {
-                            println!(
+                            writeln!(
+                                self.output,
                                 "{:06}: {} at index {} has spawned",
                                 ctx.tick,
                                 entity.class().name(),
                                 entity.index()
-                            );
+                            )?;
                             self.current_life_state.insert(entity.index(), new_state);
                         }
                         1 => {
-                            println!(
+                            writeln!(
+                                self.output,
                                 "{:06}: {} at index {} has died",
                                 ctx.tick,
                                 entity.class().name(),
                                 entity.index()
-                            );
+                            )?;
                             self.current_life_state.insert(entity.index(), new_state);
                         }
                         2 => {
