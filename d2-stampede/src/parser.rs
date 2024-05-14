@@ -311,9 +311,8 @@ impl<'a> Parser<'a> {
                 }
                 serializer.fields.push(fields[i].clone());
             }
-            let ser_name = serializer_name.clone();
             self.serializers
-                .insert(ser_name.clone().into(), Rc::new(serializer));
+                .insert(serializer_name.into(), Rc::new(serializer));
         }
         Ok(())
     }

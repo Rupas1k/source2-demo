@@ -411,6 +411,7 @@ impl_try_into_for_integers!(u64);
 impl_try_into_for_integers!(u128);
 
 impl FieldValue {
+    #[inline]
     pub fn as_str(&self) -> &str {
         if let FieldValue::String(s) = self {
             s.as_str()
@@ -419,6 +420,7 @@ impl FieldValue {
         }
     }
 
+    #[inline]
     pub fn as_bool(&self) -> bool {
         if let FieldValue::Boolean(b) = self {
             *b
@@ -427,6 +429,7 @@ impl FieldValue {
         }
     }
 
+    #[inline]
     pub fn as_float(&self) -> f32 {
         if let FieldValue::Float(f) = self {
             *f
@@ -435,6 +438,7 @@ impl FieldValue {
         }
     }
 
+    #[inline]
     pub fn as_vector2d(&self) -> &[f32; 2] {
         if let FieldValue::Vector2D(v) = self {
             v
@@ -443,6 +447,7 @@ impl FieldValue {
         }
     }
 
+    #[inline]
     pub fn as_vector3d(&self) -> &[f32; 3] {
         if let FieldValue::Vector3D(v) = self {
             v
@@ -451,6 +456,7 @@ impl FieldValue {
         }
     }
 
+    #[inline]
     pub fn as_vector4d(&self) -> &[f32; 4] {
         if let FieldValue::Vector4D(v) = self {
             v

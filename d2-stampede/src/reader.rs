@@ -12,10 +12,12 @@ impl<'a> Reader<'a> {
         }
     }
 
+    #[inline]
     pub fn remain_bytes(&mut self) -> u32 {
         self.le_reader.bytes_remaining() as u32
     }
 
+    #[inline]
     pub fn read_bits(&mut self, amount: u32) -> u32 {
         #[cfg(unsafe_reader)]
         unsafe {
@@ -27,6 +29,7 @@ impl<'a> Reader<'a> {
         }
     }
 
+    #[inline]
     pub fn read_next_byte(&mut self) -> u8 {
         #[cfg(unsafe_reader)]
         unsafe {
@@ -38,16 +41,19 @@ impl<'a> Reader<'a> {
         }
     }
 
+    #[inline]
     pub fn read_byte(&mut self) -> u8 {
         self.read_next_byte()
     }
 
+    #[inline]
     pub fn read_bytes(&mut self, amount: u32) -> Vec<u8> {
         let mut bytes = vec![0; amount as usize];
         self.le_reader.read_bytes(&mut bytes);
         bytes
     }
 
+    #[inline]
     pub fn read_bool(&mut self) -> bool {
         #[cfg(unsafe_reader)]
         unsafe {
@@ -59,6 +65,7 @@ impl<'a> Reader<'a> {
         }
     }
 
+    #[inline]
     pub fn read_f32(&mut self) -> f32 {
         #[cfg(unsafe_reader)]
         unsafe {
@@ -70,6 +77,7 @@ impl<'a> Reader<'a> {
         }
     }
 
+    #[inline]
     pub fn read_var_u32(&mut self) -> u32 {
         let mut x: u32 = 0;
         let mut y: u32 = 0;
@@ -85,6 +93,7 @@ impl<'a> Reader<'a> {
         }
     }
 
+    #[inline]
     pub fn read_var_u64(&mut self) -> u64 {
         let mut x: u64 = 0;
         let mut y: u8 = 0;
@@ -101,6 +110,7 @@ impl<'a> Reader<'a> {
         }
     }
 
+    #[inline]
     pub fn read_var_i32(&mut self) -> i32 {
         let ux: u32 = self.read_var_u32();
         if ux & 1 != 0 {
@@ -109,6 +119,7 @@ impl<'a> Reader<'a> {
         (ux >> 1) as i32
     }
 
+    #[inline]
     pub fn read_ubit_var(&mut self) -> u32 {
         let bits = self.read_bits(6);
         match bits & 0x30 {
@@ -119,6 +130,7 @@ impl<'a> Reader<'a> {
         }
     }
 
+    #[inline]
     pub fn read_ubit_var_fp(&mut self) -> i32 {
         if self.read_bool() {
             return self.read_bits(2) as i32;
@@ -135,6 +147,7 @@ impl<'a> Reader<'a> {
         self.read_bits(31) as i32
     }
 
+    #[inline]
     pub fn read_normal(&mut self) -> f32 {
         let is_neg = self.read_bool();
         let len = self.read_bits(11) as f32;
@@ -145,6 +158,7 @@ impl<'a> Reader<'a> {
         }
     }
 
+    #[inline]
     pub fn read_3bit_normal(&mut self) -> [f32; 3] {
         let mut vec = [0.0f32; 3];
         vec[0] = match self.read_bool() {
@@ -166,6 +180,7 @@ impl<'a> Reader<'a> {
         vec
     }
 
+    #[inline]
     pub fn read_le_u64(&mut self) -> u64 {
         #[cfg(unsafe_reader)]
         unsafe {
@@ -177,6 +192,7 @@ impl<'a> Reader<'a> {
         }
     }
 
+    #[inline]
     pub fn read_string(&mut self) -> Result<String> {
         let mut buf: Vec<u8> = vec![];
         loop {
@@ -191,6 +207,7 @@ impl<'a> Reader<'a> {
         }
     }
 
+    #[inline]
     pub fn read_coordinate(&mut self) -> f32 {
         let mut value = 0f32;
 
@@ -217,10 +234,12 @@ impl<'a> Reader<'a> {
         value
     }
 
+    #[inline]
     pub fn read_angle(&mut self, n: u32) -> f32 {
         (self.read_bits(n) as f32) * 360.0 / (1 << n) as f32
     }
 
+    #[inline]
     pub fn read_bits_as_bytes(&mut self, n: u32) -> Vec<u8> {
         let bytes = n / 8;
         let bits = n % 8;

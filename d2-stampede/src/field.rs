@@ -5,7 +5,6 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use std::cmp::max;
-use std::hash::Hash;
 use std::rc::Rc;
 
 pub struct Field {
@@ -125,6 +124,7 @@ pub enum StateType {
 }
 
 impl StateType {
+    #[inline]
     pub fn as_field_state(&self) -> Option<&FieldState> {
         if let StateType::FieldState(x) = self {
             Some(x)
@@ -133,14 +133,15 @@ impl StateType {
         }
     }
 
-    pub fn as_field_state_mut(&mut self) -> Option<&mut FieldState> {
+    #[inline]
+    unsafe fn as_field_state_mut(&mut self) -> &mut FieldState {
         if let StateType::FieldState(x) = self {
-            Some(x)
-        } else {
-            None
+            return x;
         }
+        unreachable!()
     }
 
+    #[inline]
     pub fn as_value(&self) -> Option<&FieldValue> {
         if let StateType::Value(x) = self {
             Some(x)
@@ -156,12 +157,14 @@ pub struct FieldState {
 }
 
 impl FieldState {
+    #[inline]
     pub fn new(len: usize) -> Self {
         FieldState {
             state: vec![None; len],
         }
     }
 
+    #[inline]
     pub fn get_value(&self, fp: &FieldPath) -> Option<&FieldValue> {
         let mut current_state = self;
         for i in 0..fp.last {
@@ -174,6 +177,7 @@ impl FieldState {
             .as_value()
     }
 
+    #[inline]
     pub fn get_field_state(&self, fp: &FieldPath) -> Option<&FieldState> {
         let mut current_state = self;
         for i in 0..fp.last {
@@ -202,11 +206,17 @@ impl FieldState {
                     return;
                 }
                 if current_state.state[fp.path[i] as usize].is_none()
-                    || current_state.state[fp.path[i] as usize]
-                        .as_ref()
-                        .unwrap_unchecked()
-                        .as_field_state()
-                        .is_none()
+                    || !matches!(
+                        current_state.state[fp.path[i] as usize]
+                            .as_ref()
+                            .unwrap_unchecked(),
+                        StateType::FieldState(_)
+                    )
+                // current_state.state[fp.path[i] as usize]
+                //         .as_ref()
+                //         .unwrap_unchecked()
+                //         .as_field_state()
+                //         .is_none()
                 {
                     current_state.state[fp.path[i] as usize] =
                         Some(StateType::FieldState(FieldState::new(16)));
@@ -215,7 +225,6 @@ impl FieldState {
                     .as_mut()
                     .unwrap_unchecked()
                     .as_field_state_mut()
-                    .unwrap_unchecked();
             }
         }
     }
@@ -227,13 +236,8 @@ pub struct FieldPath {
     pub(crate) last: usize,
 }
 
-impl Hash for FieldPath {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.path.hash(state)
-    }
-}
-
 impl FieldPath {
+    #[inline]
     pub(crate) fn new() -> Self {
         FieldPath {
             path: [u8::MAX, 0, 0, 0, 0, 0, 0],
@@ -241,6 +245,7 @@ impl FieldPath {
         }
     }
 
+    #[inline]
     pub fn pop(&mut self, n: usize) {
         for _ in 0..n {
             self.path[self.last] = 0;
@@ -248,14 +253,17 @@ impl FieldPath {
         }
     }
 
+    #[inline]
     pub fn inc(&mut self, n: usize, val: u8) {
         self.path[n] = self.path[n].wrapping_add(val)
     }
 
+    #[inline]
     pub fn sub(&mut self, n: usize, val: u8) {
         self.path[n] = self.path[n].wrapping_sub(val)
     }
 
+    #[inline]
     pub fn inc_curr(&mut self, val: u8) {
         self.path[self.last] = self.path[self.last].wrapping_add(val)
     }

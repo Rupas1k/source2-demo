@@ -65,6 +65,7 @@ impl Decoders {
         }
     }
 
+    #[inline]
     pub(crate) fn decode(&self, reader: &mut Reader) -> FieldValue {
         match self {
             Decoders::VectorNormal => FieldValue::Vector3D(reader.read_3bit_normal()),

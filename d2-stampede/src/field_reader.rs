@@ -1,11 +1,13 @@
 use crate::field::{FieldPath, FieldState};
 use crate::reader::Reader;
 use crate::serializer::Serializer;
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
 pub struct FieldReader {
     tree: HTree,
+    paths: RefCell<[FieldPath; 4096]>,
 }
 
 impl FieldReader {
@@ -54,13 +56,18 @@ impl FieldReader {
         ];
 
         let tree = build_huffman_tree(op_iter.map(|op| op.weight() as i32).into());
-        FieldReader { tree }
+        let paths = RefCell::new([FieldPath::new(); 4096]);
+        FieldReader { tree, paths }
     }
 
-    pub(crate) fn read_field_paths(&self, reader: &mut Reader) -> Vec<FieldPath> {
-        let mut fp = FieldPath::new();
-        let mut paths = vec![];
+    pub(crate) fn read_field_paths<'a>(
+        &self,
+        reader: &mut Reader,
+        paths: &'a mut [FieldPath],
+    ) -> &'a mut [FieldPath] {
         let mut node = &self.tree;
+        let mut i = 0;
+        let mut fp = FieldPath::new();
         loop {
             let next = match reader.read_bool() {
                 true => node.right(),
@@ -73,7 +80,8 @@ impl FieldReader {
                     if let FieldOp::FieldPathEncodeFinish = op {
                         break;
                     }
-                    paths.push(fp);
+                    paths[i] = fp;
+                    i += 1;
                     node = &self.tree;
                 }
                 HTree::Node { .. } => {
@@ -81,10 +89,10 @@ impl FieldReader {
                 }
             }
         }
-        paths
+        &mut paths[..i]
     }
     pub(crate) fn read_fields(&self, reader: &mut Reader, s: &Serializer, st: &mut FieldState) {
-        self.read_field_paths(reader)
+        self.read_field_paths(reader, self.paths.borrow_mut().as_mut_slice())
             .iter()
             .for_each(|fp| st.set(fp, s.get_decoder_for_field_path(fp).decode(reader)))
     }
@@ -132,17 +140,19 @@ impl HTree {
         }
     }
 
+    #[inline]
     pub fn left(&self) -> &HTree {
         match self {
             HTree::Node { left, .. } => left,
-            HTree::Leaf { .. } => panic!(),
+            HTree::Leaf { .. } => unreachable!(),
         }
     }
 
+    #[inline]
     pub fn right(&self) -> &HTree {
         match self {
             HTree::Node { right, .. } => right,
-            HTree::Leaf { .. } => panic!(),
+            HTree::Leaf { .. } => unreachable!(),
         }
     }
 }
@@ -220,6 +230,7 @@ pub(crate) enum FieldOp {
 }
 
 impl FieldOp {
+    #[inline]
     pub(crate) fn execute(&self, r: &mut Reader, fp: &mut FieldPath) {
         match &self {
             FieldOp::PlusOne => fp.inc_curr(1),
@@ -349,7 +360,6 @@ impl FieldOp {
                 fp.inc_curr(r.read_ubit_var_fp() as u8);
             }
             FieldOp::PushThreePack5LeftDeltaN => {
-                // fp.path[fp.last] += r.read_ubit_var() as u8 + 2;
                 fp.inc_curr(r.read_ubit_var() as u8 + 2);
                 fp.last += 1;
                 fp.path[fp.last] = r.read_bits(5) as u8;
