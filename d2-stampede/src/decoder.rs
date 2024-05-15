@@ -71,13 +71,16 @@ impl Decoders {
             Decoders::VectorNormal => FieldValue::Vector3D(reader.read_3bit_normal()),
             Decoders::Fixed64 => FieldValue::Unsigned64(reader.read_le_u64()),
             Decoders::Boolean => FieldValue::Boolean(reader.read_bool()),
-            Decoders::String => FieldValue::String(reader.read_string().unwrap()),
+            Decoders::String => FieldValue::String(reader.read_string()),
             Decoders::Default => FieldValue::Unsigned32(reader.read_var_u32()),
             Decoders::Signed8 => FieldValue::Signed8(reader.read_var_i32() as i8),
             Decoders::Signed16 => FieldValue::Signed16(reader.read_var_i32() as i16),
             Decoders::Signed32 => FieldValue::Signed32(reader.read_var_i32()),
             Decoders::Signed64 => FieldValue::Signed64(reader.read_var_i32() as i64),
-            Decoders::FloatCoordinate => FieldValue::Float(reader.read_coordinate()),
+            Decoders::FloatCoordinate => FieldValue::Float({
+                reader.refill();
+                reader.read_coordinate()
+            }),
             Decoders::NoScale => FieldValue::Float(reader.read_f32()),
             Decoders::RuneTime => FieldValue::Float(f32::from_bits(reader.read_bits(4))),
             Decoders::SimulationTime => FieldValue::Float(reader.read_var_u32() as f32 / 30.0),
@@ -133,6 +136,7 @@ impl Decoders {
                 FieldValue::Float(QFloatDecoder::new(fp).decode(reader))
             }
             Decoders::QAngle(fp) => {
+                reader.refill();
                 if fp.encoder == Some(Encoder::QAnglePitchYaw) {
                     return FieldValue::Vector3D([
                         reader.read_angle(fp.bit_count as u32),
@@ -151,9 +155,9 @@ impl Decoders {
                 }
 
                 let mut v = [0f32; 3];
-                let x = reader.read_bool();
-                let y = reader.read_bool();
-                let z = reader.read_bool();
+                let x = reader.read_bits_no_refill(1) == 1;
+                let y = reader.read_bits_no_refill(1) == 1;
+                let z = reader.read_bits_no_refill(1) == 1;
                 if x {
                     v[0] = reader.read_coordinate();
                 }
@@ -340,18 +344,24 @@ impl QFloatDecoder {
     }
 
     pub(crate) fn decode(&self, reader: &mut Reader) -> f32 {
-        if self.flags & (QFloatFlags::RoundDown as u32) != 0 && reader.read_bool() {
+        reader.refill();
+
+        if self.flags & (QFloatFlags::RoundDown as u32) != 0 && reader.read_bits_no_refill(1) == 1 {
             return self.low;
         }
 
-        if self.flags & (QFloatFlags::RoundUp as u32) != 0 && reader.read_bool() {
+        if self.flags & (QFloatFlags::RoundUp as u32) != 0 && reader.read_bits_no_refill(1) == 1 {
             return self.high;
         }
 
-        if self.flags & (QFloatFlags::EncodeZero as u32) != 0 && reader.read_bool() {
+        if self.flags & (QFloatFlags::EncodeZero as u32) != 0 && reader.read_bits_no_refill(1) == 1
+        {
             return 0.0;
         }
 
-        self.low + (self.high - self.low) * (reader.read_bits(self.bit_count) as f32) * self.dec_mul
+        self.low
+            + (self.high - self.low)
+                * (reader.read_bits_no_refill(self.bit_count) as f32)
+                * self.dec_mul
     }
 }

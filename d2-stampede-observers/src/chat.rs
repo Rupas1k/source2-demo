@@ -1,8 +1,9 @@
 use anyhow::Result;
-use d2_stampede::prelude::*;
-use d2_stampede::proto::*;
 use std::cell::RefCell;
 use std::rc::Rc;
+
+use d2_stampede::prelude::*;
+use d2_stampede::proto::*;
 
 #[derive(Default)]
 pub struct Chat {

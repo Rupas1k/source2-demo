@@ -1,10 +1,10 @@
-use crate::wards::{WardClasses, WardEvents, Wards, WardsObserver};
 use d2_stampede::prelude::*;
-
-mod wards;
+use d2_stampede_observers::wards::*;
 
 #[derive(Default)]
 struct MyObs;
+
+impl Observer for MyObs {}
 
 impl WardsObserver for MyObs {
     fn on_ward(
@@ -41,7 +41,8 @@ fn main() -> std::io::Result<()> {
     let mut parser = Parser::new(&mmap);
 
     let wards = parser.register_observer::<Wards>();
-    wards.borrow_mut().register_observer::<MyObs>();
+    let app = parser.register_observer::<MyObs>();
+    wards.borrow_mut().register_observer(app);
 
     #[cfg(feature = "bench")]
     let start = std::time::Instant::now();

@@ -123,12 +123,12 @@ impl StringTable {
                     let size = r.read_bits(5) as usize;
 
                     if delta_pos < pos || keys[pos].len() < size {
-                        key = r.read_string()?;
+                        key = r.read_string();
                     } else {
-                        key = key + &keys[pos][..size] + &r.read_string()?;
+                        key = key + &keys[pos][..size] + &r.read_string();
                     }
                 } else {
-                    key = r.read_string()?
+                    key = r.read_string()
                 }
                 keys[delta_pos & 31].clone_from(&key);
                 delta_pos += 1;

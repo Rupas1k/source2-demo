@@ -1,6 +1,7 @@
 use crate::field::{FieldPath, FieldState};
 use crate::reader::Reader;
 use crate::serializer::Serializer;
+use bitter::BitReader;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
@@ -68,11 +69,13 @@ impl FieldReader {
         let mut node = &self.tree;
         let mut i = 0;
         let mut fp = FieldPath::new();
+        reader.refill();
         loop {
-            let next = match reader.read_bool() {
+            let next = match reader.le_reader.peek(1) == 1 {
                 true => node.right(),
                 false => node.left(),
             };
+            reader.le_reader.consume(1);
             match next {
                 HTree::Leaf { value, .. } => {
                     let op = FieldOp::from_position(*value);
@@ -83,6 +86,7 @@ impl FieldReader {
                     paths[i] = fp;
                     i += 1;
                     node = &self.tree;
+                    reader.refill();
                 }
                 HTree::Node { .. } => {
                     node = next;

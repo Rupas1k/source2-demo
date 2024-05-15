@@ -342,7 +342,7 @@ impl<'a> Parser<'a> {
     fn dem_packet(&mut self, msg: &[u8]) -> Result<()> {
         let packet = CDemoPacket::decode(msg)?;
         let mut packet_reader = Reader::new(packet.data());
-        while packet_reader.remain_bytes() > 0 {
+        while !packet_reader.empty() {
             let t = packet_reader.read_ubit_var() as i32;
             let size = packet_reader.read_var_u32();
             let packet_buf = packet_reader.read_bytes(size);
@@ -361,7 +361,7 @@ impl<'a> Parser<'a> {
     }
 
     fn read_outer_message(&mut self) -> Result<Option<OuterMessage>> {
-        if self.reader.remain_bytes() == 0 {
+        if self.reader.empty() {
             return Ok(None);
         }
 

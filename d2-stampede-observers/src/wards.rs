@@ -1,3 +1,4 @@
+use anyhow::bail;
 use d2_stampede::prelude::*;
 use d2_stampede::proto::DotaCombatlogTypes;
 use nohash_hasher::IntMap;
@@ -24,7 +25,7 @@ impl WardClasses {
         match value {
             "npc_dota_observer_wards" => Ok(WardClasses::Observer),
             "npc_dota_sentry_wards" => Ok(WardClasses::Sentry),
-            _ => unreachable!(),
+            _ => bail!(""),
         }
     }
 
@@ -32,7 +33,7 @@ impl WardClasses {
         match value {
             "CDOTA_NPC_Observer_Ward" => Ok(WardClasses::Observer),
             "CDOTA_NPC_Observer_Ward_TrueSight" => Ok(WardClasses::Sentry),
-            _ => unreachable!(),
+            _ => bail!(""),
         }
     }
 }

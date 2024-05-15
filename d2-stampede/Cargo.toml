@@ -18,7 +18,7 @@ d2-stampede-protobufs = { path = "../d2-stampede-protobufs", version = "0.1.0" }
 
 snap = "1.1.1"
 regex = { version = "1.10.4", features = ["std", "unicode-perl"], default-features = false }
-bitter = "0.6.2"
+bitter = "=0.6.2"
 rustc-hash = "1.1.0"
 nohash-hasher = "0.2.0"
 lazy_static = "1.4.0"
