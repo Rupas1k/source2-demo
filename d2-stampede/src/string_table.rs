@@ -109,6 +109,8 @@ impl StringTable {
             let mut key = String::new();
             let mut value = Vec::<u8>::new();
 
+            r.refill();
+
             index += 1;
             if !r.read_bool() {
                 index += r.read_var_u32() as i32 + 1;
@@ -146,7 +148,7 @@ impl StringTable {
                     if self.var_int_bit_counts {
                         r.read_ubit_var() * 8
                     } else {
-                        r.read_bits(17) * 8
+                        r.read_bits_no_refill(17) * 8
                     }
                 };
                 value = r.read_bits_as_bytes(bit_size);

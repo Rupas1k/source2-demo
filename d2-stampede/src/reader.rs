@@ -2,21 +2,23 @@ use bitter::{BitReader, LittleEndianReader};
 
 pub(crate) struct Reader<'a> {
     pub(crate) le_reader: LittleEndianReader<'a>,
+    string_buf: [u8; 4096],
 }
 
 impl<'a> Reader<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
         Reader {
             le_reader: LittleEndianReader::new(buf),
+            string_buf: [0; 4096],
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn empty(&mut self) -> bool {
         self.le_reader.bytes_remaining() == 0
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn refill(&mut self) {
         #[cfg(feature = "unsafe_reader")]
         unsafe {
@@ -26,7 +28,7 @@ impl<'a> Reader<'a> {
         self.le_reader.refill_lookahead();
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_bits(&mut self, amount: u32) -> u32 {
         self.refill();
         let x = self.le_reader.peek(amount);
@@ -34,7 +36,7 @@ impl<'a> Reader<'a> {
         x as u32
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_bits_no_refill(&mut self, amount: u32) -> u32 {
         let x = self.le_reader.peek(amount);
         self.le_reader.consume(amount);
@@ -48,21 +50,20 @@ impl<'a> Reader<'a> {
         bytes
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_bool(&mut self) -> bool {
-        self.refill();
+        // self.refill();
         let x = self.le_reader.peek(1);
         self.le_reader.consume(1);
         x == 1
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_f32(&mut self) -> f32 {
-        self.refill();
-        f32::from_bits(self.read_bits_no_refill(32))
+        f32::from_bits(self.read_bits(32))
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_var_u32(&mut self) -> u32 {
         let mut x: u32 = 0;
         let mut y: u32 = 0;
@@ -79,7 +80,7 @@ impl<'a> Reader<'a> {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_var_u64(&mut self) -> u64 {
         let mut x: u64 = 0;
         let mut y: u8 = 0;
@@ -100,7 +101,7 @@ impl<'a> Reader<'a> {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_var_i32(&mut self) -> i32 {
         let ux: u32 = self.read_var_u32();
         if ux & 1 != 0 {
@@ -109,39 +110,43 @@ impl<'a> Reader<'a> {
         (ux >> 1) as i32
     }
 
-    #[inline]
+    const UBV_COUNT: [u8; 4] = [0, 4, 8, 28];
+
+    #[inline(always)]
     pub fn read_ubit_var(&mut self) -> u32 {
         self.refill();
-        let bits = self.read_bits_no_refill(6);
-        match bits & 0x30 {
-            0x10 => (bits & 0xF) | (self.read_bits_no_refill(4) << 4),
-            0x20 => (bits & 0xF) | (self.read_bits_no_refill(8) << 4),
-            0x30 => (bits & 0xF) | (self.read_bits_no_refill(28) << 4),
-            _ => bits,
+        let a = self.read_bits_no_refill(6);
+        let b = a >> 4;
+        if a == 0 {
+            return b;
         }
+        (a & 15) | (self.read_bits_no_refill(Self::UBV_COUNT[b as usize] as u32) << 4)
     }
 
-    #[inline]
+    const UBVFP_COUNT: [u8; 5] = [2, 4, 10, 17, 31];
+
+    #[inline(always)]
     pub fn read_ubit_var_fp(&mut self) -> i32 {
+        let mut i: u8 = 0;
         self.refill();
-        if self.read_bits_no_refill(1) == 1 {
-            return self.read_bits_no_refill(2) as i32;
+        while i < 4 && !self.read_bool() {
+            i += 1
         }
-        if self.read_bits_no_refill(1) == 1 {
-            return self.read_bits_no_refill(4) as i32;
-        }
-        if self.read_bits_no_refill(1) == 1 {
-            return self.read_bits_no_refill(10) as i32;
-        }
-        if self.read_bits_no_refill(1) == 1 {
-            return self.read_bits_no_refill(17) as i32;
-        }
-        self.read_bits_no_refill(31) as i32
+        self.read_bits_no_refill(Self::UBVFP_COUNT[i as usize] as u32) as i32
     }
 
-    #[inline]
+    #[inline(always)]
+    pub fn read_ubit_var_fp_no_refill(&mut self) -> i32 {
+        let mut i: u8 = 0;
+        while i < 4 && !self.read_bool() {
+            i += 1
+        }
+        self.read_bits_no_refill(Self::UBVFP_COUNT[i as usize] as u32) as i32
+    }
+
+    #[inline(always)]
     pub fn read_normal(&mut self) -> f32 {
-        let is_neg = self.read_bits_no_refill(1) == 1;
+        let is_neg = self.read_bool();
         let len = self.read_bits_no_refill(11) as f32;
         let normal = len * (1.0 / (1 << 11) as f32 - 1.0);
         match is_neg {
@@ -150,15 +155,15 @@ impl<'a> Reader<'a> {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_3bit_normal(&mut self) -> [f32; 3] {
         self.refill();
         let mut vec = [0.0f32; 3];
-        vec[0] = match self.read_bits_no_refill(1) == 1 {
+        vec[0] = match self.read_bool() {
             true => self.read_normal(),
             false => vec[0],
         };
-        vec[1] = match self.read_bits_no_refill(1) == 1 {
+        vec[1] = match self.read_bool() {
             true => self.read_normal(),
             false => vec[1],
         };
@@ -166,39 +171,35 @@ impl<'a> Reader<'a> {
             x if x < 1.0 => (1.0 - x).sqrt() as f32,
             _ => vec[2],
         };
-        vec[2] = match self.read_bits_no_refill(1) == 1 {
+        vec[2] = match self.read_bool() {
             true => -vec[2],
             false => vec[2],
         };
         vec
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_le_u64(&mut self) -> u64 {
-        #[cfg(unsafe_reader)]
-        unsafe {
-            u64::from_le_bytes((&self.read_bytes(8)[..8]).try_into().unwrap_unchecked())
-        }
-        #[cfg(not(unsafe_reader))]
-        {
-            u64::from_le_bytes((&self.read_bytes(8)[..8]).try_into().unwrap())
-        }
+        self.le_reader.read_u64().unwrap()
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_string(&mut self) -> String {
-        let mut buf: Vec<u8> = vec![];
+        let mut i = 0;
         loop {
             let b = self.read_bits(8) as u8;
             if b == 0 {
-                return unsafe { String::from_utf8_unchecked(buf) };
+                return unsafe { String::from_utf8_lossy(&self.string_buf[..i]).into() };
             }
-            buf.push(b);
+            self.string_buf[i] = b;
+            i += 1;
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_coordinate(&mut self) -> f32 {
+        self.refill();
+
         let mut value = 0f32;
 
         let mut int_val = self.read_bits_no_refill(1);
@@ -224,20 +225,18 @@ impl<'a> Reader<'a> {
         value
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_angle(&mut self, n: u32) -> f32 {
         (self.read_bits_no_refill(n) as f32) * 360.0 / (1 << n) as f32
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_bits_as_bytes(&mut self, n: u32) -> Vec<u8> {
-        let bytes = n / 8;
         let bits = n % 8;
-        let mut tmp = vec![0; bytes as usize];
+        let mut tmp = vec![0; (n / 8) as usize];
         self.le_reader.read_bytes(&mut tmp);
         if bits > 0 {
-            self.refill();
-            tmp.push(self.read_bits_no_refill(bits) as u8);
+            tmp.push(self.read_bits(bits) as u8);
         }
         tmp
     }

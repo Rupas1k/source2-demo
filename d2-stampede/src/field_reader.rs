@@ -1,14 +1,13 @@
 use crate::field::{FieldPath, FieldState};
 use crate::reader::Reader;
 use crate::serializer::Serializer;
-use bitter::BitReader;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
 pub struct FieldReader {
     tree: HTree,
-    paths: RefCell<[FieldPath; 4096]>,
+    paths_buf: RefCell<[FieldPath; 4096]>,
 }
 
 impl FieldReader {
@@ -58,7 +57,10 @@ impl FieldReader {
 
         let tree = build_huffman_tree(op_iter.map(|op| op.weight() as i32).into());
         let paths = RefCell::new([FieldPath::new(); 4096]);
-        FieldReader { tree, paths }
+        FieldReader {
+            tree,
+            paths_buf: paths,
+        }
     }
 
     pub(crate) fn read_field_paths<'a>(
@@ -71,11 +73,10 @@ impl FieldReader {
         let mut fp = FieldPath::new();
         reader.refill();
         loop {
-            let next = match reader.le_reader.peek(1) == 1 {
+            let next = match reader.read_bool() {
                 true => node.right(),
                 false => node.left(),
             };
-            reader.le_reader.consume(1);
             match next {
                 HTree::Leaf { value, .. } => {
                     let op = FieldOp::from_position(*value);
@@ -96,7 +97,7 @@ impl FieldReader {
         &mut paths[..i]
     }
     pub(crate) fn read_fields(&self, reader: &mut Reader, s: &Serializer, st: &mut FieldState) {
-        self.read_field_paths(reader, self.paths.borrow_mut().as_mut_slice())
+        self.read_field_paths(reader, self.paths_buf.borrow_mut().as_mut_slice())
             .iter()
             .for_each(|fp| st.set(fp, s.get_decoder_for_field_path(fp).decode(reader)))
     }
@@ -190,6 +191,7 @@ pub fn build_huffman_tree(frequencies: Vec<i32>) -> HTree {
     trees.pop().unwrap()
 }
 
+#[derive(Hash, Eq, PartialEq)]
 pub(crate) enum FieldOp {
     PlusOne,
     PlusTwo,
@@ -241,14 +243,14 @@ impl FieldOp {
             FieldOp::PlusTwo => fp.inc_curr(2),
             FieldOp::PlusThree => fp.inc_curr(3),
             FieldOp::PlusFour => fp.inc_curr(4),
-            FieldOp::PlusN => fp.inc_curr(r.read_ubit_var_fp() as u8 + 5),
+            FieldOp::PlusN => fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8 + 5),
             FieldOp::PushOneLeftDeltaZeroRightZero => {
                 fp.last += 1;
                 fp.path[fp.last] = 0;
             }
             FieldOp::PushOneLeftDeltaZeroRightNonZero => {
                 fp.last += 1;
-                fp.path[fp.last] = r.read_ubit_var_fp() as u8;
+                fp.path[fp.last] = r.read_ubit_var_fp_no_refill() as u8;
             }
             FieldOp::PushOneLeftDeltaOneRightZero => {
                 fp.inc_curr(1);
@@ -258,119 +260,119 @@ impl FieldOp {
             FieldOp::PushOneLeftDeltaOneRightNonZero => {
                 fp.inc_curr(1);
                 fp.last += 1;
-                fp.path[fp.last] = r.read_ubit_var_fp() as u8;
+                fp.path[fp.last] = r.read_ubit_var_fp_no_refill() as u8;
             }
             FieldOp::PushOneLeftDeltaNRightZero => {
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
                 fp.last += 1;
                 fp.path[fp.last] = 0;
             }
             FieldOp::PushOneLeftDeltaNRightNonZero => {
-                fp.inc_curr(r.read_ubit_var_fp() as u8 + 2);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8 + 2);
                 fp.last += 1;
-                fp.path[fp.last] = r.read_ubit_var_fp() as u8 + 1;
+                fp.path[fp.last] = r.read_ubit_var_fp_no_refill() as u8 + 1;
             }
             FieldOp::PushOneLeftDeltaNRightNonZeroPack6Bits => {
-                fp.inc_curr(r.read_bits(3) as u8 + 2);
+                fp.inc_curr(r.read_bits_no_refill(3) as u8 + 2);
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(3) as u8 + 1;
+                fp.path[fp.last] = r.read_bits_no_refill(3) as u8 + 1;
             }
             FieldOp::PushOneLeftDeltaNRightNonZeroPack8Bits => {
-                fp.inc_curr(r.read_bits(4) as u8 + 2);
+                fp.inc_curr(r.read_bits_no_refill(4) as u8 + 2);
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(4) as u8 + 1;
+                fp.path[fp.last] = r.read_bits_no_refill(4) as u8 + 1;
             }
             FieldOp::PushTwoLeftDeltaZero => {
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
             }
             FieldOp::PushTwoPack5LeftDeltaZero => {
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
             }
             FieldOp::PushThreeLeftDeltaZero => {
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
             }
             FieldOp::PushThreePack5LeftDeltaZero => {
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
             }
             FieldOp::PushTwoLeftDeltaOne => {
                 fp.inc_curr(1);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
             }
             FieldOp::PushTwoPack5LeftDeltaOne => {
                 fp.inc_curr(1);
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
             }
             FieldOp::PushThreeLeftDeltaOne => {
                 fp.inc_curr(1);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
             }
             FieldOp::PushThreePack5LeftDeltaOne => {
                 fp.inc_curr(1);
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
             }
             FieldOp::PushTwoLeftDeltaN => {
                 fp.inc_curr(r.read_ubit_var() as u8 + 2);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
             }
             FieldOp::PushTwoPack5LeftDeltaN => {
                 fp.inc_curr(r.read_ubit_var() as u8 + 2);
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
             }
             FieldOp::PushThreeLeftDeltaN => {
                 fp.inc_curr(r.read_ubit_var() as u8 + 2);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
                 fp.last += 1;
-                fp.inc_curr(r.read_ubit_var_fp() as u8);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8);
             }
             FieldOp::PushThreePack5LeftDeltaN => {
                 fp.inc_curr(r.read_ubit_var() as u8 + 2);
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
                 fp.last += 1;
-                fp.path[fp.last] = r.read_bits(5) as u8;
+                fp.path[fp.last] = r.read_bits_no_refill(5) as u8;
             }
             FieldOp::PushN => {
                 let n = r.read_ubit_var() as i32;
@@ -399,7 +401,7 @@ impl FieldOp {
 
             FieldOp::PopOnePlusN => {
                 fp.pop(1);
-                fp.inc_curr(r.read_ubit_var_fp() as u8 + 1);
+                fp.inc_curr(r.read_ubit_var_fp_no_refill() as u8 + 1);
             }
             FieldOp::PopAllButOnePlusOne => {
                 fp.pop(fp.last);
@@ -407,26 +409,26 @@ impl FieldOp {
             }
             FieldOp::PopAllButOnePlusN => {
                 fp.pop(fp.last);
-                fp.inc(0, r.read_ubit_var_fp() as u8 + 1);
+                fp.inc(0, r.read_ubit_var_fp_no_refill() as u8 + 1);
             }
             FieldOp::PopAllButOnePlusNPack3Bits => {
                 fp.pop(fp.last);
-                fp.inc(0, r.read_bits(3) as u8 + 1);
+                fp.inc(0, r.read_bits_no_refill(3) as u8 + 1);
             }
             FieldOp::PopAllButOnePlusNPack6Bits => {
                 fp.pop(fp.last);
-                fp.inc(0, r.read_bits(6) as u8 + 1);
+                fp.inc(0, r.read_bits_no_refill(6) as u8 + 1);
             }
             FieldOp::PopNPlusOne => {
-                fp.pop(r.read_ubit_var_fp() as usize);
+                fp.pop(r.read_ubit_var_fp_no_refill() as usize);
                 fp.inc_curr(1);
             }
             FieldOp::PopNPlusN => {
-                fp.pop(r.read_ubit_var_fp() as usize);
+                fp.pop(r.read_ubit_var_fp_no_refill() as usize);
                 fp.inc_curr(r.read_var_i32() as u8);
             }
             FieldOp::PopNAndNonTopographical => {
-                fp.pop(r.read_ubit_var_fp() as usize);
+                fp.pop(r.read_ubit_var_fp_no_refill() as usize);
                 for i in 0..=fp.last {
                     if r.read_bool() {
                         fp.inc(i, r.read_var_i32() as u8);
@@ -446,7 +448,7 @@ impl FieldOp {
             FieldOp::NonTopoComplexPack4Bits => {
                 for i in 0..=fp.last {
                     if r.read_bool() {
-                        fp.inc(i, r.read_bits(4) as u8);
+                        fp.inc(i, r.read_bits_no_refill(4) as u8);
                         fp.sub(i, 7);
                     }
                 }

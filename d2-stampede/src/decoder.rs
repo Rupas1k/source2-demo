@@ -77,10 +77,7 @@ impl Decoders {
             Decoders::Signed16 => FieldValue::Signed16(reader.read_var_i32() as i16),
             Decoders::Signed32 => FieldValue::Signed32(reader.read_var_i32()),
             Decoders::Signed64 => FieldValue::Signed64(reader.read_var_i32() as i64),
-            Decoders::FloatCoordinate => FieldValue::Float({
-                reader.refill();
-                reader.read_coordinate()
-            }),
+            Decoders::FloatCoordinate => FieldValue::Float(reader.read_coordinate()),
             Decoders::NoScale => FieldValue::Float(reader.read_f32()),
             Decoders::RuneTime => FieldValue::Float(f32::from_bits(reader.read_bits(4))),
             Decoders::SimulationTime => FieldValue::Float(reader.read_var_u32() as f32 / 30.0),
@@ -155,9 +152,9 @@ impl Decoders {
                 }
 
                 let mut v = [0f32; 3];
-                let x = reader.read_bits_no_refill(1) == 1;
-                let y = reader.read_bits_no_refill(1) == 1;
-                let z = reader.read_bits_no_refill(1) == 1;
+                let x = reader.read_bool();
+                let y = reader.read_bool();
+                let z = reader.read_bool();
                 if x {
                     v[0] = reader.read_coordinate();
                 }
@@ -346,16 +343,15 @@ impl QFloatDecoder {
     pub(crate) fn decode(&self, reader: &mut Reader) -> f32 {
         reader.refill();
 
-        if self.flags & (QFloatFlags::RoundDown as u32) != 0 && reader.read_bits_no_refill(1) == 1 {
+        if self.flags & (QFloatFlags::RoundDown as u32) != 0 && reader.read_bool() {
             return self.low;
         }
 
-        if self.flags & (QFloatFlags::RoundUp as u32) != 0 && reader.read_bits_no_refill(1) == 1 {
+        if self.flags & (QFloatFlags::RoundUp as u32) != 0 && reader.read_bool() {
             return self.high;
         }
 
-        if self.flags & (QFloatFlags::EncodeZero as u32) != 0 && reader.read_bits_no_refill(1) == 1
-        {
+        if self.flags & (QFloatFlags::EncodeZero as u32) != 0 && reader.read_bool() {
             return 0.0;
         }
 

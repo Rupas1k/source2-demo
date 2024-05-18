@@ -29,7 +29,7 @@ impl Observer for ChatObserver {
                 let message = CdotaUserMsgChatMessage::decode(msg)?;
                 let name: String = pr
                     .get_property_by_name(&format!(
-                        "m_vecPlayerData.{:04}.m_iszPlayerName1",
+                        "m_vecPlayerData.{:04}.m_iszPlayerName",
                         message.source_player_id()
                     ))?
                     .try_into()?;
