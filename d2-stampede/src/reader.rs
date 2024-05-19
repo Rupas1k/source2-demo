@@ -91,12 +91,12 @@ impl<'a> Reader<'a> {
             x |= (byte as u64 & 0x7F) << y;
             y += 7;
 
-            if y <= 21 {
-                self.refill();
-            }
-
             if (byte & 0x80) == 0 {
                 return x;
+            }
+
+            if y == 49 {
+                self.refill();
             }
         }
     }
@@ -111,7 +111,6 @@ impl<'a> Reader<'a> {
     }
 
     const UBV_COUNT: [u8; 4] = [0, 4, 8, 28];
-
     #[inline(always)]
     pub fn read_ubit_var(&mut self) -> u32 {
         self.refill();
@@ -124,7 +123,6 @@ impl<'a> Reader<'a> {
     }
 
     const UBVFP_COUNT: [u8; 5] = [2, 4, 10, 17, 31];
-
     #[inline(always)]
     pub fn read_ubit_var_fp(&mut self) -> i32 {
         let mut i: u8 = 0;
@@ -144,11 +142,12 @@ impl<'a> Reader<'a> {
         self.read_bits_no_refill(Self::UBVFP_COUNT[i as usize] as u32) as i32
     }
 
+    const NORMAL_FACTOR: f32 = (1.0 / (1 << 11) as f32) - 1.0;
     #[inline(always)]
     pub fn read_normal(&mut self) -> f32 {
         let is_neg = self.read_bool();
         let len = self.read_bits_no_refill(11) as f32;
-        let normal = len * (1.0 / (1 << 11) as f32 - 1.0);
+        let normal = len * Self::NORMAL_FACTOR;
         match is_neg {
             true => -normal,
             false => normal,
@@ -189,13 +188,14 @@ impl<'a> Reader<'a> {
         loop {
             let b = self.read_bits(8) as u8;
             if b == 0 {
-                return unsafe { String::from_utf8_lossy(&self.string_buf[..i]).into() };
+                return String::from_utf8_lossy(&self.string_buf[..i]).into();
             }
             self.string_buf[i] = b;
             i += 1;
         }
     }
 
+    const FRACTION_FACTOR: f32 = (1.0 / (1 << 5) as f32);
     #[inline(always)]
     pub fn read_coordinate(&mut self) -> f32 {
         self.refill();
@@ -216,7 +216,7 @@ impl<'a> Reader<'a> {
                 fract_val = self.read_bits_no_refill(5);
             }
 
-            value = (int_val as f32) + (fract_val as f32) * (1.0 / (1 << 5) as f32);
+            value = (int_val as f32) + (fract_val as f32) * Self::FRACTION_FACTOR;
 
             if signbit == 1 {
                 value = -value;
@@ -233,7 +233,7 @@ impl<'a> Reader<'a> {
     #[inline(always)]
     pub fn read_bits_as_bytes(&mut self, n: u32) -> Vec<u8> {
         let bits = n % 8;
-        let mut tmp = vec![0; (n / 8) as usize];
+        let mut tmp = vec![0; (n >> 3) as usize];
         self.le_reader.read_bytes(&mut tmp);
         if bits > 0 {
             tmp.push(self.read_bits(bits) as u8);

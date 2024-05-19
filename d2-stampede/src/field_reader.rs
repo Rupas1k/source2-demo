@@ -145,7 +145,7 @@ impl HTree {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn left(&self) -> &HTree {
         match self {
             HTree::Node { left, .. } => left,
@@ -153,7 +153,7 @@ impl HTree {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn right(&self) -> &HTree {
         match self {
             HTree::Node { right, .. } => right,

@@ -19,6 +19,7 @@ impl Serializer {
         }
     }
 
+    #[inline(always)]
     pub(crate) fn get_name_for_field_path(&self, fp: &FieldPath) -> String {
         let mut i = 0;
         let mut current_serializer = self;
@@ -51,6 +52,7 @@ impl Serializer {
         name
     }
 
+    #[inline(always)]
     pub(crate) fn get_type_for_field_path(&self, fp: &FieldPath) -> &FieldType {
         let mut i = 0;
         let mut current_serializer = self;
@@ -85,6 +87,7 @@ impl Serializer {
         }
     }
 
+    #[inline(always)]
     pub fn get_decoder_for_field_path(&self, fp: &FieldPath) -> &Decoders {
         let mut i = 0;
         let mut current_serializer = self;
@@ -117,6 +120,7 @@ impl Serializer {
         }
     }
 
+    #[inline(always)]
     pub(crate) fn get_field_path_for_name(&self, name: &str) -> Result<FieldPath> {
         if !self.fp_cache.borrow().contains_key(name) {
             let mut current_serializer = self;

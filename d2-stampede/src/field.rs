@@ -71,6 +71,7 @@ pub enum Encoder {
 }
 
 impl Encoder {
+    #[inline(always)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "coord" => Some(Encoder::Coord),
@@ -102,8 +103,8 @@ pub enum FieldModels {
 }
 
 pub struct FieldPatch {
-    min_build: u32,
-    max_build: u32,
+    pub min_build: u32,
+    pub max_build: u32,
     pub patch: fn(&mut FieldProperties, &str),
 }
 
@@ -124,7 +125,7 @@ pub enum StateType {
 }
 
 impl StateType {
-    #[inline]
+    #[inline(always)]
     pub fn as_field_state(&self) -> Option<&FieldState> {
         if let StateType::FieldState(x) = self {
             Some(x)
@@ -133,7 +134,7 @@ impl StateType {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn as_field_state_mut(&mut self) -> &mut FieldState {
         if let StateType::FieldState(x) = self {
             return x;
@@ -141,7 +142,7 @@ impl StateType {
         unreachable!()
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn as_value(&self) -> Option<&FieldValue> {
         if let StateType::Value(x) = self {
             Some(x)
@@ -157,14 +158,14 @@ pub struct FieldState {
 }
 
 impl FieldState {
-    #[inline]
+    #[inline(always)]
     pub fn new(len: usize) -> Self {
         FieldState {
             state: vec![None; len],
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn get_value(&self, fp: &FieldPath) -> Option<&FieldValue> {
         let mut current_state = self;
         for i in 0..fp.last {
@@ -177,7 +178,7 @@ impl FieldState {
             .as_value()
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn get_field_state(&self, fp: &FieldPath) -> Option<&FieldState> {
         let mut current_state = self;
         for i in 0..fp.last {
@@ -190,7 +191,7 @@ impl FieldState {
             .as_field_state()
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn set(&mut self, fp: &FieldPath, v: FieldValue) {
         unsafe {
             let mut current_state = self;
@@ -237,7 +238,7 @@ pub struct FieldPath {
 }
 
 impl FieldPath {
-    #[inline]
+    #[inline(always)]
     pub(crate) fn new() -> Self {
         FieldPath {
             path: [u8::MAX, 0, 0, 0, 0, 0, 0],
@@ -245,7 +246,7 @@ impl FieldPath {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn pop(&mut self, n: usize) {
         for _ in 0..n {
             self.path[self.last] = 0;
@@ -253,17 +254,17 @@ impl FieldPath {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn inc(&mut self, n: usize, val: u8) {
         self.path[n] = self.path[n].wrapping_add(val)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn sub(&mut self, n: usize, val: u8) {
         self.path[n] = self.path[n].wrapping_sub(val)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn inc_curr(&mut self, val: u8) {
         self.path[self.last] = self.path[self.last].wrapping_add(val)
     }

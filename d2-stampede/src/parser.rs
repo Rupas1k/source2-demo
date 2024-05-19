@@ -22,23 +22,10 @@ struct OuterMessage {
     buf: Vec<u8>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub struct PendingMessage {
-    pub msg_type: i32,
-    pub buf: Vec<u8>,
-}
-
-impl PendingMessage {
-    pub fn new(msg_type: i32, buf: Vec<u8>) -> Self {
-        PendingMessage { msg_type, buf }
-    }
-}
-
 pub struct Parser<'a> {
     reader: Reader<'a>,
     field_reader: FieldReader,
 
-    pending_messages: VecDeque<PendingMessage>,
     serializers: FxHashMap<Box<str>, Rc<Serializer>>,
     baselines: IntMap<i32, Rc<Vec<u8>>>,
 
@@ -61,7 +48,6 @@ impl<'a> Parser<'a> {
             reader: Reader::new(buf),
             field_reader: FieldReader::new(),
 
-            pending_messages: VecDeque::new(),
             serializers: FxHashMap::default(),
             baselines: IntMap::default(),
 
@@ -88,6 +74,7 @@ impl<'a> Parser<'a> {
         rc.clone()
     }
 
+    #[inline(always)]
     fn on_packet(&mut self, msg_type: EDemoCommands, msg: &[u8]) -> Result<()> {
         match msg_type {
             EDemoCommands::DemSendTables => self.send_tables(msg)?,
@@ -102,6 +89,7 @@ impl<'a> Parser<'a> {
             .try_for_each(|obs| obs.borrow_mut().on_packet(self, msg_type, msg))
     }
 
+    #[inline(always)]
     fn on_net_message(&mut self, msg_type: NetMessages, msg: &[u8]) -> Result<()> {
         if msg_type == NetMessages::NetTick {
             self.net_tick = CnetMsgTick::decode(msg)?.tick();
@@ -112,6 +100,7 @@ impl<'a> Parser<'a> {
             .try_for_each(|obs| obs.borrow_mut().on_net_message(self, msg_type, msg))
     }
 
+    #[inline(always)]
     fn on_svc_message(&mut self, msg_type: SvcMessages, msg: &[u8]) -> Result<()> {
         match msg_type {
             SvcMessages::SvcServerInfo => self.server_info(msg)?,
@@ -126,24 +115,28 @@ impl<'a> Parser<'a> {
             .try_for_each(|obs| obs.borrow_mut().on_svc_message(self, msg_type, msg))
     }
 
+    #[inline(always)]
     fn on_base_user_message(&mut self, msg_type: EBaseUserMessages, msg: &[u8]) -> Result<()> {
         self.observers
             .iter()
             .try_for_each(|obs| obs.borrow_mut().on_base_user_message(self, msg_type, msg))
     }
 
+    #[inline(always)]
     fn on_base_entity_message(&mut self, msg_type: EBaseEntityMessages, msg: &[u8]) -> Result<()> {
         self.observers
             .iter()
             .try_for_each(|obs| obs.borrow_mut().on_base_entity_message(self, msg_type, msg))
     }
 
+    #[inline(always)]
     fn on_base_game_event(&mut self, msg_type: EBaseGameEvents, msg: &[u8]) -> Result<()> {
         self.observers
             .iter()
             .try_for_each(|obs| obs.borrow_mut().on_base_game_event(self, msg_type, msg))
     }
 
+    #[inline(always)]
     fn on_dota_user_message(&mut self, msg_type: EDotaUserMessages, msg: &[u8]) -> Result<()> {
         if msg_type == EDotaUserMessages::DotaUmCombatLogDataHltv {
             let entry = CMsgDotaCombatLogEntry::decode(msg)?;
@@ -321,6 +314,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    #[inline(always)]
     fn class_info(&mut self, msg: &[u8]) -> Result<()> {
         let info = CDemoClassInfo::decode(msg)?;
         for class in info.classes {
@@ -339,19 +333,34 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    #[inline(always)]
     fn dem_packet(&mut self, msg: &[u8]) -> Result<()> {
         let packet = CDemoPacket::decode(msg)?;
         let mut packet_reader = Reader::new(packet.data());
         while !packet_reader.empty() {
-            let t = packet_reader.read_ubit_var() as i32;
+            let msg_type = packet_reader.read_ubit_var() as i32;
             let size = packet_reader.read_var_u32();
             let packet_buf = packet_reader.read_bytes(size);
-            let message = PendingMessage::new(t, packet_buf);
-            self.pending_messages.push_back(message);
+
+            if let Ok(msg) = EDotaUserMessages::try_from(msg_type) {
+                self.on_dota_user_message(msg, &packet_buf)?;
+            } else if let Ok(msg) = SvcMessages::try_from(msg_type) {
+                self.on_svc_message(msg, &packet_buf)?;
+            } else if let Ok(msg) = EBaseUserMessages::try_from(msg_type) {
+                self.on_base_user_message(msg, &packet_buf)?;
+            } else if let Ok(msg) = EBaseGameEvents::try_from(msg_type) {
+                self.on_base_game_event(msg, &packet_buf)?;
+            } else if let Ok(msg) = NetMessages::try_from(msg_type) {
+                self.on_net_message(msg, &packet_buf)?;
+            } else if let Ok(msg) = EBaseEntityMessages::try_from(msg_type) {
+                self.on_base_entity_message(msg, &packet_buf)?;
+            }
         }
-        self.process_messages()
+
+        Ok(())
     }
 
+    #[inline(always)]
     fn full_packet(&mut self, msg: &[u8]) -> Result<()> {
         let packet = CDemoFullPacket::decode(msg)?;
         self.on_packet(
@@ -360,6 +369,7 @@ impl<'a> Parser<'a> {
         )
     }
 
+    #[inline(always)]
     fn read_outer_message(&mut self) -> Result<Option<OuterMessage>> {
         if self.reader.empty() {
             return Ok(None);
@@ -387,25 +397,7 @@ impl<'a> Parser<'a> {
         Ok(Some(OuterMessage { msg_type, buf }))
     }
 
-    fn process_messages(&mut self) -> Result<()> {
-        while let Some(message) = self.pending_messages.pop_front() {
-            if let Ok(msg) = EDotaUserMessages::try_from(message.msg_type) {
-                self.on_dota_user_message(msg, &message.buf)?;
-            } else if let Ok(msg) = SvcMessages::try_from(message.msg_type) {
-                self.on_svc_message(msg, &message.buf)?;
-            } else if let Ok(msg) = EBaseUserMessages::try_from(message.msg_type) {
-                self.on_base_user_message(msg, &message.buf)?;
-            } else if let Ok(msg) = EBaseGameEvents::try_from(message.msg_type) {
-                self.on_base_game_event(msg, &message.buf)?;
-            } else if let Ok(msg) = NetMessages::try_from(message.msg_type) {
-                self.on_net_message(msg, &message.buf)?;
-            } else if let Ok(msg) = EBaseEntityMessages::try_from(message.msg_type) {
-                self.on_base_entity_message(msg, &message.buf)?;
-            }
-        }
-        Ok(())
-    }
-
+    #[inline(always)]
     fn packet_entities(&mut self, msg: &[u8]) -> Result<()> {
         let packet = CsvcMsgPacketEntities::decode(msg)?;
         let mut r = Reader::new(packet.entity_data());
@@ -421,6 +413,13 @@ impl<'a> Parser<'a> {
             }
             self.entities.entity_full_packets += 1;
         }
+
+        let throw_event = |ctx: &Parser, index: &i32, event: EntityEvent| -> Result<()> {
+            self.observers.iter().try_for_each(|obs| {
+                obs.borrow_mut()
+                    .on_entity(ctx, event, &ctx.entities.index_to_entity[index])
+            })
+        };
 
         for _ in 0..updates {
             index += r.read_ubit_var() as i32 + 1;
@@ -475,11 +474,29 @@ impl<'a> Parser<'a> {
                     op |= EntityEvent::Deleted as isize;
                 }
             }
-            self.entities.undone_entities.push_back((index, op));
+
+            if op & EntityEvent::Created as isize != 0 {
+                throw_event(self, &index, EntityEvent::Created)?;
+            }
+            if op & EntityEvent::Entered as isize != 0 {
+                throw_event(self, &index, EntityEvent::Entered)?;
+            }
+            if op & EntityEvent::Updated as isize != 0 {
+                throw_event(self, &index, EntityEvent::Updated)?;
+            }
+            if op & EntityEvent::Left as isize != 0 {
+                throw_event(self, &index, EntityEvent::Left)?;
+            }
+            if op & EntityEvent::Deleted as isize != 0 {
+                throw_event(self, &index, EntityEvent::Deleted)?;
+                self.entities.index_to_entity.remove(&index);
+            }
         }
-        self.process_entities()
+
+        Ok(())
     }
 
+    #[inline(always)]
     fn update_string_table(&mut self, msg: &[u8]) -> Result<()> {
         let st = CsvcMsgUpdateStringTable::decode(msg)?;
         let mut table = self.string_tables.tables[&st.table_id()].borrow_mut();
@@ -512,6 +529,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    #[inline(always)]
     fn create_string_table(&mut self, msg: &[u8]) -> Result<()> {
         let st = CsvcMsgCreateStringTable::decode(msg)?;
 
@@ -561,6 +579,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    #[inline(always)]
     fn server_info(&mut self, msg: &[u8]) -> Result<()> {
         let info = CsvcMsgServerInfo::decode(msg)?;
         self.classes.class_id_size = Some((f64::log2(info.max_classes() as f64) + 1.0) as u32);
@@ -581,41 +600,14 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn process_entities(&mut self) -> Result<()> {
-        let throw_event = |ctx: &Parser, index: &i32, event: EntityEvent| -> Result<()> {
-            self.observers.iter().try_for_each(|obs| {
-                obs.borrow_mut()
-                    .on_entity(ctx, event, &ctx.entities.index_to_entity[index])
-            })
-        };
-
-        while let Some((index, op)) = self.entities.undone_entities.pop_front() {
-            if op & EntityEvent::Created as isize != 0 {
-                throw_event(self, &index, EntityEvent::Created)?;
-            }
-            if op & EntityEvent::Entered as isize != 0 {
-                throw_event(self, &index, EntityEvent::Entered)?;
-            }
-            if op & EntityEvent::Updated as isize != 0 {
-                throw_event(self, &index, EntityEvent::Updated)?;
-            }
-            if op & EntityEvent::Left as isize != 0 {
-                throw_event(self, &index, EntityEvent::Left)?;
-            }
-            if op & EntityEvent::Deleted as isize != 0 {
-                throw_event(self, &index, EntityEvent::Deleted)?;
-                self.entities.index_to_entity.remove(&index);
-            }
-        }
-        Ok(())
-    }
-
+    #[inline(always)]
     pub(crate) fn on_tick_start(&mut self) -> Result<()> {
         self.observers
             .iter()
             .try_for_each(|obs| obs.borrow_mut().on_tick_start(self))
     }
 
+    #[inline(always)]
     pub(crate) fn on_tick_end(&mut self) -> Result<()> {
         if let Ok(names) = self.string_tables.get_by_name("CombatLogNames") {
             while let Some(entry) = self.combat_log.pop_front() {
@@ -632,6 +624,7 @@ impl<'a> Parser<'a> {
             .try_for_each(|obs| obs.borrow_mut().on_tick_end(self))
     }
 
+    #[inline(always)]
     pub(crate) fn on_combat_log(&self, entry: &CombatLog) -> Result<()> {
         self.observers
             .iter()

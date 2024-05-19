@@ -29,6 +29,7 @@ pub enum Decoders {
 }
 
 impl Decoders {
+    #[inline(always)]
     pub fn from_field(field_type: &FieldType, properties: FieldProperties) -> Self {
         match field_type.base.as_ref() {
             "bool" => Decoders::Boolean,
@@ -65,12 +66,15 @@ impl Decoders {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub(crate) fn decode(&self, reader: &mut Reader) -> FieldValue {
         match self {
             Decoders::VectorNormal => FieldValue::Vector3D(reader.read_3bit_normal()),
             Decoders::Fixed64 => FieldValue::Unsigned64(reader.read_le_u64()),
-            Decoders::Boolean => FieldValue::Boolean(reader.read_bool()),
+            Decoders::Boolean => FieldValue::Boolean({
+                reader.refill();
+                reader.read_bool()
+            }),
             Decoders::String => FieldValue::String(reader.read_string()),
             Decoders::Default => FieldValue::Unsigned32(reader.read_var_u32()),
             Decoders::Signed8 => FieldValue::Signed8(reader.read_var_i32() as i8),
@@ -84,7 +88,10 @@ impl Decoders {
             Decoders::Unsigned8 => FieldValue::Unsigned8(reader.read_var_u32() as u8),
             Decoders::Unsigned16 => FieldValue::Unsigned16(reader.read_var_u32() as u16),
             Decoders::Unsigned32 => FieldValue::Unsigned32(reader.read_var_u32()),
-            Decoders::Component => FieldValue::Boolean(reader.read_bool()),
+            Decoders::Component => FieldValue::Boolean({
+                reader.refill();
+                reader.read_bool()
+            }),
             Decoders::Float32(fp) => match fp.encoder {
                 Some(Encoder::Coord) => Decoders::FloatCoordinate.decode(reader),
                 Some(Encoder::SimTime) => Decoders::SimulationTime.decode(reader),
