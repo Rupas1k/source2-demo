@@ -36,7 +36,14 @@ impl Serializer {
                     name += &format!(".{:04}.", fp.path[i]);
                     current_serializer = serializer;
                 }
-                FieldModels::FixedTable(_) | FieldModels::Simple => break,
+                FieldModels::FixedTable(serializer) => {
+                    if i > fp.last {
+                        break;
+                    }
+                    name += ".";
+                    current_serializer = serializer;
+                }
+                FieldModels::Simple => break,
             }
             i += 1;
             current_field = &current_serializer.fields[fp.path[i] as usize];
