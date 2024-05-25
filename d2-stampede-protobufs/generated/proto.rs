@@ -30,6 +30,8 @@ pub struct CDemoFileHeader {
     pub build_num: ::core::option::Option<i32>,
     #[prost(string, optional, tag = "14")]
     pub game: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(int32, optional, tag = "15")]
+    pub server_start_tick: ::core::option::Option<i32>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -518,7 +520,7 @@ pub struct CnetMsgSplitScreenUser {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CnetMsgDisconnect {
+pub struct CnetMsgDisconnectLegacy {
     #[prost(
         enumeration = "ENetworkDisconnectionReason",
         optional,
@@ -551,7 +553,9 @@ pub struct CnetMsgTick {
     #[prost(uint32, optional, tag = "10")]
     pub expected_long_tick: ::core::option::Option<u32>,
     #[prost(string, optional, tag = "11")]
-    pub expected_long_tick_reason: ::core::option::Option<::prost::alloc::string::String>,
+    pub expected_long_tick_reason: ::core::option::Option<
+        ::prost::alloc::string::String,
+    >,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -796,7 +800,7 @@ pub enum SignonStateT {
 #[repr(i32)]
 pub enum NetMessages {
     NetNop = 0,
-    NetDisconnect = 1,
+    NetDisconnectLegacy = 1,
     NetSplitScreenUser = 3,
     NetTick = 4,
     NetStringCmd = 5,
@@ -1035,6 +1039,7 @@ pub enum DotaunitorderT {
     DotaUnitOrderTakeItemFromNeutralItemStash = 38,
     DotaUnitOrderMoveRelative = 39,
     DotaUnitOrderCastToggleAlt = 40,
+    DotaUnitOrderConsumeItem = 41,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -2495,7 +2500,9 @@ pub struct CdotaUserMsgCourierKilledAlert {
     #[prost(int32, optional, tag = "4")]
     pub timestamp: ::core::option::Option<i32>,
     #[prost(message, repeated, tag = "5")]
-    pub lost_items: ::prost::alloc::vec::Vec<cdota_user_msg_courier_killed_alert::LostItem>,
+    pub lost_items: ::prost::alloc::vec::Vec<
+        cdota_user_msg_courier_killed_alert::LostItem,
+    >,
     #[prost(int32, optional, tag = "6", default = "-1")]
     pub killer_player_id: ::core::option::Option<i32>,
     #[prost(int32, optional, tag = "7", default = "-1")]
@@ -2690,7 +2697,9 @@ pub struct CdotaUserMsgPredictionResult {
     #[prost(bool, optional, tag = "3")]
     pub correct: ::core::option::Option<bool>,
     #[prost(message, repeated, tag = "4")]
-    pub predictions: ::prost::alloc::vec::Vec<cdota_user_msg_prediction_result::Prediction>,
+    pub predictions: ::prost::alloc::vec::Vec<
+        cdota_user_msg_prediction_result::Prediction,
+    >,
 }
 /// Nested message and enum types in `CDOTAUserMsg_PredictionResult`.
 pub mod cdota_user_msg_prediction_result {
@@ -2716,7 +2725,15 @@ pub mod cdota_user_msg_prediction_result {
     /// Nested message and enum types in `Prediction`.
     pub mod prediction {
         #[derive(
-            Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration,
+            Clone,
+            Copy,
+            Debug,
+            PartialEq,
+            Eq,
+            Hash,
+            PartialOrd,
+            Ord,
+            ::prost::Enumeration
         )]
         #[repr(i32)]
         pub enum EResult {
@@ -2757,7 +2774,15 @@ pub mod cdota_response_query_serialized {
     /// Nested message and enum types in `Fact`.
     pub mod fact {
         #[derive(
-            Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration,
+            Clone,
+            Copy,
+            Debug,
+            PartialEq,
+            Eq,
+            Hash,
+            PartialOrd,
+            Ord,
+            ::prost::Enumeration
         )]
         #[repr(i32)]
         pub enum ValueType {
@@ -3239,6 +3264,8 @@ pub struct CdotaUserMsgAbilityPing {
     pub ctrl_held: ::core::option::Option<bool>,
     #[prost(float, optional, tag = "13")]
     pub reclaim_time: ::core::option::Option<f32>,
+    #[prost(int32, optional, tag = "14", default = "-1")]
+    pub owner_entity: ::core::option::Option<i32>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -3360,8 +3387,9 @@ pub struct CdotaUserMsgStatsHeroPositionInfo {
     #[prost(float, optional, tag = "1")]
     pub average_position: ::core::option::Option<f32>,
     #[prost(message, repeated, tag = "2")]
-    pub position_details:
-        ::prost::alloc::vec::Vec<cdota_user_msg_stats_hero_position_info::PositionPair>,
+    pub position_details: ::prost::alloc::vec::Vec<
+        cdota_user_msg_stats_hero_position_info::PositionPair,
+    >,
 }
 /// Nested message and enum types in `CDOTAUserMsg_StatsHeroPositionInfo`.
 pub mod cdota_user_msg_stats_hero_position_info {
@@ -3435,8 +3463,9 @@ pub struct CdotaUserMsgStatsTeamMinuteDetails {
     #[prost(uint32, optional, tag = "9")]
     pub balance_xp_value: ::core::option::Option<u32>,
     #[prost(message, repeated, tag = "10")]
-    pub lane_performance:
-        ::prost::alloc::vec::Vec<cdota_user_msg_stats_team_minute_details::LocationPerformance>,
+    pub lane_performance: ::prost::alloc::vec::Vec<
+        cdota_user_msg_stats_team_minute_details::LocationPerformance,
+    >,
 }
 /// Nested message and enum types in `CDOTAUserMsg_StatsTeamMinuteDetails`.
 pub mod cdota_user_msg_stats_team_minute_details {
@@ -3497,8 +3526,9 @@ pub struct CdotaUserMsgStatsMatchDetails {
     #[prost(message, repeated, tag = "5")]
     pub dire_kills: ::prost::alloc::vec::Vec<CdotaUserMsgStatsKillDetails>,
     #[prost(message, repeated, tag = "6")]
-    pub fight_details:
-        ::prost::alloc::vec::Vec<cdota_user_msg_stats_match_details::CdotaUserMsgStatsFightDetails>,
+    pub fight_details: ::prost::alloc::vec::Vec<
+        cdota_user_msg_stats_match_details::CdotaUserMsgStatsFightDetails,
+    >,
 }
 /// Nested message and enum types in `CDOTAUserMsg_StatsMatchDetails`.
 pub mod cdota_user_msg_stats_match_details {
@@ -3522,9 +3552,13 @@ pub mod cdota_user_msg_stats_match_details {
         #[prost(float, optional, tag = "2")]
         pub end_time: ::core::option::Option<f32>,
         #[prost(message, optional, tag = "3")]
-        pub radiant_fight_details: ::core::option::Option<CdotaUserMsgStatsFightTeamDetails>,
+        pub radiant_fight_details: ::core::option::Option<
+            CdotaUserMsgStatsFightTeamDetails,
+        >,
         #[prost(message, optional, tag = "4")]
-        pub dire_fight_details: ::core::option::Option<CdotaUserMsgStatsFightTeamDetails>,
+        pub dire_fight_details: ::core::option::Option<
+            CdotaUserMsgStatsFightTeamDetails,
+        >,
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -3721,6 +3755,8 @@ pub struct CdotaUserMsgSuggestHeroPick {
     pub hero_id: ::core::option::Option<u32>,
     #[prost(bool, optional, tag = "3")]
     pub ban: ::core::option::Option<bool>,
+    #[prost(uint32, optional, tag = "4")]
+    pub facet_id: ::core::option::Option<u32>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -3956,7 +3992,9 @@ pub struct CdotaUserMsgAllStarEvent {
     #[prost(uint32, optional, tag = "4")]
     pub event_id: ::core::option::Option<u32>,
     #[prost(message, repeated, tag = "5")]
-    pub player_scores: ::prost::alloc::vec::Vec<cdota_user_msg_all_star_event::PlayerScore>,
+    pub player_scores: ::prost::alloc::vec::Vec<
+        cdota_user_msg_all_star_event::PlayerScore,
+    >,
 }
 /// Nested message and enum types in `CDOTAUserMsg_AllStarEvent`.
 pub mod cdota_user_msg_all_star_event {
@@ -4105,8 +4143,9 @@ pub struct CdotaUserMsgWkArcanaProgress {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CdotaUserMsgGuildChallengeProgress {
     #[prost(message, repeated, tag = "1")]
-    pub player_progress:
-        ::prost::alloc::vec::Vec<cdota_user_msg_guild_challenge_progress::PlayerProgress>,
+    pub player_progress: ::prost::alloc::vec::Vec<
+        cdota_user_msg_guild_challenge_progress::PlayerProgress,
+    >,
     #[prost(uint32, optional, tag = "2")]
     pub guild_id: ::core::option::Option<u32>,
     #[prost(uint32, optional, tag = "3")]
@@ -4135,7 +4174,17 @@ pub mod cdota_user_msg_guild_challenge_progress {
         #[prost(uint32, optional, tag = "6")]
         pub progress: ::core::option::Option<u32>,
     }
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum EChallengeType {
         KEChallengeTypeInvalid = 0,
@@ -4335,6 +4384,28 @@ pub struct CdotaUserMsgPlayerDraftPick {
     #[prost(int32, optional, tag = "3")]
     pub team: ::core::option::Option<i32>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CdotaUserMsgFacetPing {
+    #[prost(int32, optional, tag = "1", default = "-1")]
+    pub player_id: ::core::option::Option<i32>,
+    #[prost(uint32, optional, tag = "2")]
+    pub facet_strhash: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "3")]
+    pub entity_id: ::core::option::Option<u32>,
+    #[prost(bool, optional, tag = "4")]
+    pub all_chat: ::core::option::Option<bool>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CdotaUserMsgInnatePing {
+    #[prost(int32, optional, tag = "1", default = "-1")]
+    pub player_id: ::core::option::Option<i32>,
+    #[prost(uint32, optional, tag = "2")]
+    pub entity_id: ::core::option::Option<u32>,
+    #[prost(bool, optional, tag = "3")]
+    pub all_chat: ::core::option::Option<bool>,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum EDotaUserMessages {
@@ -4496,6 +4567,8 @@ pub enum EDotaUserMessages {
     DotaUmPlayerDraftPick = 621,
     DotaUmUpdateLinearProjectileCpData = 622,
     DotaUmGiftPlayer = 623,
+    DotaUmFacetPing = 624,
+    DotaUmInnatePing = 625,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -4698,6 +4771,7 @@ pub enum DotaOverheadAlert {
     OverheadAlertItemReceived = 22,
     OverheadAlertShard = 23,
     OverheadAlertDeadlyBlow = 24,
+    OverheadAlertForceMiss = 25,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -4858,7 +4932,9 @@ pub struct CMsgClearDecalsForSkeletonInstanceEvent {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CMsgSource1LegacyGameEventList {
     #[prost(message, repeated, tag = "1")]
-    pub descriptors: ::prost::alloc::vec::Vec<c_msg_source1_legacy_game_event_list::DescriptorT>,
+    pub descriptors: ::prost::alloc::vec::Vec<
+        c_msg_source1_legacy_game_event_list::DescriptorT,
+    >,
 }
 /// Nested message and enum types in `CMsgSource1LegacyGameEventList`.
 pub mod c_msg_source1_legacy_game_event_list {
@@ -5125,12 +5201,7 @@ pub struct CclcMsgServerStatus {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CclcMsgRequestPause {
-    #[prost(
-        enumeration = "RequestPauseT",
-        optional,
-        tag = "1",
-        default = "RpPause"
-    )]
+    #[prost(enumeration = "RequestPauseT", optional, tag = "1", default = "RpPause")]
     pub pause_type: ::core::option::Option<i32>,
     #[prost(int32, optional, tag = "2")]
     pub pause_group: ::core::option::Option<i32>,
@@ -5282,12 +5353,7 @@ pub mod csvc_msg_sounds {
 pub struct CsvcMsgPrefetch {
     #[prost(int32, optional, tag = "1")]
     pub sound_index: ::core::option::Option<i32>,
-    #[prost(
-        enumeration = "PrefetchType",
-        optional,
-        tag = "2",
-        default = "PftSound"
-    )]
+    #[prost(enumeration = "PrefetchType", optional, tag = "2", default = "PftSound")]
     pub resource_type: ::core::option::Option<i32>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -5463,16 +5529,21 @@ pub struct CsvcMsgPacketEntities {
     #[prost(bytes = "vec", optional, tag = "13")]
     pub serialized_entities: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
     #[prost(message, optional, tag = "14")]
-    pub command_queue_info: ::core::option::Option<csvc_msg_packet_entities::CommandQueueInfoT>,
+    pub command_queue_info: ::core::option::Option<
+        csvc_msg_packet_entities::CommandQueueInfoT,
+    >,
     #[prost(message, repeated, tag = "15")]
-    pub alternate_baselines: ::prost::alloc::vec::Vec<csvc_msg_packet_entities::AlternateBaselineT>,
+    pub alternate_baselines: ::prost::alloc::vec::Vec<
+        csvc_msg_packet_entities::AlternateBaselineT,
+    >,
     #[prost(uint32, optional, tag = "16")]
     pub has_pvs_vis_bits: ::core::option::Option<u32>,
     #[prost(uint32, optional, tag = "18")]
     pub last_cmd_recv_margin: ::core::option::Option<u32>,
     #[prost(message, optional, tag = "19")]
-    pub non_transmitted_entities:
-        ::core::option::Option<csvc_msg_packet_entities::NonTransmittedEntitiesT>,
+    pub non_transmitted_entities: ::core::option::Option<
+        csvc_msg_packet_entities::NonTransmittedEntitiesT,
+    >,
     #[prost(bytes = "vec", optional, tag = "999")]
     pub dev_padding: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
 }
@@ -5483,12 +5554,8 @@ pub mod csvc_msg_packet_entities {
     pub struct CommandQueueInfoT {
         #[prost(uint32, optional, tag = "1")]
         pub commands_queued: ::core::option::Option<u32>,
-        #[prost(uint32, optional, tag = "2")]
-        pub command_queue_desired_size: ::core::option::Option<u32>,
         #[prost(uint32, optional, tag = "3")]
         pub starved_command_ticks: ::core::option::Option<u32>,
-        #[prost(float, optional, tag = "4")]
-        pub time_dilation_percent: ::core::option::Option<f32>,
         #[prost(uint32, optional, tag = "5")]
         pub discarded_command_ticks: ::core::option::Option<u32>,
     }
@@ -5687,8 +5754,9 @@ pub struct ProtoFlattenedSerializerFieldT {
     #[prost(int32, optional, tag = "10")]
     pub var_encoder_sym: ::core::option::Option<i32>,
     #[prost(message, repeated, tag = "11")]
-    pub polymorphic_types:
-        ::prost::alloc::vec::Vec<proto_flattened_serializer_field_t::PolymorphicFieldT>,
+    pub polymorphic_types: ::prost::alloc::vec::Vec<
+        proto_flattened_serializer_field_t::PolymorphicFieldT,
+    >,
     #[prost(int32, optional, tag = "12")]
     pub var_serializer_sym: ::core::option::Option<i32>,
 }
@@ -6377,8 +6445,9 @@ pub struct CUserMessageCameraTransition {
     #[prost(float, optional, tag = "2")]
     pub duration: ::core::option::Option<f32>,
     #[prost(message, optional, tag = "3")]
-    pub params_data_driven:
-        ::core::option::Option<c_user_message_camera_transition::TransitionDataDriven>,
+    pub params_data_driven: ::core::option::Option<
+        c_user_message_camera_transition::TransitionDataDriven,
+    >,
 }
 /// Nested message and enum types in `CUserMessageCameraTransition`.
 pub mod c_user_message_camera_transition {
@@ -6406,93 +6475,137 @@ pub struct CUserMsgParticleManager {
     #[prost(uint32, required, tag = "2")]
     pub index: u32,
     #[prost(message, optional, tag = "3")]
-    pub release_particle_index:
-        ::core::option::Option<c_user_msg_particle_manager::ReleaseParticleIndex>,
+    pub release_particle_index: ::core::option::Option<
+        c_user_msg_particle_manager::ReleaseParticleIndex,
+    >,
     #[prost(message, optional, tag = "4")]
-    pub create_particle: ::core::option::Option<c_user_msg_particle_manager::CreateParticle>,
+    pub create_particle: ::core::option::Option<
+        c_user_msg_particle_manager::CreateParticle,
+    >,
     #[prost(message, optional, tag = "5")]
-    pub destroy_particle: ::core::option::Option<c_user_msg_particle_manager::DestroyParticle>,
+    pub destroy_particle: ::core::option::Option<
+        c_user_msg_particle_manager::DestroyParticle,
+    >,
     #[prost(message, optional, tag = "6")]
-    pub destroy_particle_involving:
-        ::core::option::Option<c_user_msg_particle_manager::DestroyParticleInvolving>,
+    pub destroy_particle_involving: ::core::option::Option<
+        c_user_msg_particle_manager::DestroyParticleInvolving,
+    >,
     #[prost(message, optional, tag = "7")]
-    pub update_particle:
-        ::core::option::Option<c_user_msg_particle_manager::UpdateParticleObsolete>,
+    pub update_particle: ::core::option::Option<
+        c_user_msg_particle_manager::UpdateParticleObsolete,
+    >,
     #[prost(message, optional, tag = "8")]
-    pub update_particle_fwd:
-        ::core::option::Option<c_user_msg_particle_manager::UpdateParticleFwdObsolete>,
+    pub update_particle_fwd: ::core::option::Option<
+        c_user_msg_particle_manager::UpdateParticleFwdObsolete,
+    >,
     #[prost(message, optional, tag = "9")]
-    pub update_particle_orient:
-        ::core::option::Option<c_user_msg_particle_manager::UpdateParticleOrientObsolete>,
+    pub update_particle_orient: ::core::option::Option<
+        c_user_msg_particle_manager::UpdateParticleOrientObsolete,
+    >,
     #[prost(message, optional, tag = "10")]
-    pub update_particle_fallback:
-        ::core::option::Option<c_user_msg_particle_manager::UpdateParticleFallback>,
+    pub update_particle_fallback: ::core::option::Option<
+        c_user_msg_particle_manager::UpdateParticleFallback,
+    >,
     #[prost(message, optional, tag = "11")]
-    pub update_particle_offset:
-        ::core::option::Option<c_user_msg_particle_manager::UpdateParticleOffset>,
+    pub update_particle_offset: ::core::option::Option<
+        c_user_msg_particle_manager::UpdateParticleOffset,
+    >,
     #[prost(message, optional, tag = "12")]
-    pub update_particle_ent: ::core::option::Option<c_user_msg_particle_manager::UpdateParticleEnt>,
+    pub update_particle_ent: ::core::option::Option<
+        c_user_msg_particle_manager::UpdateParticleEnt,
+    >,
     #[prost(message, optional, tag = "14")]
-    pub update_particle_should_draw:
-        ::core::option::Option<c_user_msg_particle_manager::UpdateParticleShouldDraw>,
+    pub update_particle_should_draw: ::core::option::Option<
+        c_user_msg_particle_manager::UpdateParticleShouldDraw,
+    >,
     #[prost(message, optional, tag = "15")]
-    pub update_particle_set_frozen:
-        ::core::option::Option<c_user_msg_particle_manager::UpdateParticleSetFrozen>,
+    pub update_particle_set_frozen: ::core::option::Option<
+        c_user_msg_particle_manager::UpdateParticleSetFrozen,
+    >,
     #[prost(message, optional, tag = "16")]
-    pub change_control_point_attachment:
-        ::core::option::Option<c_user_msg_particle_manager::ChangeControlPointAttachment>,
+    pub change_control_point_attachment: ::core::option::Option<
+        c_user_msg_particle_manager::ChangeControlPointAttachment,
+    >,
     #[prost(message, optional, tag = "17")]
-    pub update_entity_position:
-        ::core::option::Option<c_user_msg_particle_manager::UpdateEntityPosition>,
+    pub update_entity_position: ::core::option::Option<
+        c_user_msg_particle_manager::UpdateEntityPosition,
+    >,
     #[prost(message, optional, tag = "18")]
-    pub set_particle_fow_properties:
-        ::core::option::Option<c_user_msg_particle_manager::SetParticleFoWProperties>,
+    pub set_particle_fow_properties: ::core::option::Option<
+        c_user_msg_particle_manager::SetParticleFoWProperties,
+    >,
     #[prost(message, optional, tag = "19")]
-    pub set_particle_text: ::core::option::Option<c_user_msg_particle_manager::SetParticleText>,
+    pub set_particle_text: ::core::option::Option<
+        c_user_msg_particle_manager::SetParticleText,
+    >,
     #[prost(message, optional, tag = "20")]
-    pub set_particle_should_check_fow:
-        ::core::option::Option<c_user_msg_particle_manager::SetParticleShouldCheckFoW>,
+    pub set_particle_should_check_fow: ::core::option::Option<
+        c_user_msg_particle_manager::SetParticleShouldCheckFoW,
+    >,
     #[prost(message, optional, tag = "21")]
-    pub set_control_point_model:
-        ::core::option::Option<c_user_msg_particle_manager::SetControlPointModel>,
+    pub set_control_point_model: ::core::option::Option<
+        c_user_msg_particle_manager::SetControlPointModel,
+    >,
     #[prost(message, optional, tag = "22")]
-    pub set_control_point_snapshot:
-        ::core::option::Option<c_user_msg_particle_manager::SetControlPointSnapshot>,
+    pub set_control_point_snapshot: ::core::option::Option<
+        c_user_msg_particle_manager::SetControlPointSnapshot,
+    >,
     #[prost(message, optional, tag = "23")]
-    pub set_texture_attribute:
-        ::core::option::Option<c_user_msg_particle_manager::SetTextureAttribute>,
+    pub set_texture_attribute: ::core::option::Option<
+        c_user_msg_particle_manager::SetTextureAttribute,
+    >,
     #[prost(message, optional, tag = "24")]
-    pub set_scene_object_generic_flag:
-        ::core::option::Option<c_user_msg_particle_manager::SetSceneObjectGenericFlag>,
+    pub set_scene_object_generic_flag: ::core::option::Option<
+        c_user_msg_particle_manager::SetSceneObjectGenericFlag,
+    >,
     #[prost(message, optional, tag = "25")]
-    pub set_scene_object_tint_and_desat:
-        ::core::option::Option<c_user_msg_particle_manager::SetSceneObjectTintAndDesat>,
+    pub set_scene_object_tint_and_desat: ::core::option::Option<
+        c_user_msg_particle_manager::SetSceneObjectTintAndDesat,
+    >,
     #[prost(message, optional, tag = "26")]
-    pub destroy_particle_named:
-        ::core::option::Option<c_user_msg_particle_manager::DestroyParticleNamed>,
+    pub destroy_particle_named: ::core::option::Option<
+        c_user_msg_particle_manager::DestroyParticleNamed,
+    >,
     #[prost(message, optional, tag = "27")]
-    pub particle_skip_to_time:
-        ::core::option::Option<c_user_msg_particle_manager::ParticleSkipToTime>,
+    pub particle_skip_to_time: ::core::option::Option<
+        c_user_msg_particle_manager::ParticleSkipToTime,
+    >,
     #[prost(message, optional, tag = "28")]
-    pub particle_can_freeze: ::core::option::Option<c_user_msg_particle_manager::ParticleCanFreeze>,
+    pub particle_can_freeze: ::core::option::Option<
+        c_user_msg_particle_manager::ParticleCanFreeze,
+    >,
     #[prost(message, optional, tag = "29")]
-    pub set_named_value_context:
-        ::core::option::Option<c_user_msg_particle_manager::SetParticleNamedValueContext>,
+    pub set_named_value_context: ::core::option::Option<
+        c_user_msg_particle_manager::SetParticleNamedValueContext,
+    >,
     #[prost(message, optional, tag = "30")]
-    pub update_particle_transform:
-        ::core::option::Option<c_user_msg_particle_manager::UpdateParticleTransform>,
+    pub update_particle_transform: ::core::option::Option<
+        c_user_msg_particle_manager::UpdateParticleTransform,
+    >,
     #[prost(message, optional, tag = "31")]
-    pub particle_freeze_transition_override:
-        ::core::option::Option<c_user_msg_particle_manager::ParticleFreezeTransitionOverride>,
+    pub particle_freeze_transition_override: ::core::option::Option<
+        c_user_msg_particle_manager::ParticleFreezeTransitionOverride,
+    >,
     #[prost(message, optional, tag = "32")]
-    pub freeze_particle_involving:
-        ::core::option::Option<c_user_msg_particle_manager::FreezeParticleInvolving>,
+    pub freeze_particle_involving: ::core::option::Option<
+        c_user_msg_particle_manager::FreezeParticleInvolving,
+    >,
     #[prost(message, optional, tag = "33")]
-    pub add_modellist_override_element:
-        ::core::option::Option<c_user_msg_particle_manager::AddModellistOverrideElement>,
+    pub add_modellist_override_element: ::core::option::Option<
+        c_user_msg_particle_manager::AddModellistOverrideElement,
+    >,
     #[prost(message, optional, tag = "34")]
-    pub clear_modellist_override:
-        ::core::option::Option<c_user_msg_particle_manager::ClearModellistOverride>,
+    pub clear_modellist_override: ::core::option::Option<
+        c_user_msg_particle_manager::ClearModellistOverride,
+    >,
+    #[prost(message, optional, tag = "35")]
+    pub create_physics_sim: ::core::option::Option<
+        c_user_msg_particle_manager::CreatePhysicsSim,
+    >,
+    #[prost(message, optional, tag = "36")]
+    pub destroy_physics_sim: ::core::option::Option<
+        c_user_msg_particle_manager::DestroyPhysicsSim,
+    >,
 }
 /// Nested message and enum types in `CUserMsg_ParticleManager`.
 pub mod c_user_msg_particle_manager {
@@ -6515,7 +6628,9 @@ pub mod c_user_msg_particle_manager {
         #[prost(int32, optional, tag = "6")]
         pub team_behavior: ::core::option::Option<i32>,
         #[prost(string, optional, tag = "7")]
-        pub control_point_configuration: ::core::option::Option<::prost::alloc::string::String>,
+        pub control_point_configuration: ::core::option::Option<
+            ::prost::alloc::string::String,
+        >,
         #[prost(bool, optional, tag = "8")]
         pub cluster: ::core::option::Option<bool>,
         #[prost(float, optional, tag = "9")]
@@ -6767,17 +6882,21 @@ pub mod c_user_msg_particle_manager {
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct SetParticleNamedValueContext {
         #[prost(message, repeated, tag = "1")]
-        pub float_values:
-            ::prost::alloc::vec::Vec<set_particle_named_value_context::FloatContextValue>,
+        pub float_values: ::prost::alloc::vec::Vec<
+            set_particle_named_value_context::FloatContextValue,
+        >,
         #[prost(message, repeated, tag = "2")]
-        pub vector_values:
-            ::prost::alloc::vec::Vec<set_particle_named_value_context::VectorContextValue>,
+        pub vector_values: ::prost::alloc::vec::Vec<
+            set_particle_named_value_context::VectorContextValue,
+        >,
         #[prost(message, repeated, tag = "3")]
-        pub transform_values:
-            ::prost::alloc::vec::Vec<set_particle_named_value_context::TransformContextValue>,
+        pub transform_values: ::prost::alloc::vec::Vec<
+            set_particle_named_value_context::TransformContextValue,
+        >,
         #[prost(message, repeated, tag = "4")]
-        pub ehandle_values:
-            ::prost::alloc::vec::Vec<set_particle_named_value_context::EHandleContext>,
+        pub ehandle_values: ::prost::alloc::vec::Vec<
+            set_particle_named_value_context::EHandleContext,
+        >,
     }
     /// Nested message and enum types in `SetParticleNamedValueContext`.
     pub mod set_particle_named_value_context {
@@ -6816,6 +6935,15 @@ pub mod c_user_msg_particle_manager {
             pub ent_index: ::core::option::Option<u32>,
         }
     }
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct CreatePhysicsSim {
+        #[prost(string, optional, tag = "1")]
+        pub prop_group_name: ::core::option::Option<::prost::alloc::string::String>,
+    }
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct DestroyPhysicsSim {}
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -6925,7 +7053,9 @@ pub struct CUserMessageUtilMsgResponse {
     #[prost(int32, optional, tag = "8")]
     pub platform: ::core::option::Option<i32>,
     #[prost(message, repeated, tag = "9")]
-    pub itemdetails: ::prost::alloc::vec::Vec<c_user_message_util_msg_response::ItemDetail>,
+    pub itemdetails: ::prost::alloc::vec::Vec<
+        c_user_message_util_msg_response::ItemDetail,
+    >,
     #[prost(int32, optional, tag = "10")]
     pub itemgroup: ::core::option::Option<i32>,
     #[prost(int32, optional, tag = "11")]
@@ -7021,11 +7151,17 @@ pub struct CUserMessageInventoryResponse {
     #[prost(int32, optional, tag = "8")]
     pub platform: ::core::option::Option<i32>,
     #[prost(message, repeated, tag = "9")]
-    pub inventories: ::prost::alloc::vec::Vec<c_user_message_inventory_response::InventoryDetail>,
+    pub inventories: ::prost::alloc::vec::Vec<
+        c_user_message_inventory_response::InventoryDetail,
+    >,
     #[prost(message, repeated, tag = "10")]
-    pub inventories2: ::prost::alloc::vec::Vec<c_user_message_inventory_response::InventoryDetail>,
+    pub inventories2: ::prost::alloc::vec::Vec<
+        c_user_message_inventory_response::InventoryDetail,
+    >,
     #[prost(message, repeated, tag = "14")]
-    pub inventories3: ::prost::alloc::vec::Vec<c_user_message_inventory_response::InventoryDetail>,
+    pub inventories3: ::prost::alloc::vec::Vec<
+        c_user_message_inventory_response::InventoryDetail,
+    >,
     #[prost(int32, optional, tag = "11")]
     pub inv_type: ::core::option::Option<i32>,
     #[prost(int32, optional, tag = "12")]
@@ -7066,7 +7202,9 @@ pub mod c_user_message_inventory_response {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CUserMessageRequestDiagnostic {
     #[prost(message, repeated, tag = "1")]
-    pub diagnostics: ::prost::alloc::vec::Vec<c_user_message_request_diagnostic::Diagnostic>,
+    pub diagnostics: ::prost::alloc::vec::Vec<
+        c_user_message_request_diagnostic::Diagnostic,
+    >,
 }
 /// Nested message and enum types in `CUserMessageRequestDiagnostic`.
 pub mod c_user_message_request_diagnostic {
@@ -7105,7 +7243,9 @@ pub mod c_user_message_request_diagnostic {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CUserMessageDiagnosticResponse {
     #[prost(message, repeated, tag = "1")]
-    pub diagnostics: ::prost::alloc::vec::Vec<c_user_message_diagnostic_response::Diagnostic>,
+    pub diagnostics: ::prost::alloc::vec::Vec<
+        c_user_message_diagnostic_response::Diagnostic,
+    >,
     #[prost(int32, optional, tag = "2")]
     pub build_version: ::core::option::Option<i32>,
     #[prost(int32, optional, tag = "3")]
@@ -7180,18 +7320,32 @@ pub struct CUserMessageNotifyResponseFound {
     #[prost(string, optional, tag = "4")]
     pub response_concept: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(message, repeated, tag = "5")]
-    pub criteria: ::prost::alloc::vec::Vec<c_user_message_notify_response_found::Criteria>,
+    pub criteria: ::prost::alloc::vec::Vec<
+        c_user_message_notify_response_found::Criteria,
+    >,
 }
 /// Nested message and enum types in `CUserMessage_NotifyResponseFound`.
 pub mod c_user_message_notify_response_found {
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Criteria {
-        #[prost(string, optional, tag = "1")]
-        pub name: ::core::option::Option<::prost::alloc::string::String>,
+        #[prost(uint32, optional, tag = "1")]
+        pub name_symbol: ::core::option::Option<u32>,
         #[prost(string, optional, tag = "2")]
         pub value: ::core::option::Option<::prost::alloc::string::String>,
     }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CUserMessagePlayResponseConditional {
+    #[prost(int32, optional, tag = "1", default = "-1")]
+    pub ent_index: ::core::option::Option<i32>,
+    #[prost(int32, repeated, packed = "false", tag = "2")]
+    pub player_slots: ::prost::alloc::vec::Vec<i32>,
+    #[prost(string, optional, tag = "3")]
+    pub response: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(message, optional, tag = "4")]
+    pub ent_origin: ::core::option::Option<CMsgVector>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -7246,6 +7400,7 @@ pub enum EBaseUserMessages {
     UmDiagnosticResponse = 163,
     UmExtraUserData = 164,
     UmNotifyResponseFound = 165,
+    UmPlayResponseConditional = 166,
     UmMaxBase = 200,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -7302,6 +7457,8 @@ pub enum ParticleMessage {
     GameParticleManagerEventFreezeInvolving = 29,
     GameParticleManagerEventAddModellistOverrideElement = 30,
     GameParticleManagerEventClearModellistOverride = 31,
+    GameParticleManagerEventCreatePhysicsSim = 32,
+    GameParticleManagerEventDestroyPhysicsSim = 33,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
