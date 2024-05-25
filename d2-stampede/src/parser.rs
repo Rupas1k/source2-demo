@@ -8,19 +8,13 @@ use crate::proto::*;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTables};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Context as AnyhowContext, Result};
 use nohash_hasher::IntMap;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
-
-#[derive(Debug)]
-struct OuterMessage {
-    msg_type: EDemoCommands,
-    buf: Vec<u8>,
-}
 
 pub struct Parser<'a> {
     reader: Reader<'a>,
@@ -33,6 +27,10 @@ pub struct Parser<'a> {
 
     combat_log: VecDeque<CMsgDotaCombatLogEntry>,
 
+    context: Context,
+}
+
+pub struct Context {
     pub classes: Classes,
     pub entities: Entities,
     pub string_tables: StringTables,
@@ -40,6 +38,11 @@ pub struct Parser<'a> {
     pub tick: u32,
     pub net_tick: u32,
     pub game_build: Option<u32>,
+}
+
+struct OuterMessage {
+    msg_type: EDemoCommands,
+    buf: Vec<u8>,
 }
 
 impl<'a> Parser<'a> {
@@ -51,17 +54,19 @@ impl<'a> Parser<'a> {
             serializers: FxHashMap::default(),
             baselines: IntMap::default(),
 
-            classes: Classes::new(),
-            entities: Entities::new(),
-            string_tables: StringTables::new(),
-
             observers: Vec::new(),
 
             combat_log: VecDeque::new(),
 
-            tick: 0,
-            net_tick: 0,
-            game_build: None,
+            context: Context {
+                classes: Classes::new(),
+                entities: Entities::new(),
+                string_tables: StringTables::new(),
+
+                tick: 0,
+                net_tick: 0,
+                game_build: None,
+            },
         }
     }
 
@@ -86,18 +91,19 @@ impl<'a> Parser<'a> {
 
         self.observers
             .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_packet(self, msg_type, msg))
+            .try_for_each(|obs| obs.borrow_mut().on_packet(&self.context, msg_type, msg))
     }
 
     #[inline(always)]
     fn on_net_message(&mut self, msg_type: NetMessages, msg: &[u8]) -> Result<()> {
         if msg_type == NetMessages::NetTick {
-            self.net_tick = CnetMsgTick::decode(msg)?.tick();
+            self.context.net_tick = CnetMsgTick::decode(msg)?.tick();
         }
 
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_net_message(self, msg_type, msg))
+        self.observers.iter().try_for_each(|obs| {
+            obs.borrow_mut()
+                .on_net_message(&self.context, msg_type, msg)
+        })
     }
 
     #[inline(always)]
@@ -110,30 +116,34 @@ impl<'a> Parser<'a> {
             _ => {}
         }
 
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_svc_message(self, msg_type, msg))
+        self.observers.iter().try_for_each(|obs| {
+            obs.borrow_mut()
+                .on_svc_message(&self.context, msg_type, msg)
+        })
     }
 
     #[inline(always)]
     fn on_base_user_message(&mut self, msg_type: EBaseUserMessages, msg: &[u8]) -> Result<()> {
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_base_user_message(self, msg_type, msg))
+        self.observers.iter().try_for_each(|obs| {
+            obs.borrow_mut()
+                .on_base_user_message(&self.context, msg_type, msg)
+        })
     }
 
     #[inline(always)]
     fn on_base_entity_message(&mut self, msg_type: EBaseEntityMessages, msg: &[u8]) -> Result<()> {
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_base_entity_message(self, msg_type, msg))
+        self.observers.iter().try_for_each(|obs| {
+            obs.borrow_mut()
+                .on_base_entity_message(&self.context, msg_type, msg)
+        })
     }
 
     #[inline(always)]
     fn on_base_game_event(&mut self, msg_type: EBaseGameEvents, msg: &[u8]) -> Result<()> {
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_base_game_event(self, msg_type, msg))
+        self.observers.iter().try_for_each(|obs| {
+            obs.borrow_mut()
+                .on_base_game_event(&self.context, msg_type, msg)
+        })
     }
 
     #[inline(always)]
@@ -142,54 +152,53 @@ impl<'a> Parser<'a> {
             let entry = CMsgDotaCombatLogEntry::decode(msg)?;
             self.combat_log.push_back(entry);
         }
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_dota_user_message(self, msg_type, msg))
+        self.observers.iter().try_for_each(|obs| {
+            obs.borrow_mut()
+                .on_dota_user_message(&self.context, msg_type, msg)
+        })
     }
 
     pub fn run(&mut self) -> Result<()> {
-        if self.reader.read_bytes(8) != b"PBDEMS2\0" {
-            bail!("Supports only Source 2 replays")
-        };
+        let mut inner = || {
+            if self.reader.read_bytes(8) != b"PBDEMS2\0" {
+                bail!("Supports only Source 2 replays")
+            };
 
-        self.reader.read_bytes(8);
+            self.reader.read_bytes(8);
 
-        let process_ticks = |ctx: &mut Parser| -> Result<()> {
-            while let Some(message) = ctx.read_outer_message()? {
-                ctx.on_tick_start()?;
-                ctx.on_packet(message.msg_type, message.buf.as_slice())?;
-                ctx.on_tick_end()?;
+            while let Some(message) = self.read_outer_message()? {
+                self.on_tick_start()?;
+                self.on_packet(message.msg_type, message.buf.as_slice())?;
+                self.on_tick_end()?;
             }
-            ctx.observers
+            self.observers
                 .iter()
-                .try_for_each(|obs| obs.borrow_mut().epilogue(ctx))
+                .try_for_each(|obs| obs.borrow_mut().epilogue(&self.context))
         };
-
-        process_ticks(self).with_context(|| anyhow!("Error while processing tick {}", self.tick))
+        inner().with_context(|| anyhow!("Error while processing tick {}", self.context.tick))
     }
 
     pub fn run_to_tick(&mut self, tick: u32) -> Result<()> {
-        if self.reader.read_bytes(8) != b"PBDEMS2\0" {
-            bail!("Supports only Source 2 replays")
-        };
+        {
+            if self.reader.read_bytes(8) != b"PBDEMS2\0" {
+                bail!("Supports only Source 2 replays")
+            };
 
-        self.reader.read_bytes(8);
+            self.reader.read_bytes(8);
 
-        let process_ticks = |ctx: &mut Parser| -> Result<()> {
-            while let Some(message) = ctx.read_outer_message()? {
-                ctx.on_tick_start()?;
-                ctx.on_packet(message.msg_type, message.buf.as_slice())?;
-                ctx.on_tick_end()?;
-                if ctx.tick >= tick {
+            while let Some(message) = self.read_outer_message()? {
+                self.on_tick_start()?;
+                self.on_packet(message.msg_type, message.buf.as_slice())?;
+                self.on_tick_end()?;
+                if self.context.tick >= tick {
                     break;
                 }
             }
-            ctx.observers
+            self.observers
                 .iter()
-                .try_for_each(|obs| obs.borrow_mut().epilogue(ctx))
-        };
-
-        process_ticks(self).with_context(|| anyhow!("Error while processing tick {}", self.tick))
+                .try_for_each(|obs| obs.borrow_mut().epilogue(&self.context))
+        }
+        .with_context(|| anyhow!("Error while processing tick {}", self.context.tick))
     }
 
     fn send_tables(&mut self, msg: &[u8]) -> Result<()> {
@@ -226,7 +235,7 @@ impl<'a> Parser<'a> {
 
         let patches = FIELD_PATCHES
             .iter()
-            .filter(|patch| patch.should_apply(self.game_build.unwrap()))
+            .filter(|patch| patch.should_apply(self.context.game_build.unwrap()))
             .collect::<Vec<_>>();
 
         let mut fields = IntMap::<i32, Rc<Field>>::default();
@@ -325,8 +334,12 @@ impl<'a> Parser<'a> {
                 network_name,
                 self.serializers[network_name].clone(),
             ));
-            self.classes.classes_by_id.insert(class_id, class.clone());
-            self.classes
+            self.context
+                .classes
+                .classes_by_id
+                .insert(class_id, class.clone());
+            self.context
+                .classes
                 .classes_by_name
                 .insert(network_name.into(), class.clone());
         }
@@ -392,7 +405,7 @@ impl<'a> Parser<'a> {
             buf = decoder.decompress_vec(&buf)?;
         }
 
-        self.tick = tick;
+        self.context.tick = tick;
 
         Ok(Some(OuterMessage { msg_type, buf }))
     }
@@ -408,13 +421,13 @@ impl<'a> Parser<'a> {
         let mut op: isize;
 
         if !packet.legacy_is_delta() {
-            if self.entities.entity_full_packets > 0 {
+            if self.context.entities.entity_full_packets > 0 {
                 return Ok(());
             }
-            self.entities.entity_full_packets += 1;
+            self.context.entities.entity_full_packets += 1;
         }
 
-        let throw_event = |ctx: &Parser, index: &i32, event: EntityEvent| -> Result<()> {
+        let throw_event = |ctx: &Context, index: &i32, event: EntityEvent| -> Result<()> {
             self.observers.iter().try_for_each(|obs| {
                 obs.borrow_mut()
                     .on_entity(ctx, event, &ctx.entities.index_to_entity[index])
@@ -428,18 +441,25 @@ impl<'a> Parser<'a> {
 
             if cmd & 0x01 == 0 {
                 if cmd & 0x02 != 0 {
-                    let class_id = r.read_bits(self.classes.class_id_size.unwrap()) as i32;
+                    let class_id = r.read_bits(self.context.classes.class_id_size.unwrap()) as i32;
                     let serial = r.read_bits(17) as i32;
 
                     r.read_var_u32();
 
-                    let class = Rc::clone(self.classes.get_by_id_rc(&class_id)?);
+                    let class = self.context.classes.get_by_id_rc(&class_id)?.clone();
                     let baseline = self.baselines[&class_id].as_slice();
 
-                    self.entities
+                    self.context
+                        .entities
                         .index_to_entity
-                        .insert(index, Entity::new(index, serial, Rc::clone(&class)));
-                    let e = self.entities.index_to_entity.get_mut(&index).unwrap();
+                        .insert(index, Entity::new(index, serial, class.clone()));
+
+                    let e = self
+                        .context
+                        .entities
+                        .index_to_entity
+                        .get_mut(&index)
+                        .unwrap();
 
                     self.field_reader.read_fields(
                         &mut Reader::new(baseline),
@@ -453,7 +473,12 @@ impl<'a> Parser<'a> {
                     op = EntityEvent::Created as isize | EntityEvent::Entered as isize;
                 } else {
                     op = EntityEvent::Updated as isize;
-                    let e = self.entities.index_to_entity.get_mut(&index).unwrap();
+                    let e = self
+                        .context
+                        .entities
+                        .index_to_entity
+                        .get_mut(&index)
+                        .unwrap();
                     // if packet.has_pvs_vis_bits() != 0 {
                     //     let pvs = r.read_bits(2);
                     //     e.active = (pvs & 0x02) != 0;
@@ -465,8 +490,13 @@ impl<'a> Parser<'a> {
                         e.active = true;
                         op |= EntityEvent::Entered as isize;
                     }
+
                     self.field_reader
                         .read_fields(&mut r, &e.class.serializer, &mut e.state);
+
+                    if packet.has_pvs_vis_bits() != 0 {
+                        r.read_bits(2);
+                    }
                 }
             } else {
                 op = EntityEvent::Left as isize;
@@ -476,20 +506,20 @@ impl<'a> Parser<'a> {
             }
 
             if op & EntityEvent::Created as isize != 0 {
-                throw_event(self, &index, EntityEvent::Created)?;
+                throw_event(&self.context, &index, EntityEvent::Created)?;
             }
             if op & EntityEvent::Entered as isize != 0 {
-                throw_event(self, &index, EntityEvent::Entered)?;
+                throw_event(&self.context, &index, EntityEvent::Entered)?;
             }
             if op & EntityEvent::Updated as isize != 0 {
-                throw_event(self, &index, EntityEvent::Updated)?;
+                throw_event(&self.context, &index, EntityEvent::Updated)?;
             }
             if op & EntityEvent::Left as isize != 0 {
-                throw_event(self, &index, EntityEvent::Left)?;
+                throw_event(&self.context, &index, EntityEvent::Left)?;
             }
             if op & EntityEvent::Deleted as isize != 0 {
-                throw_event(self, &index, EntityEvent::Deleted)?;
-                self.entities.index_to_entity.remove(&index);
+                throw_event(&self.context, &index, EntityEvent::Deleted)?;
+                self.context.entities.index_to_entity.remove(&index);
             }
         }
 
@@ -499,7 +529,7 @@ impl<'a> Parser<'a> {
     #[inline(always)]
     fn update_string_table(&mut self, msg: &[u8]) -> Result<()> {
         let st = CsvcMsgUpdateStringTable::decode(msg)?;
-        let mut table = self.string_tables.tables[&st.table_id()].borrow_mut();
+        let mut table = self.context.string_tables.tables[&st.table_id()].borrow_mut();
 
         let is_baseline = table.name == "instancebaseline";
 
@@ -534,12 +564,12 @@ impl<'a> Parser<'a> {
         let st = CsvcMsgCreateStringTable::decode(msg)?;
 
         if st.name() == "decalprecache" {
-            self.string_tables.next_index += 1;
+            self.context.string_tables.next_index += 1;
             return Ok(());
         }
 
         let mut t = StringTable {
-            index: self.string_tables.next_index,
+            index: self.context.string_tables.next_index,
             name: st.name().into(),
             items: IntMap::default(),
             user_data_fixed_size: st.user_data_fixed_size(),
@@ -548,7 +578,7 @@ impl<'a> Parser<'a> {
             var_int_bit_counts: st.using_varint_bitcounts(),
         };
 
-        self.string_tables.next_index += 1;
+        self.context.string_tables.next_index += 1;
 
         let buf = match st.data_compressed() {
             true => {
@@ -569,10 +599,12 @@ impl<'a> Parser<'a> {
         }
 
         let rc = Rc::new(RefCell::new(t));
-        self.string_tables
+        self.context
+            .string_tables
             .tables
             .insert(rc.borrow().index, rc.clone());
-        self.string_tables
+        self.context
+            .string_tables
             .names_to_table
             .insert(rc.borrow().name.clone().into(), rc.clone());
 
@@ -582,7 +614,8 @@ impl<'a> Parser<'a> {
     #[inline(always)]
     fn server_info(&mut self, msg: &[u8]) -> Result<()> {
         let info = CsvcMsgServerInfo::decode(msg)?;
-        self.classes.class_id_size = Some((f64::log2(info.max_classes() as f64) + 1.0) as u32);
+        self.context.classes.class_id_size =
+            Some((f64::log2(info.max_classes() as f64) + 1.0) as u32);
 
         let game_build_regexp = Regex::new(r"/dota_v(\d+)/")?;
 
@@ -590,7 +623,7 @@ impl<'a> Parser<'a> {
             if let Some(build_match) = captures.get(1) {
                 let build_str = build_match.as_str();
                 let build = build_str.parse::<u32>()?;
-                self.game_build = Some(build);
+                self.context.game_build = Some(build);
             } else {
                 bail!("No build number found in regex capture");
             }
@@ -604,12 +637,12 @@ impl<'a> Parser<'a> {
     pub(crate) fn on_tick_start(&mut self) -> Result<()> {
         self.observers
             .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_tick_start(self))
+            .try_for_each(|obs| obs.borrow_mut().on_tick_start(&self.context))
     }
 
     #[inline(always)]
     pub(crate) fn on_tick_end(&mut self) -> Result<()> {
-        if let Ok(names) = self.string_tables.get_by_name("CombatLogNames") {
+        if let Ok(names) = self.context.string_tables.get_by_name("CombatLogNames") {
             while let Some(entry) = self.combat_log.pop_front() {
                 let log = CombatLog {
                     names: &names,
@@ -621,34 +654,34 @@ impl<'a> Parser<'a> {
 
         self.observers
             .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_tick_end(self))
+            .try_for_each(|obs| obs.borrow_mut().on_tick_end(&self.context))
     }
 
     #[inline(always)]
     pub(crate) fn on_combat_log(&self, entry: &CombatLog) -> Result<()> {
         self.observers
             .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_combat_log(self, entry))
+            .try_for_each(|obs| obs.borrow_mut().on_combat_log(&self.context, entry))
     }
 }
 
 #[allow(unused_variables)]
 pub trait Observer {
-    fn on_packet(&mut self, ctx: &Parser, msg_type: EDemoCommands, msg: &[u8]) -> Result<()> {
+    fn on_packet(&mut self, ctx: &Context, msg_type: EDemoCommands, msg: &[u8]) -> Result<()> {
         Ok(())
     }
 
-    fn on_net_message(&mut self, ctx: &Parser, msg_type: NetMessages, msg: &[u8]) -> Result<()> {
+    fn on_net_message(&mut self, ctx: &Context, msg_type: NetMessages, msg: &[u8]) -> Result<()> {
         Ok(())
     }
 
-    fn on_svc_message(&mut self, ctx: &Parser, msg_type: SvcMessages, msg: &[u8]) -> Result<()> {
+    fn on_svc_message(&mut self, ctx: &Context, msg_type: SvcMessages, msg: &[u8]) -> Result<()> {
         Ok(())
     }
 
     fn on_base_user_message(
         &mut self,
-        ctx: &Parser,
+        ctx: &Context,
         msg_type: EBaseUserMessages,
         msg: &[u8],
     ) -> Result<()> {
@@ -657,7 +690,7 @@ pub trait Observer {
 
     fn on_base_entity_message(
         &mut self,
-        ctx: &Parser,
+        ctx: &Context,
         msg_type: EBaseEntityMessages,
         msg: &[u8],
     ) -> Result<()> {
@@ -666,7 +699,7 @@ pub trait Observer {
 
     fn on_base_game_event(
         &mut self,
-        ctx: &Parser,
+        ctx: &Context,
         msg_type: EBaseGameEvents,
         msg: &[u8],
     ) -> Result<()> {
@@ -675,30 +708,30 @@ pub trait Observer {
 
     fn on_dota_user_message(
         &mut self,
-        ctx: &Parser,
+        ctx: &Context,
         msg_type: EDotaUserMessages,
         msg: &[u8],
     ) -> Result<()> {
         Ok(())
     }
 
-    fn on_tick_start(&mut self, ctx: &Parser) -> Result<()> {
+    fn on_tick_start(&mut self, ctx: &Context) -> Result<()> {
         Ok(())
     }
 
-    fn on_tick_end(&mut self, ctx: &Parser) -> Result<()> {
+    fn on_tick_end(&mut self, ctx: &Context) -> Result<()> {
         Ok(())
     }
 
-    fn on_entity(&mut self, ctx: &Parser, event: EntityEvent, entity: &Entity) -> Result<()> {
+    fn on_entity(&mut self, ctx: &Context, event: EntityEvent, entity: &Entity) -> Result<()> {
         Ok(())
     }
 
-    fn on_combat_log(&mut self, ctx: &Parser, combat_log: &CombatLog) -> Result<()> {
+    fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLog) -> Result<()> {
         Ok(())
     }
 
-    fn epilogue(&mut self, ctx: &Parser) -> Result<()> {
+    fn epilogue(&mut self, ctx: &Context) -> Result<()> {
         Ok(())
     }
 }

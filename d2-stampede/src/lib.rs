@@ -11,7 +11,7 @@ mod serializer;
 mod string_table;
 
 pub mod prelude {
-    pub use crate::parser::{Observer, Parser};
+    pub use crate::parser::{Context, Observer, Parser};
 
     pub use crate::string_table::{StringTable, StringTableEntry};
 
@@ -26,9 +26,9 @@ pub mod prelude {
     pub use d2_stampede_protobufs::prost::Message;
 }
 
-pub use crate::parser::{Observer, Parser};
+pub use crate::parser::{Context, Observer, Parser};
 
-pub use crate::string_table::{StringTable, StringTableEntry, StringTables};
+pub use crate::string_table::{StringTable, StringTableEntry};
 
 pub use anyhow::Error;
 

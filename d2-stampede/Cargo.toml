@@ -27,5 +27,5 @@ libmimalloc-sys = "=0.1.35"
 mimalloc = { version = "=0.1.39", default-features = false, optional = true }
 
 [features]
-default = ["mimalloc", "unsafe_reader"]
+default = ["mimalloc"]
 unsafe_reader = []

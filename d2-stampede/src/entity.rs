@@ -3,7 +3,6 @@ use crate::field::{FieldPath, FieldState};
 use crate::field_value::FieldValue;
 use anyhow::{anyhow, Context, Result};
 use nohash_hasher::IntMap;
-use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
@@ -18,7 +17,6 @@ pub enum EntityEvent {
 
 pub struct Entities {
     pub(crate) entity_full_packets: u32,
-    pub(crate) undone_entities: VecDeque<(i32, isize)>,
     pub(crate) index_to_entity: IntMap<i32, Entity>,
 }
 
@@ -26,7 +24,6 @@ impl Entities {
     pub(crate) fn new() -> Self {
         Entities {
             index_to_entity: IntMap::default(),
-            undone_entities: VecDeque::new(),
             entity_full_packets: 0,
         }
     }

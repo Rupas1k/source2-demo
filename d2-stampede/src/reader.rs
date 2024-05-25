@@ -20,24 +20,24 @@ impl<'a> Reader<'a> {
 
     #[inline(always)]
     pub fn refill(&mut self) {
-        #[cfg(feature = "unsafe_reader")]
+        #[cfg(not(debug_assertions))]
         unsafe {
             self.le_reader.refill_lookahead_unchecked();
         }
-        #[cfg(not(feature = "unsafe_reader"))]
+        #[cfg(debug_assertions)]
         self.le_reader.refill_lookahead();
     }
 
     #[inline(always)]
     pub fn read_bits(&mut self, amount: u32) -> u32 {
         self.refill();
-        let x = self.le_reader.peek(amount);
-        self.le_reader.consume(amount);
-        x as u32
+        self.read_bits_no_refill(amount)
     }
 
     #[inline(always)]
     pub fn read_bits_no_refill(&mut self, amount: u32) -> u32 {
+        debug_assert!(amount <= 32);
+        debug_assert!(self.le_reader.has_bits_remaining(amount as usize));
         let x = self.le_reader.peek(amount);
         self.le_reader.consume(amount);
         x as u32
