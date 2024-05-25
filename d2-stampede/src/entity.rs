@@ -206,6 +206,7 @@ impl Display for Entity {
                     | "uint32"
                     | "uint64"
                     | "CStrongHandle"
+                    | "HeroFacetKey_t"
                     | "color32"
                     | "CGameSceneNodeHandle"
                     | "Color"
@@ -214,7 +215,8 @@ impl Display for Entity {
                     | "CEntityHandle"
                     | "CBodyComponent"
                     | "CPhysicsComponent"
-                    | "CRenderComponent" => format!("{}", v),
+                    | "CRenderComponent"
+                    | "BloodType" => format!("{}", v),
                     "float32" | "GameTime_t" | "CNetworkedQuantizedFloat" => {
                         format!("{}", v.as_float())
                     }

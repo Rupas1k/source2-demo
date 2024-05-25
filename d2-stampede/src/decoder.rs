@@ -38,7 +38,7 @@ impl Decoders {
             "int16" => Decoders::Signed16,
             "int32" => Decoders::Signed32,
             "int64" => Decoders::Signed64,
-            "uint8" => Decoders::Unsigned8,
+            "uint8" | "BloodType" => Decoders::Unsigned8,
             "uint16" => Decoders::Unsigned16,
             "uint32"
             | "color32"
@@ -58,7 +58,7 @@ impl Decoders {
             "Vector2D" => Decoders::Vector(properties, 2),
             "Vector4D" => Decoders::Vector(properties, 4),
 
-            "uint64" | "CStrongHandle" => Decoders::Unsigned64(properties),
+            "uint64" | "CStrongHandle" | "HeroFacetKey_t" => Decoders::Unsigned64(properties),
 
             "QAngle" => Decoders::QAngle(properties),
 
