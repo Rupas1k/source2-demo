@@ -1,6 +1,5 @@
 use crate::reader::Reader;
 use anyhow::{anyhow, Result};
-use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
@@ -96,7 +95,7 @@ impl StringTable {
     #[inline]
     pub(crate) fn parse(
         &mut self,
-        baselines: &mut IntMap<i32, Rc<Vec<u8>>>,
+        baselines: &mut FxHashMap<i32, Rc<Vec<u8>>>,
         buf: &[u8],
         num_updates: i32,
     ) -> Result<()> {

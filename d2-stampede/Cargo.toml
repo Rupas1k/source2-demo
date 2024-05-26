@@ -20,7 +20,6 @@ snap = "1.1.1"
 regex = { version = "1.10.4", features = ["std", "unicode-perl"], default-features = false }
 bitter = "0.7.0"
 rustc-hash = "1.1.0"
-nohash-hasher = "0.2.0"
 lazy_static = "1.4.0"
 anyhow = "1.0.86"
 libmimalloc-sys = "=0.1.35"
@@ -28,4 +27,3 @@ mimalloc = { version = "=0.1.39", default-features = false, optional = true }
 
 [features]
 default = ["mimalloc"]
-unsafe_reader = []

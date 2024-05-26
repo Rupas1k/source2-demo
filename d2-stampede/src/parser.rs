@@ -9,7 +9,6 @@ use crate::reader::Reader;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTables};
 use anyhow::{bail, Result};
-use nohash_hasher::IntMap;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
@@ -21,7 +20,7 @@ pub struct Parser<'a> {
     field_reader: FieldReader,
 
     serializers: FxHashMap<Box<str>, Rc<Serializer>>,
-    baselines: IntMap<i32, Rc<Vec<u8>>>,
+    baselines: FxHashMap<i32, Rc<Vec<u8>>>,
 
     pub(crate) observers: Vec<Rc<RefCell<dyn Observer + 'a>>>,
 
@@ -52,7 +51,7 @@ impl<'a> Parser<'a> {
             field_reader: FieldReader::new(),
 
             serializers: FxHashMap::default(),
-            baselines: IntMap::default(),
+            baselines: FxHashMap::default(),
 
             observers: Vec::new(),
 
@@ -292,7 +291,7 @@ impl<'a> Parser<'a> {
             .filter(|patch| patch.should_apply(self.context.game_build.unwrap()))
             .collect::<Vec<_>>();
 
-        let mut fields = IntMap::<i32, Rc<Field>>::default();
+        let mut fields = vec![];
         let mut field_types = FxHashMap::<Box<str>, Rc<FieldType>>::default();
 
         for s in fs.serializers.iter() {
@@ -303,7 +302,7 @@ impl<'a> Parser<'a> {
                 let current_field = &fs.fields[*i as usize];
                 let field_serializer_name = resolve(current_field.field_serializer_name_sym);
 
-                if !fields.contains_key(i) {
+                if *i as usize >= fields.len() {
                     let var_type_str = resolve(current_field.var_type_sym);
                     let current_field_serializer =
                         self.serializers.get(&field_serializer_name).cloned();
@@ -367,9 +366,9 @@ impl<'a> Parser<'a> {
 
                         decoder,
                     };
-                    fields.insert(*i, Rc::new(field));
+                    fields.push(Rc::new(field));
                 }
-                serializer.fields.push(fields[i].clone());
+                serializer.fields.push(fields[*i as usize].clone());
             }
             self.serializers
                 .insert(serializer_name.into(), Rc::new(serializer));
@@ -388,14 +387,11 @@ impl<'a> Parser<'a> {
                 network_name,
                 self.serializers[network_name].clone(),
             ));
-            self.context
-                .classes
-                .classes_by_id
-                .insert(class_id, class.clone());
+            self.context.classes.classes_vec.push(class.clone());
             self.context
                 .classes
                 .classes_by_name
-                .insert(network_name.into(), class.clone());
+                .insert(network_name.into(), class);
         }
         Ok(())
     }
@@ -484,7 +480,11 @@ impl<'a> Parser<'a> {
 
                     entities_reader.read_var_u32();
 
-                    let class = self.context.classes.get_by_id_rc(&class_id)?.clone();
+                    let class = self
+                        .context
+                        .classes
+                        .get_by_id_rc(class_id as usize)?
+                        .clone();
                     let baseline = self.baselines[&class_id].as_slice();
 
                     self.context.entities.entities_vec[index as usize] =

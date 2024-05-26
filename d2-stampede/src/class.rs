@@ -1,11 +1,10 @@
 use crate::serializer::Serializer;
 use anyhow::{anyhow, Context, Result};
-use nohash_hasher::IntMap;
 use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
 pub struct Classes {
-    pub(crate) classes_by_id: IntMap<i32, Rc<Class>>,
+    pub(crate) classes_vec: Vec<Rc<Class>>,
     pub(crate) classes_by_name: FxHashMap<Box<str>, Rc<Class>>,
     pub(crate) class_id_size: Option<u32>,
 }
@@ -13,20 +12,20 @@ pub struct Classes {
 impl Classes {
     pub(crate) fn new() -> Self {
         Classes {
-            classes_by_id: IntMap::default(),
+            classes_vec: vec![],
             classes_by_name: FxHashMap::default(),
             class_id_size: None,
         }
     }
 
-    pub(crate) fn get_by_id_rc(&self, id: &i32) -> Result<&Rc<Class>> {
-        self.classes_by_id
+    pub(crate) fn get_by_id_rc(&self, id: usize) -> Result<&Rc<Class>> {
+        self.classes_vec
             .get(id)
             .with_context(|| anyhow!("No class for given id {}", id))
     }
 
-    pub fn get_by_id(&self, id: &i32) -> Result<&Class> {
-        self.classes_by_id
+    pub fn get_by_id(&self, id: usize) -> Result<&Class> {
+        self.classes_vec
             .get(id)
             .with_context(|| anyhow!("No class for given id {}", id))
             .map(|class| class.as_ref())
