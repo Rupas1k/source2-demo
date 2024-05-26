@@ -63,11 +63,13 @@ impl FieldReader {
         }
     }
 
-    pub(crate) fn read_field_paths<'a>(
+    pub(crate) fn read_fields(
         &self,
         reader: &mut Reader,
-        paths: &'a mut [FieldPath],
-    ) -> &'a mut [FieldPath] {
+        serializer: &Serializer,
+        state: &mut FieldState,
+    ) {
+        let mut paths = self.paths_buf.borrow_mut();
         let mut node = &self.tree;
         let mut i = 0;
         let mut fp = FieldPath::new();
@@ -94,12 +96,10 @@ impl FieldReader {
                 }
             }
         }
-        &mut paths[..i]
-    }
-    pub(crate) fn read_fields(&self, reader: &mut Reader, s: &Serializer, st: &mut FieldState) {
-        self.read_field_paths(reader, self.paths_buf.borrow_mut().as_mut_slice())
-            .iter()
-            .for_each(|fp| st.set(fp, s.get_decoder_for_field_path(fp).decode(reader)))
+
+        paths[..i]
+            .iter_mut()
+            .for_each(|fp| state.set(fp, serializer.get_decoder_for_field_path(fp).decode(reader)))
     }
 }
 
