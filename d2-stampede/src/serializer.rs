@@ -26,6 +26,7 @@ impl Serializer {
         let mut current_field = &current_serializer.fields[fp.path[i] as usize];
         let mut name = String::new();
         loop {
+            i += 1;
             name += &current_field.var_name;
             match &current_field.model {
                 FieldModels::FixedArray | FieldModels::VariableArray(_) => {
@@ -46,7 +47,6 @@ impl Serializer {
                 }
                 FieldModels::Simple => break,
             }
-            i += 1;
             current_field = &current_serializer.fields[fp.path[i] as usize];
         }
         name
@@ -58,12 +58,13 @@ impl Serializer {
         let mut current_serializer = self;
         let mut current_field = &current_serializer.fields[fp.path[i] as usize];
         loop {
+            i += 1;
             match &current_field.model {
                 FieldModels::Simple | FieldModels::FixedArray => {
                     return current_field.field_type.as_ref()
                 }
                 FieldModels::FixedTable(serializer) => {
-                    if fp.last == i - 1 {
+                    if fp.last + 1 == i {
                         return current_field.field_type.as_ref();
                     }
                     current_serializer = serializer;
@@ -82,7 +83,6 @@ impl Serializer {
                     current_serializer = serializer;
                 }
             }
-            i += 1;
             current_field = &current_serializer.fields[fp.path[i] as usize];
         }
     }
