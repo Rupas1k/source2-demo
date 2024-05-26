@@ -552,59 +552,39 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    #[inline(always)]
     fn update_string_table(&mut self, msg: &[u8]) -> Result<()> {
-        let st = CsvcMsgUpdateStringTable::decode(msg)?;
-        let mut table = self.context.string_tables.tables[&st.table_id()].borrow_mut();
+        let table_msg = CsvcMsgUpdateStringTable::decode(msg)?;
+        let mut table =
+            self.context.string_tables.tables[table_msg.table_id() as usize].borrow_mut();
 
-        let is_baseline = table.name == "instancebaseline";
-
-        for item in table.parse(st.string_data(), st.num_changed_entries())? {
-            match table.items.get_mut(&item.index) {
-                Some(x) => {
-                    if is_baseline {
-                        self.baselines
-                            .insert(item.key.parse::<i32>()?, item.value.clone());
-                    }
-                    if item.value.len() > 0 {
-                        x.value = item.value;
-                    }
-                    if !item.key.is_empty() && item.key != x.key {
-                        x.key = item.key;
-                    }
-                }
-                None => {
-                    if is_baseline {
-                        self.baselines
-                            .insert(item.key.parse::<i32>()?, item.value.clone());
-                    }
-                    table.items.insert(item.index, item);
-                }
-            }
-        }
-        Ok(())
+        table.parse(
+            &mut self.baselines,
+            table_msg.string_data(),
+            table_msg.num_changed_entries(),
+        )
     }
 
-    #[inline(always)]
     fn create_string_table(&mut self, msg: &[u8]) -> Result<()> {
         let table_msg = CsvcMsgCreateStringTable::decode(msg)?;
 
         if table_msg.name() == "decalprecache" {
-            self.context.string_tables.next_index += 1;
+            self.context
+                .string_tables
+                .tables
+                .push(Rc::new(RefCell::new(StringTable::default())));
             return Ok(());
         }
 
         let mut table = StringTable {
-            index: self.context.string_tables.next_index,
+            index: self.context.string_tables.tables.len() as i32,
             name: table_msg.name().into(),
-            items: IntMap::default(),
+            items: vec![],
             user_data_fixed_size: table_msg.user_data_fixed_size(),
             user_data_size: table_msg.user_data_size(),
             flags: table_msg.flags() as u32,
             var_int_bit_counts: table_msg.using_varint_bitcounts(),
+            keys: RefCell::new(vec![String::default(); 32]),
         };
-
-        self.context.string_tables.next_index += 1;
 
         let buf = if table_msg.data_compressed() {
             let mut decoder = snap::raw::Decoder::new();
@@ -613,24 +593,13 @@ impl<'a> Parser<'a> {
             table_msg.string_data().into()
         };
 
-        let is_baseline = table.name == "instancebaseline";
-
-        for item in table.parse(buf.as_slice(), table_msg.num_entries())? {
-            if is_baseline {
-                self.baselines
-                    .insert(item.key.parse::<i32>()?, item.value.clone());
-            }
-            table.items.insert(item.index, item);
-        }
+        table.parse(&mut self.baselines, buf.as_slice(), table_msg.num_entries())?;
 
         let rc = Rc::new(RefCell::new(table));
+        self.context.string_tables.tables.push(rc.clone());
         self.context
             .string_tables
-            .tables
-            .insert(rc.borrow().index, rc.clone());
-        self.context
-            .string_tables
-            .names_to_table
+            .name_to_table
             .insert(rc.borrow().name.clone().into(), rc.clone());
 
         Ok(())

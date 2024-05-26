@@ -6,33 +6,31 @@ use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
 pub struct StringTables {
-    pub(crate) tables: IntMap<i32, Rc<RefCell<StringTable>>>,
-    pub(crate) names_to_table: FxHashMap<Box<str>, Rc<RefCell<StringTable>>>,
-    pub(crate) next_index: i32,
+    pub(crate) tables: Vec<Rc<RefCell<StringTable>>>,
+    pub(crate) name_to_table: FxHashMap<Box<str>, Rc<RefCell<StringTable>>>,
 }
 
 impl StringTables {
     pub(crate) fn new() -> Self {
         StringTables {
-            tables: IntMap::default(),
-            names_to_table: FxHashMap::default(),
-            next_index: 0,
+            tables: vec![],
+            name_to_table: FxHashMap::default(),
         }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = Ref<StringTable>> {
-        self.tables.values().map(|table| table.borrow())
+        self.tables.iter().map(|table| table.borrow())
     }
 
     pub fn get_by_id(&self, id: &i32) -> Result<Ref<StringTable>> {
         self.tables
-            .get(id)
+            .get(*id as usize)
             .ok_or_else(|| anyhow!("No string table for given id"))
             .map(|table| table.borrow())
     }
 
     pub fn get_by_name(&self, name: &str) -> Result<Ref<StringTable>> {
-        self.names_to_table
+        self.name_to_table
             .get(name)
             .ok_or_else(|| anyhow!("No string table for given name"))
             .map(|table| table.borrow())
@@ -42,12 +40,12 @@ impl StringTables {
 #[derive(Clone)]
 pub struct StringTableEntry {
     pub(crate) index: i32,
-    pub(crate) key: String,
-    pub(crate) value: Rc<Vec<u8>>,
+    pub(crate) key: Option<String>,
+    pub(crate) value: Option<Rc<Vec<u8>>>,
 }
 
 impl StringTableEntry {
-    pub(crate) fn new(index: i32, key: String, value: Rc<Vec<u8>>) -> Self {
+    pub(crate) fn new(index: i32, key: Option<String>, value: Option<Rc<Vec<u8>>>) -> Self {
         StringTableEntry { index, key, value }
     }
 
@@ -55,24 +53,25 @@ impl StringTableEntry {
         self.index
     }
 
-    pub fn key(&self) -> &str {
-        &self.key
+    pub fn key(&self) -> Option<&str> {
+        self.key.as_deref()
     }
 
-    pub fn value(&self) -> &[u8] {
-        self.value.as_slice()
+    pub fn value(&self) -> Option<&[u8]> {
+        self.value.as_ref().map(|x| x.as_slice())
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct StringTable {
     pub(crate) index: i32,
     pub(crate) name: String,
-    pub(crate) items: IntMap<i32, StringTableEntry>,
+    pub(crate) items: Vec<StringTableEntry>,
     pub(crate) user_data_fixed_size: bool,
     pub(crate) user_data_size: i32,
     pub(crate) flags: u32,
     pub(crate) var_int_bit_counts: bool,
+    pub(crate) keys: RefCell<Vec<String>>,
 }
 
 impl StringTable {
@@ -85,30 +84,29 @@ impl StringTable {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &StringTableEntry> {
-        self.items.values()
+        self.items.iter()
     }
 
-    pub fn get_entry_by_index(&self, idx: &i32) -> Result<&StringTableEntry> {
+    pub fn get_entry_by_index(&self, idx: usize) -> Result<&StringTableEntry> {
         self.items
             .get(idx)
             .ok_or_else(|| anyhow!("No string table entry for given index {idx}"))
     }
 
-    pub(crate) fn parse(&self, buf: &[u8], num_updates: i32) -> Result<Vec<StringTableEntry>> {
-        let mut items = Vec::<StringTableEntry>::new();
-        if buf.is_empty() {
-            return Ok(items);
-        }
-
+    #[inline]
+    pub(crate) fn parse(
+        &mut self,
+        baselines: &mut IntMap<i32, Rc<Vec<u8>>>,
+        buf: &[u8],
+        num_updates: i32,
+    ) -> Result<()> {
+        let items = &mut self.items;
         let mut r = Reader::new(buf);
         let mut index = -1;
-        let mut delta_pos: usize = 0;
-        let mut keys = vec![String::new(); 32];
+        let mut delta_pos = 0;
+        let mut keys = self.keys.borrow_mut();
 
         for _ in 0..num_updates {
-            let mut key = String::new();
-            let mut value = Vec::<u8>::new();
-
             r.refill();
 
             index += 1;
@@ -116,28 +114,29 @@ impl StringTable {
                 index += r.read_var_u32() as i32 + 1;
             }
 
-            // has key
-            if r.read_bool() {
+            let key = if r.read_bool() {
                 let delta_zero = if delta_pos > 32 { delta_pos & 31 } else { 0 };
-                // use history
-                if r.read_bool() {
-                    let pos = (delta_zero + r.read_bits(5) as usize) & 31;
-                    let size = r.read_bits(5) as usize;
+                let key = if r.read_bool() {
+                    let pos = (delta_zero + r.read_bits_no_refill(5) as usize) & 31;
+                    let size = r.read_bits_no_refill(5) as usize;
 
                     if delta_pos < pos || keys[pos].len() < size {
-                        key = r.read_string();
+                        r.read_string()
                     } else {
-                        key = key + &keys[pos][..size] + &r.read_string();
+                        let x = String::new();
+                        x + &keys[pos][..size] + &r.read_string()
                     }
                 } else {
-                    key = r.read_string()
-                }
+                    r.read_string()
+                };
                 keys[delta_pos & 31].clone_from(&key);
                 delta_pos += 1;
-            }
+                Some(key)
+            } else {
+                None
+            };
 
-            // has value
-            if r.read_bool() {
+            let value = if r.read_bool() {
                 let mut is_compressed = false;
                 let bit_size = if self.user_data_fixed_size {
                     self.user_data_size as u32
@@ -151,14 +150,38 @@ impl StringTable {
                         r.read_bits_no_refill(17) * 8
                     }
                 };
-                value = r.read_bits_as_bytes(bit_size);
-                if is_compressed {
+
+                let value = Rc::new(if is_compressed {
                     let mut decoder = snap::raw::Decoder::new();
-                    value = decoder.decompress_vec(&value)?;
+                    decoder.decompress_vec(&r.read_bits_as_bytes(bit_size))?
+                } else {
+                    r.read_bits_as_bytes(bit_size)
+                });
+
+                if self.name == "instancebaseline" {
+                    baselines.insert(
+                        unsafe { key.as_ref().unwrap_unchecked().parse::<i32>()? },
+                        value.clone(),
+                    );
                 }
+
+                Some(value)
+            } else {
+                None
+            };
+
+            if let Some(x) = items.get_mut(index as usize) {
+                if value.is_some() {
+                    x.value = value;
+                }
+                if key.is_some() && key != x.key {
+                    x.key = key;
+                }
+            } else {
+                items.push(StringTableEntry::new(index, key, value));
             }
-            items.push(StringTableEntry::new(index, key, Rc::new(value)));
         }
-        Ok(items)
+
+        Ok(())
     }
 }
