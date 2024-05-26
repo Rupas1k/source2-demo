@@ -1,8 +1,7 @@
 use crate::class::Class;
 use crate::field::{FieldPath, FieldState};
 use crate::field_value::FieldValue;
-use anyhow::{anyhow, Context, Result};
-use nohash_hasher::IntMap;
+use anyhow::{anyhow, bail, Context, Result};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
@@ -17,52 +16,53 @@ pub enum EntityEvent {
 
 pub struct Entities {
     pub(crate) entity_full_packets: u32,
-    pub(crate) index_to_entity: IntMap<i32, Entity>,
+    pub(crate) entities_vec: Vec<Option<Entity>>,
 }
 
 impl Entities {
     pub(crate) fn new() -> Self {
         Entities {
-            index_to_entity: IntMap::default(),
+            entities_vec: vec![],
             entity_full_packets: 0,
         }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Entity> {
-        self.index_to_entity.values()
+        self.entities_vec.iter().flatten()
     }
 
-    pub fn get_by_index(&self, index: &i32) -> Result<&Entity> {
-        self.index_to_entity
-            .get(index)
+    pub fn get_by_index(&self, index: usize) -> Result<&Entity> {
+        if index > self.entities_vec.len() {
+            bail!("{} > {}", index, self.entities_vec.len())
+        }
+        self.entities_vec[index]
+            .as_ref()
             .with_context(|| anyhow!("No entities for index \"{index}\""))
     }
-    pub fn get_by_handle(&self, handle: &i32) -> Result<&Entity> {
-        self.get_by_index(&(handle & 0x3fff))
+    pub fn get_by_handle(&self, handle: usize) -> Result<&Entity> {
+        if handle & 0x3fff > self.entities_vec.len() {
+            bail!("{} > {}", handle & 0x3fff, self.entities_vec.len())
+        }
+        self.get_by_index(handle & 0x3fff)
             .with_context(|| anyhow!("No entities for handle \"{handle}\""))
     }
     pub fn get_by_class_id(&self, id: &i32) -> Result<&Entity> {
-        self.index_to_entity
-            .values()
+        self.iter()
             .find(|&entity| &entity.class().id() == id)
             .with_context(|| anyhow!("No entities for class with id {id}"))
     }
     pub fn get_by_class_name(&self, name: &str) -> Result<&Entity> {
-        self.index_to_entity
-            .values()
+        self.iter()
             .find(|&entity| entity.class().name() == name)
             .with_context(|| anyhow!("No entities for class with name {name}"))
     }
 
     pub fn get_all_by_class_id<'a>(&'a self, id: &'a i32) -> impl Iterator<Item = &Entity> {
-        self.index_to_entity
-            .values()
-            .filter(|&entity| entity.class().id() == *id)
+        self.iter().filter(|&entity| entity.class().id() == *id)
     }
 
     pub fn get_all_by_class_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &Entity> {
-        self.index_to_entity
-            .values()
+        self.iter()
             .filter(move |&entity| entity.class().name() == name)
     }
 }

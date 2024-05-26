@@ -8,7 +8,7 @@ use crate::proto::*;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTables};
-use anyhow::{anyhow, bail, Context as AnyhowContext, Result};
+use anyhow::{bail, Result};
 use nohash_hasher::IntMap;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -77,6 +77,72 @@ impl<'a> Parser<'a> {
         let rc = Rc::new(RefCell::new(T::default()));
         self.observers.push(rc.clone());
         rc.clone()
+    }
+
+    pub fn run(&mut self) -> Result<()> {
+        if self.reader.read_bytes(8) != b"PBDEMS2\0" {
+            bail!("Supports only Source 2 replays")
+        };
+
+        self.reader.read_bytes(8);
+
+        while let Some(message) = self.read_outer_message()? {
+            self.on_tick_start()?;
+            self.on_packet(message.msg_type, message.buf.as_slice())?;
+            self.on_tick_end()?;
+        }
+        self.observers
+            .iter()
+            .try_for_each(|obs| obs.borrow_mut().epilogue(&self.context))
+    }
+
+    pub fn run_to_tick(&mut self, tick: u32) -> Result<()> {
+        if self.reader.read_bytes(8) != b"PBDEMS2\0" {
+            bail!("Supports only Source 2 replays")
+        };
+
+        self.reader.read_bytes(8);
+
+        while let Some(message) = self.read_outer_message()? {
+            self.on_tick_start()?;
+            self.on_packet(message.msg_type, message.buf.as_slice())?;
+            self.on_tick_end()?;
+            if self.context.tick >= tick {
+                break;
+            }
+        }
+        self.observers
+            .iter()
+            .try_for_each(|obs| obs.borrow_mut().epilogue(&self.context))
+    }
+
+    #[inline(always)]
+    fn read_outer_message(&mut self) -> Result<Option<OuterMessage>> {
+        if self.reader.empty() {
+            return Ok(None);
+        }
+
+        let raw_command = self.reader.read_var_u32() as i32;
+        let msg_type =
+            EDemoCommands::try_from(raw_command & !(EDemoCommands::DemIsCompressed as i32))?;
+        let msg_compressed = raw_command & EDemoCommands::DemIsCompressed as i32 != 0;
+        let tick = match self.reader.read_var_u32() {
+            0xffffffff => 0,
+            x => x,
+        };
+
+        let size = self.reader.read_var_u32();
+        let buf = if msg_compressed {
+            let buf = self.reader.read_bytes(size);
+            let mut decoder = snap::raw::Decoder::new();
+            decoder.decompress_vec(&buf)?
+        } else {
+            self.reader.read_bytes(size)
+        };
+
+        self.context.tick = tick;
+
+        Ok(Some(OuterMessage { msg_type, buf }))
     }
 
     #[inline(always)]
@@ -158,47 +224,35 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub fn run(&mut self) -> Result<()> {
-        let mut inner = || {
-            if self.reader.read_bytes(8) != b"PBDEMS2\0" {
-                bail!("Supports only Source 2 replays")
-            };
-
-            self.reader.read_bytes(8);
-
-            while let Some(message) = self.read_outer_message()? {
-                self.on_tick_start()?;
-                self.on_packet(message.msg_type, message.buf.as_slice())?;
-                self.on_tick_end()?;
-            }
-            self.observers
-                .iter()
-                .try_for_each(|obs| obs.borrow_mut().epilogue(&self.context))
-        };
-        inner().with_context(|| anyhow!("Error while processing tick {}", self.context.tick))
+    #[inline(always)]
+    pub(crate) fn on_tick_start(&mut self) -> Result<()> {
+        self.observers
+            .iter()
+            .try_for_each(|obs| obs.borrow_mut().on_tick_start(&self.context))
     }
 
-    pub fn run_to_tick(&mut self, tick: u32) -> Result<()> {
-        {
-            if self.reader.read_bytes(8) != b"PBDEMS2\0" {
-                bail!("Supports only Source 2 replays")
-            };
-
-            self.reader.read_bytes(8);
-
-            while let Some(message) = self.read_outer_message()? {
-                self.on_tick_start()?;
-                self.on_packet(message.msg_type, message.buf.as_slice())?;
-                self.on_tick_end()?;
-                if self.context.tick >= tick {
-                    break;
-                }
+    #[inline(always)]
+    pub(crate) fn on_tick_end(&mut self) -> Result<()> {
+        if let Ok(names) = self.context.string_tables.get_by_name("CombatLogNames") {
+            while let Some(entry) = self.combat_log.pop_front() {
+                let log = CombatLog {
+                    names: &names,
+                    log: entry,
+                };
+                self.on_combat_log(&log)?;
             }
-            self.observers
-                .iter()
-                .try_for_each(|obs| obs.borrow_mut().epilogue(&self.context))
         }
-        .with_context(|| anyhow!("Error while processing tick {}", self.context.tick))
+
+        self.observers
+            .iter()
+            .try_for_each(|obs| obs.borrow_mut().on_tick_end(&self.context))
+    }
+
+    #[inline(always)]
+    pub(crate) fn on_combat_log(&self, entry: &CombatLog) -> Result<()> {
+        self.observers
+            .iter()
+            .try_for_each(|obs| obs.borrow_mut().on_combat_log(&self.context, entry))
     }
 
     fn send_tables(&mut self, msg: &[u8]) -> Result<()> {
@@ -383,42 +437,21 @@ impl<'a> Parser<'a> {
     }
 
     #[inline(always)]
-    fn read_outer_message(&mut self) -> Result<Option<OuterMessage>> {
-        if self.reader.empty() {
-            return Ok(None);
-        }
-
-        let raw_command = self.reader.read_var_u32() as i32;
-        let msg_type =
-            EDemoCommands::try_from(raw_command & !(EDemoCommands::DemIsCompressed as i32))?;
-        let msg_compressed = raw_command & EDemoCommands::DemIsCompressed as i32 != 0;
-        let tick = match self.reader.read_var_u32() {
-            0xffffffff => 0,
-            x => x,
-        };
-
-        let size = self.reader.read_var_u32();
-        let mut buf = self.reader.read_bytes(size);
-
-        if msg_compressed {
-            let mut decoder = snap::raw::Decoder::new();
-            buf = decoder.decompress_vec(&buf)?;
-        }
-
-        self.context.tick = tick;
-
-        Ok(Some(OuterMessage { msg_type, buf }))
-    }
-
-    #[inline(always)]
     fn packet_entities(&mut self, msg: &[u8]) -> Result<()> {
         let packet = CsvcMsgPacketEntities::decode(msg)?;
-        let mut r = Reader::new(packet.entity_data());
+        let mut entities_reader = Reader::new(packet.entity_data());
 
         let updates = packet.updated_entries();
 
         let mut index = -1;
         let mut op: isize;
+
+        if packet.max_entries() as usize > self.context.entities.entities_vec.len() {
+            self.context
+                .entities
+                .entities_vec
+                .resize_with(packet.max_entries() as usize, || None);
+        }
 
         if !packet.legacy_is_delta() {
             if self.context.entities.entity_full_packets > 0 {
@@ -427,38 +460,38 @@ impl<'a> Parser<'a> {
             self.context.entities.entity_full_packets += 1;
         }
 
-        let throw_event = |ctx: &Context, index: &i32, event: EntityEvent| -> Result<()> {
+        let throw_event = |ctx: &Context, index: i32, event: EntityEvent| -> Result<()> {
             self.observers.iter().try_for_each(|obs| {
-                obs.borrow_mut()
-                    .on_entity(ctx, event, &ctx.entities.index_to_entity[index])
+                obs.borrow_mut().on_entity(
+                    ctx,
+                    event,
+                    ctx.entities.entities_vec[index as usize].as_ref().unwrap(),
+                )
             })
         };
 
         for _ in 0..updates {
-            index += r.read_ubit_var() as i32 + 1;
+            index += entities_reader.read_ubit_var() as i32 + 1;
 
-            let cmd = r.read_bits(2);
+            let cmd = entities_reader.read_bits(2);
 
             if cmd & 0x01 == 0 {
                 if cmd & 0x02 != 0 {
-                    let class_id = r.read_bits(self.context.classes.class_id_size.unwrap()) as i32;
-                    let serial = r.read_bits(17) as i32;
+                    let class_id = entities_reader
+                        .read_bits(self.context.classes.class_id_size.unwrap())
+                        as i32;
+                    let serial = entities_reader.read_bits(17) as i32;
 
-                    r.read_var_u32();
+                    entities_reader.read_var_u32();
 
                     let class = self.context.classes.get_by_id_rc(&class_id)?.clone();
                     let baseline = self.baselines[&class_id].as_slice();
 
-                    self.context
-                        .entities
-                        .index_to_entity
-                        .insert(index, Entity::new(index, serial, class.clone()));
+                    self.context.entities.entities_vec[index as usize] =
+                        Some(Entity::new(index, serial, class.clone()));
 
-                    let e = self
-                        .context
-                        .entities
-                        .index_to_entity
-                        .get_mut(&index)
+                    let e = self.context.entities.entities_vec[index as usize]
+                        .as_mut()
                         .unwrap();
 
                     self.field_reader.read_fields(
@@ -467,36 +500,29 @@ impl<'a> Parser<'a> {
                         &mut e.state,
                     );
 
-                    self.field_reader
-                        .read_fields(&mut r, &e.class.serializer, &mut e.state);
+                    self.field_reader.read_fields(
+                        &mut entities_reader,
+                        &e.class.serializer,
+                        &mut e.state,
+                    );
 
                     op = EntityEvent::Created as isize | EntityEvent::Entered as isize;
                 } else {
                     op = EntityEvent::Updated as isize;
-                    let e = self
-                        .context
-                        .entities
-                        .index_to_entity
-                        .get_mut(&index)
+                    let e = self.context.entities.entities_vec[index as usize]
+                        .as_mut()
                         .unwrap();
-                    // if packet.has_pvs_vis_bits() != 0 {
-                    //     let pvs = r.read_bits(2);
-                    //     e.active = (pvs & 0x02) != 0;
-                    //     if (pvs & 0x01) == 1 {
-                    //         continue;
-                    //     }
-                    // }
+
                     if !e.active {
                         e.active = true;
                         op |= EntityEvent::Entered as isize;
                     }
 
-                    self.field_reader
-                        .read_fields(&mut r, &e.class.serializer, &mut e.state);
-
-                    if packet.has_pvs_vis_bits() != 0 {
-                        r.read_bits(2);
-                    }
+                    self.field_reader.read_fields(
+                        &mut entities_reader,
+                        &e.class.serializer,
+                        &mut e.state,
+                    );
                 }
             } else {
                 op = EntityEvent::Left as isize;
@@ -506,20 +532,20 @@ impl<'a> Parser<'a> {
             }
 
             if op & EntityEvent::Created as isize != 0 {
-                throw_event(&self.context, &index, EntityEvent::Created)?;
+                throw_event(&self.context, index, EntityEvent::Created)?;
             }
             if op & EntityEvent::Entered as isize != 0 {
-                throw_event(&self.context, &index, EntityEvent::Entered)?;
+                throw_event(&self.context, index, EntityEvent::Entered)?;
             }
             if op & EntityEvent::Updated as isize != 0 {
-                throw_event(&self.context, &index, EntityEvent::Updated)?;
+                throw_event(&self.context, index, EntityEvent::Updated)?;
             }
             if op & EntityEvent::Left as isize != 0 {
-                throw_event(&self.context, &index, EntityEvent::Left)?;
+                throw_event(&self.context, index, EntityEvent::Left)?;
             }
             if op & EntityEvent::Deleted as isize != 0 {
-                throw_event(&self.context, &index, EntityEvent::Deleted)?;
-                self.context.entities.index_to_entity.remove(&index);
+                throw_event(&self.context, index, EntityEvent::Deleted)?;
+                self.context.entities.entities_vec[index as usize] = None;
             }
         }
 
@@ -561,44 +587,43 @@ impl<'a> Parser<'a> {
 
     #[inline(always)]
     fn create_string_table(&mut self, msg: &[u8]) -> Result<()> {
-        let st = CsvcMsgCreateStringTable::decode(msg)?;
+        let table_msg = CsvcMsgCreateStringTable::decode(msg)?;
 
-        if st.name() == "decalprecache" {
+        if table_msg.name() == "decalprecache" {
             self.context.string_tables.next_index += 1;
             return Ok(());
         }
 
-        let mut t = StringTable {
+        let mut table = StringTable {
             index: self.context.string_tables.next_index,
-            name: st.name().into(),
+            name: table_msg.name().into(),
             items: IntMap::default(),
-            user_data_fixed_size: st.user_data_fixed_size(),
-            user_data_size: st.user_data_size(),
-            flags: st.flags() as u32,
-            var_int_bit_counts: st.using_varint_bitcounts(),
+            user_data_fixed_size: table_msg.user_data_fixed_size(),
+            user_data_size: table_msg.user_data_size(),
+            flags: table_msg.flags() as u32,
+            var_int_bit_counts: table_msg.using_varint_bitcounts(),
         };
 
         self.context.string_tables.next_index += 1;
 
-        let buf = match st.data_compressed() {
-            true => {
-                let mut decoder = snap::raw::Decoder::new();
-                decoder.decompress_vec(st.string_data())?
-            }
-            false => st.string_data().into(),
+        let buf = if table_msg.data_compressed() {
+            let mut decoder = snap::raw::Decoder::new();
+            decoder.decompress_vec(table_msg.string_data())?
+        } else {
+            table_msg.string_data().into()
         };
 
-        let is_baseline = t.name == "instancebaseline";
+        let is_baseline = table.name == "instancebaseline";
 
-        for item in t.parse(buf.as_slice(), st.num_entries())? {
+        for item in table.parse(buf.as_slice(), table_msg.num_entries())? {
             if is_baseline {
                 self.baselines
                     .insert(item.key.parse::<i32>()?, item.value.clone());
             }
-            t.items.insert(item.index, item);
+            table.items.insert(item.index, item);
         }
 
-        let rc = Rc::new(RefCell::new(t));
+        let rc = Rc::new(RefCell::new(table));
         self.context
             .string_tables
             .tables
@@ -631,37 +656,6 @@ impl<'a> Parser<'a> {
             bail!("Failed to parse build number: '{}'", info.game_dir());
         }
         Ok(())
-    }
-
-    #[inline(always)]
-    pub(crate) fn on_tick_start(&mut self) -> Result<()> {
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_tick_start(&self.context))
-    }
-
-    #[inline(always)]
-    pub(crate) fn on_tick_end(&mut self) -> Result<()> {
-        if let Ok(names) = self.context.string_tables.get_by_name("CombatLogNames") {
-            while let Some(entry) = self.combat_log.pop_front() {
-                let log = CombatLog {
-                    names: &names,
-                    log: entry,
-                };
-                self.on_combat_log(&log)?;
-            }
-        }
-
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_tick_end(&self.context))
-    }
-
-    #[inline(always)]
-    pub(crate) fn on_combat_log(&self, entry: &CombatLog) -> Result<()> {
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_combat_log(&self.context, entry))
     }
 }
 
