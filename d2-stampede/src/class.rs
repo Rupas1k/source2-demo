@@ -1,6 +1,8 @@
 use crate::serializer::Serializer;
 use anyhow::{anyhow, Context, Result};
+use prettytable::{row, Table};
 use rustc_hash::FxHashMap;
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 pub struct Classes {
@@ -19,9 +21,8 @@ impl Classes {
     }
 
     pub(crate) fn get_by_id_rc(&self, id: usize) -> Result<&Rc<Class>> {
-        self.classes_vec
-            .get(id)
-            .with_context(|| anyhow!("No class for given id {}", id))
+        Ok(&self.classes_vec[id])
+        // .ok_or_else(|| anyhow!("No class for given id {}", id))
     }
 
     pub fn get_by_id(&self, id: usize) -> Result<&Class> {
@@ -60,5 +61,16 @@ impl Class {
     }
     pub fn id(&self) -> i32 {
         self.id
+    }
+}
+
+impl Display for Classes {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut table = Table::new();
+        table.add_row(row!["id", "name"]);
+        for class in self.classes_vec.iter() {
+            table.add_row(row![class.id().to_string(), class.name]);
+        }
+        write!(f, "{}", table)
     }
 }

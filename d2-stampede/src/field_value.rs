@@ -26,7 +26,7 @@ impl Display for FieldValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             FieldValue::Boolean(val) => write!(f, "{}", val),
-            FieldValue::String(val) => write!(f, "{}", val),
+            FieldValue::String(val) => write!(f, "\"{}\"", val),
             FieldValue::Float(val) => write!(f, "{}", val),
             FieldValue::Vector2D(val) => write!(f, "[{}, {}]", val[0], val[1]),
             FieldValue::Vector3D(val) => write!(f, "[{}, {}, {}]", val[0], val[1], val[2]),

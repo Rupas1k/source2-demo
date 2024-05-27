@@ -22,8 +22,6 @@ impl<'a> CombatLog<'a> {
                     .get(id as usize)
                     .map(|name| name.key.as_ref())
             })
-            .flatten()
-            .map(|x| x.as_str())
             .with_context(|| anyhow!("No target name for {:?}", self.type_()))
     }
 
@@ -36,8 +34,6 @@ impl<'a> CombatLog<'a> {
                     .get(id as usize)
                     .map(|name| name.key.as_ref())
             })
-            .flatten()
-            .map(|x| x.as_str())
             .with_context(|| anyhow!("No target source name for {:?}", self.type_()))
     }
 
@@ -50,8 +46,6 @@ impl<'a> CombatLog<'a> {
                     .get(id as usize)
                     .map(|name| name.key.as_ref())
             })
-            .flatten()
-            .map(|x| x.as_str())
             .with_context(|| anyhow!("No attacker name for {:?}", self.type_()))
     }
 
@@ -64,8 +58,6 @@ impl<'a> CombatLog<'a> {
                     .get(id as usize)
                     .map(|name| name.key.as_ref())
             })
-            .flatten()
-            .map(|x| x.as_str())
             .with_context(|| anyhow!("No damage source name for {:?}", self.type_()))
     }
 
@@ -78,8 +70,6 @@ impl<'a> CombatLog<'a> {
                     .get(id as usize)
                     .map(|name| name.key.as_ref())
             })
-            .flatten()
-            .map(|x| x.as_str())
             .with_context(|| anyhow!("No inflictor name for {:?}", self.type_()))
     }
 
@@ -92,8 +82,6 @@ impl<'a> CombatLog<'a> {
                     .get(id as usize)
                     .map(|name| name.key.as_ref())
             })
-            .flatten()
-            .map(|x| x.as_str())
             .with_context(|| anyhow!("No value name for {:?}", self.type_()))
     }
 

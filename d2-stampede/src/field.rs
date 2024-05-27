@@ -3,16 +3,14 @@ use crate::field_value::FieldValue;
 use crate::serializer::Serializer;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rustc_hash::FxHashMap;
-use std::cmp::max;
 use std::rc::Rc;
 
-pub struct Field {
-    pub var_name: Box<str>,
-    pub field_type: Rc<FieldType>,
-    pub model: FieldModels,
+pub(crate) struct Field {
+    pub(crate) var_name: Box<str>,
+    pub(crate) field_type: Rc<FieldType>,
+    pub(crate) model: FieldModels,
 
-    pub decoder: Decoders,
+    pub(crate) decoder: Decoders,
 }
 
 impl Field {
@@ -47,7 +45,7 @@ impl Field {
                 if let Some(x) = st.get_field_state(fp) {
                     fp.last += 2;
                     for (i, v) in x.state.iter().enumerate() {
-                        if let Some(StateType::FieldState(vv)) = v.as_ref() {
+                        if let Some(StateType::State(vv)) = v.as_ref() {
                             fp.path[fp.last - 1] = i as u8;
                             vec.extend(serializer.get_field_paths(fp, vv));
                         }
@@ -102,32 +100,16 @@ pub enum FieldModels {
     VariableTable(Rc<Serializer>),
 }
 
-pub struct FieldPatch {
-    pub min_build: u32,
-    pub max_build: u32,
-    pub patch: fn(&mut FieldProperties, &str),
-}
-
-impl FieldPatch {
-    pub fn should_apply(&self, build: u32) -> bool {
-        if self.min_build == 0 && self.max_build == 0 {
-            true
-        } else {
-            build >= self.min_build && build <= self.max_build
-        }
-    }
-}
-
 #[derive(Clone)]
 pub enum StateType {
     Value(FieldValue),
-    FieldState(FieldState),
+    State(FieldState),
 }
 
 impl StateType {
     #[inline(always)]
     pub fn as_field_state(&self) -> Option<&FieldState> {
-        if let StateType::FieldState(x) = self {
+        if let StateType::State(x) = self {
             Some(x)
         } else {
             None
@@ -136,7 +118,7 @@ impl StateType {
 
     #[inline(always)]
     unsafe fn as_field_state_mut(&mut self) -> &mut FieldState {
-        if let StateType::FieldState(x) = self {
+        if let StateType::State(x) = self {
             return x;
         }
         unreachable!()
@@ -169,11 +151,15 @@ impl FieldState {
     pub fn get_value(&self, fp: &FieldPath) -> Option<&FieldValue> {
         let mut current_state = self;
         for i in 0..fp.last {
-            current_state = current_state.state[fp.path[i] as usize]
+            current_state = current_state
+                .state
+                .get(fp.path[i] as usize)?
                 .as_ref()?
                 .as_field_state()?;
         }
-        current_state.state[fp.path[fp.last] as usize]
+        current_state
+            .state
+            .get(fp.path[fp.last] as usize)?
             .as_ref()?
             .as_value()
     }
@@ -197,31 +183,28 @@ impl FieldState {
             let mut current_state = self;
             for i in 0..=fp.last {
                 if current_state.state.len() <= fp.path[i] as usize {
-                    current_state.state.resize_with(
-                        max(fp.path[i] as usize + 2, current_state.state.len() * 2),
-                        || None,
-                    );
+                    current_state
+                        .state
+                        .resize_with(fp.path[i] as usize + 1, || None)
                 }
+
                 if i == fp.last {
                     current_state.state[fp.path[i] as usize] = Some(StateType::Value(v));
                     return;
                 }
+
                 if current_state.state[fp.path[i] as usize].is_none()
-                    || !matches!(
+                    || matches!(
                         current_state.state[fp.path[i] as usize]
                             .as_ref()
                             .unwrap_unchecked(),
-                        StateType::FieldState(_)
+                        StateType::Value(_)
                     )
-                // current_state.state[fp.path[i] as usize]
-                //         .as_ref()
-                //         .unwrap_unchecked()
-                //         .as_field_state()
-                //         .is_none()
                 {
                     current_state.state[fp.path[i] as usize] =
-                        Some(StateType::FieldState(FieldState::new(16)));
+                        Some(StateType::State(FieldState::new(20)));
                 }
+
                 current_state = current_state.state[fp.path[i] as usize]
                     .as_mut()
                     .unwrap_unchecked()
@@ -270,6 +253,10 @@ impl FieldPath {
     }
 }
 
+lazy_static! {
+    static ref RE: Regex = Regex::new(r"([^<\[*]+)(<\s(.*)\s>)?(\*)?(\[(.*)])?").unwrap();
+}
+
 #[derive(Clone, Debug)]
 pub struct FieldType {
     pub base: Box<str>,
@@ -288,11 +275,10 @@ impl FieldType {
             .get(3)
             .map(|v| Box::new(FieldType::new(v.as_str())));
 
-        let count = captures.get(6).and_then(|x| {
-            COUNT_TYPES
-                .get(x.as_str())
-                .copied()
-                .or_else(|| x.as_str().parse().ok())
+        let count = captures.get(6).map(|x| match x.as_str() {
+            "MAX_ITEM_STOCKS" => 8,
+            "MAX_ABILITY_DRAFT_ABILITIES" => 48,
+            s => s.parse::<i32>().unwrap(),
         });
 
         FieldType {
@@ -302,26 +288,18 @@ impl FieldType {
             count,
         }
     }
-}
 
-lazy_static! {
-    pub static ref FIELD_PATCHES: [FieldPatch; 1] = [FieldPatch {
-        min_build: 0,
-        max_build: 0,
-        patch: |properties: &mut FieldProperties, var_name: &str| match var_name {
-            "m_flSimulationTime" | "m_flAnimTime" => {
-                properties.encoder = Some(Encoder::SimTime);
-            }
-            "m_flRuneTime" => {
-                properties.encoder = Some(Encoder::RuneTime);
-            }
-            _ => {}
-        },
-    },];
-    static ref RE: Regex = Regex::new(r"([^<\[*]+)(<\s(.*)\s>)?(\*)?(\[(.*)])?").unwrap();
-    static ref COUNT_TYPES: FxHashMap<&'static str, i32> =
-        [("MAX_ITEM_STOCKS", 8), ("MAX_ABILITY_DRAFT_ABILITIES", 48)]
-            .iter()
-            .copied()
-            .collect();
+    pub fn as_string(&self) -> String {
+        let mut x = self.base.to_string();
+        if let Some(generic) = &self.generic {
+            x = x + "<" + &generic.as_string() + ">";
+        }
+        if self.pointer {
+            x += "*";
+        }
+        if let Some(c) = self.count {
+            x = x + "[" + &c.to_string() + "]";
+        }
+        x
+    }
 }

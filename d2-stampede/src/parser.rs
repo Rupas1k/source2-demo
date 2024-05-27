@@ -2,7 +2,7 @@ use crate::class::{Class, Classes};
 use crate::combat_log::CombatLog;
 use crate::decoder::Decoders;
 use crate::entity::{Entities, Entity, EntityEvent};
-use crate::field::{Encoder, Field, FieldModels, FieldProperties, FieldType, FIELD_PATCHES};
+use crate::field::{Encoder, Field, FieldModels, FieldProperties, FieldType};
 use crate::field_reader::FieldReader;
 use crate::proto::*;
 use crate::reader::Reader;
@@ -22,11 +22,11 @@ pub struct Parser<'a> {
     serializers: FxHashMap<Box<str>, Rc<Serializer>>,
     baselines: FxHashMap<i32, Rc<Vec<u8>>>,
 
-    pub(crate) observers: Vec<Rc<RefCell<dyn Observer + 'a>>>,
+    observers: Vec<Rc<RefCell<dyn Observer + 'a>>>,
 
     combat_log: VecDeque<CMsgDotaCombatLogEntry>,
 
-    context: Context,
+    pub context: Context,
 }
 
 pub struct Context {
@@ -286,11 +286,6 @@ impl<'a> Parser<'a> {
         .copied()
         .collect();
 
-        let patches = FIELD_PATCHES
-            .iter()
-            .filter(|patch| patch.should_apply(self.context.game_build.unwrap()))
-            .collect::<Vec<_>>();
-
         let mut fields = vec![];
         let mut field_types = FxHashMap::<Box<str>, Rc<FieldType>>::default();
 
@@ -324,8 +319,14 @@ impl<'a> Parser<'a> {
                         high_value: current_field.high_value(),
                     };
 
-                    for patch in patches.iter() {
-                        (patch.patch)(&mut properties, var_name.as_ref())
+                    match var_name.as_ref() {
+                        "m_flSimulationTime" | "m_flAnimTime" => {
+                            properties.encoder = Some(Encoder::SimTime);
+                        }
+                        "m_flRuneTime" => {
+                            properties.encoder = Some(Encoder::RuneTime);
+                        }
+                        _ => {}
                     }
 
                     let model = if let Some(serializer) = current_field_serializer {
@@ -567,14 +568,6 @@ impl<'a> Parser<'a> {
     fn create_string_table(&mut self, msg: &[u8]) -> Result<()> {
         let table_msg = CsvcMsgCreateStringTable::decode(msg)?;
 
-        if table_msg.name() == "decalprecache" {
-            self.context
-                .string_tables
-                .tables
-                .push(Rc::new(RefCell::new(StringTable::default())));
-            return Ok(());
-        }
-
         let mut table = StringTable {
             index: self.context.string_tables.tables.len() as i32,
             name: table_msg.name().into(),
@@ -593,7 +586,9 @@ impl<'a> Parser<'a> {
             table_msg.string_data().into()
         };
 
-        table.parse(&mut self.baselines, buf.as_slice(), table_msg.num_entries())?;
+        if table.name != "decalprecache" {
+            table.parse(&mut self.baselines, buf.as_slice(), table_msg.num_entries())?;
+        }
 
         let rc = Rc::new(RefCell::new(table));
         self.context.string_tables.tables.push(rc.clone());

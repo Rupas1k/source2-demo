@@ -1,12 +1,14 @@
 use crate::reader::Reader;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
+use prettytable::{row, Table};
 use rustc_hash::FxHashMap;
 use std::cell::{Ref, RefCell};
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 pub struct StringTables {
-    pub(crate) tables: Vec<Rc<RefCell<StringTable>>>,
-    pub(crate) name_to_table: FxHashMap<Box<str>, Rc<RefCell<StringTable>>>,
+    pub tables: Vec<Rc<RefCell<StringTable>>>,
+    pub name_to_table: FxHashMap<Box<str>, Rc<RefCell<StringTable>>>,
 }
 
 impl StringTables {
@@ -24,14 +26,14 @@ impl StringTables {
     pub fn get_by_id(&self, id: &i32) -> Result<Ref<StringTable>> {
         self.tables
             .get(*id as usize)
-            .ok_or_else(|| anyhow!("No string table for given id"))
+            .with_context(|| anyhow!("No string table for given id"))
             .map(|table| table.borrow())
     }
 
     pub fn get_by_name(&self, name: &str) -> Result<Ref<StringTable>> {
         self.name_to_table
             .get(name)
-            .ok_or_else(|| anyhow!("No string table for given name"))
+            .with_context(|| anyhow!("No string table for given name"))
             .map(|table| table.borrow())
     }
 }
@@ -39,12 +41,12 @@ impl StringTables {
 #[derive(Clone)]
 pub struct StringTableEntry {
     pub(crate) index: i32,
-    pub(crate) key: Option<String>,
+    pub(crate) key: String,
     pub(crate) value: Option<Rc<Vec<u8>>>,
 }
 
 impl StringTableEntry {
-    pub(crate) fn new(index: i32, key: Option<String>, value: Option<Rc<Vec<u8>>>) -> Self {
+    pub(crate) fn new(index: i32, key: String, value: Option<Rc<Vec<u8>>>) -> Self {
         StringTableEntry { index, key, value }
     }
 
@@ -52,8 +54,8 @@ impl StringTableEntry {
         self.index
     }
 
-    pub fn key(&self) -> Option<&str> {
-        self.key.as_deref()
+    pub fn key(&self) -> &str {
+        self.key.as_str()
     }
 
     pub fn value(&self) -> Option<&[u8]> {
@@ -89,7 +91,7 @@ impl StringTable {
     pub fn get_entry_by_index(&self, idx: usize) -> Result<&StringTableEntry> {
         self.items
             .get(idx)
-            .ok_or_else(|| anyhow!("No string table entry for given index {idx}"))
+            .with_context(|| anyhow!("No string table entry for given index {idx}"))
     }
 
     #[inline]
@@ -113,7 +115,7 @@ impl StringTable {
                 index += r.read_var_u32() as i32 + 1;
             }
 
-            let key = if r.read_bool() {
+            let key = r.read_bool().then(|| {
                 let delta_zero = if delta_pos > 32 { delta_pos & 31 } else { 0 };
                 let key = if r.read_bool() {
                     let pos = (delta_zero + r.read_bits_no_refill(5) as usize) & 31;
@@ -130,12 +132,10 @@ impl StringTable {
                 };
                 keys[delta_pos & 31].clone_from(&key);
                 delta_pos += 1;
-                Some(key)
-            } else {
-                None
-            };
+                key
+            });
 
-            let value = if r.read_bool() {
+            let value = r.read_bool().then(|| {
                 let mut is_compressed = false;
                 let bit_size = if self.user_data_fixed_size {
                     self.user_data_size as u32
@@ -152,35 +152,52 @@ impl StringTable {
 
                 let value = Rc::new(if is_compressed {
                     let mut decoder = snap::raw::Decoder::new();
-                    decoder.decompress_vec(&r.read_bits_as_bytes(bit_size))?
+                    decoder
+                        .decompress_vec(&r.read_bits_as_bytes(bit_size))
+                        .unwrap()
                 } else {
                     r.read_bits_as_bytes(bit_size)
                 });
 
                 if self.name == "instancebaseline" {
-                    baselines.insert(
-                        unsafe { key.as_ref().unwrap_unchecked().parse::<i32>()? },
-                        value.clone(),
-                    );
+                    baselines.insert(key.as_ref().unwrap().parse::<i32>().unwrap(), value.clone());
                 }
 
-                Some(value)
-            } else {
-                None
-            };
+                value
+            });
 
             if let Some(x) = items.get_mut(index as usize) {
-                if value.is_some() {
-                    x.value = value;
+                if let Some(k) = key {
+                    x.key = k;
                 }
-                if key.is_some() && key != x.key {
-                    x.key = key;
-                }
+                x.value = value;
             } else {
-                items.push(StringTableEntry::new(index, key, value));
+                items.push(StringTableEntry::new(index, key.unwrap(), value));
             }
         }
 
         Ok(())
+    }
+}
+
+impl Display for StringTables {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut table = Table::new();
+        table.add_row(row!["id", "name"]);
+        for string_table in self.iter() {
+            table.add_row(row![string_table.index.to_string(), string_table.name]);
+        }
+        write!(f, "{}", table)
+    }
+}
+
+impl Display for StringTable {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut table = Table::new();
+        table.add_row(row!["idx", "key", "value"]);
+        for entry in self.items.iter() {
+            table.add_row(row![entry.index, entry.key, format!("{:?}", entry.value)]);
+        }
+        write!(f, "{}", table)
     }
 }

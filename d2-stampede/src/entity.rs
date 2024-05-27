@@ -2,7 +2,8 @@ use crate::class::Class;
 use crate::field::{FieldPath, FieldState};
 use crate::field_value::FieldValue;
 use anyhow::{anyhow, bail, Context, Result};
-use std::fmt::{Display, Formatter};
+use prettytable::{row, Table};
+use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -69,8 +70,8 @@ impl Entities {
 
 #[derive(Clone)]
 pub struct Entity {
-    pub(crate) index: i32,
-    pub(crate) serial: i32,
+    index: i32,
+    serial: i32,
     pub(crate) class: Rc<Class>,
     pub(crate) active: bool,
     pub(crate) state: FieldState,
@@ -83,7 +84,7 @@ impl Entity {
             serial,
             class,
             active: true,
-            state: FieldState::new(16),
+            state: FieldState::new(20),
         }
     }
 
@@ -105,153 +106,51 @@ impl Entity {
 
     pub fn get_property_by_name(&self, name: &str) -> Result<&FieldValue> {
         self.get_property_by_field_path(
-            &self.class.serializer.get_field_path_for_name(name)?, // .with_contextwith_context(|| anyhow!("No property for given name \"{}\"", name))?,
+            &self.class.serializer.get_field_path_for_name(name)?, // .with_context(|| anyhow!("No property for given name \"{}\"", name))?,
         )
     }
 
     pub(crate) fn get_property_by_field_path(&self, fp: &FieldPath) -> Result<&FieldValue> {
         self.state
             .get_value(fp)
-            .ok_or_else(|| anyhow!("No property for given field path {:?}", fp))
+            .with_context(|| anyhow!("No property for given field path {:?}", fp))
     }
 }
 
-// ChatGPT
+impl Display for Entities {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut table = Table::new();
+        table.add_row(row!["idx", "serial", "handle", "class"]);
+        for e in self.entities_vec.iter().flatten() {
+            table.add_row(row![
+                e.index().to_string(),
+                e.serial().to_string(),
+                e.handle().to_string(),
+                e.class().name(),
+            ]);
+        }
+        write!(f, "{}", table)
+    }
+}
+
 impl Display for Entity {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        // Function to generate a horizontal line
-        fn horizontal_line(width1: usize, width2: usize, width3: usize) -> String {
-            format!(
-                "+{:<width1$}+{:<width2$}+{:<width3$}+\n",
-                "-".repeat(width1 + 2),
-                "-".repeat(width2 + 2),
-                "-".repeat(width3 + 2),
-                width1 = width1 + 2,
-                width2 = width2 + 2,
-                width3 = width3 + 2
-            )
-        }
+        let mut table = Table::new();
+        table.add_row(row!["Field", "Type", "Value"]);
 
-        // Function to format a table row
-        fn format_row(
-            name: &str,
-            t: &str,
-            value: &str,
-            width1: usize,
-            width2: usize,
-            width3: usize,
-        ) -> String {
-            format!(
-                "| {:<width1$} | {:<width2$} | {:<width3$} |\n",
-                name,
-                t,
-                value,
-                width1 = width1,
-                width2 = width2,
-                width3 = width3
-            )
-        }
-
-        let mut table = String::new();
-
-        // Calculate column widths based on the longest field name
-        let mut name_width = 5; // Minimum width for the "Field" column
         for fp in self
             .class
             .serializer
             .get_field_paths(&mut FieldPath::new(), &self.state)
         {
+            let field_type = self.class.serializer.get_type_for_field_path(&fp);
             let name = self.class.serializer.get_name_for_field_path(&fp);
-            name_width = name.len().max(name_width);
+            let value = self.state.get_value(&fp);
+            if let Some(v) = value {
+                table.add_row(row![name, field_type.as_string(), v]);
+            }
         }
 
-        let type_width = 35; // Fixed width for the "Type" column
-        let value_width = 35; // Fixed width for the "Value" column
-
-        // Add header row
-        table += &horizontal_line(name_width, type_width, value_width);
-        table += &format_row(
-            "Field",
-            "Type",
-            "Value",
-            name_width,
-            type_width,
-            value_width,
-        );
-        table += &horizontal_line(name_width, type_width, value_width);
-
-        // Add rows for each field
-        for fp in self
-            .class
-            .serializer
-            .get_field_paths(&mut FieldPath::new(), &self.state)
-        {
-            let t = self
-                .class
-                .serializer
-                .get_type_for_field_path(&fp)
-                .base
-                .clone();
-            let name = self.class.serializer.get_name_for_field_path(&fp);
-            let value = match self.state.get_value(&fp) {
-                Some(v) => match t.as_ref() {
-                    "bool" => format!("{}", v.as_bool()),
-                    "char" | "CUtlString" | "CUtlSymbolLarge" => format!("\"{}\"", v.to_owned()),
-                    "int8" | "int16" | "int32" | "int64" => format!("{}", v),
-                    "uint8"
-                    | "uint16"
-                    | "uint32"
-                    | "uint64"
-                    | "CStrongHandle"
-                    | "HeroFacetKey_t"
-                    | "color32"
-                    | "CGameSceneNodeHandle"
-                    | "Color"
-                    | "CUtlStringToken"
-                    | "CHandle"
-                    | "CEntityHandle"
-                    | "CBodyComponent"
-                    | "CPhysicsComponent"
-                    | "CRenderComponent"
-                    | "BloodType" => format!("{}", v),
-                    "float32" | "GameTime_t" | "CNetworkedQuantizedFloat" => {
-                        format!("{}", v.as_float())
-                    }
-                    "Vector2D" => format!(
-                        "[{}]",
-                        v.as_vector2d()
-                            .iter()
-                            .map(|&x| x.to_string())
-                            .collect::<Vec<String>>()
-                            .join(" ")
-                    ),
-                    "Vector3D" | "Vector" | "QAngle" => format!(
-                        "[{}]",
-                        v.as_vector3d()
-                            .iter()
-                            .map(|&x| x.to_string())
-                            .collect::<Vec<String>>()
-                            .join(" ")
-                    ),
-                    "Vector4D" => format!(
-                        "[{}]",
-                        v.as_vector4d()
-                            .iter()
-                            .map(|&x| x.to_string())
-                            .collect::<Vec<String>>()
-                            .join(" ")
-                    ),
-                    _ => format!("{}", v),
-                },
-                _ => "None".to_string(),
-            };
-            table += &format_row(&name, &t, &value, name_width, type_width, value_width);
-        }
-
-        // Add bottom border
-        table += &horizontal_line(name_width, type_width, value_width);
-
-        write!(f, "{}", table)?;
-        Ok(())
+        write!(f, "{}", table)
     }
 }

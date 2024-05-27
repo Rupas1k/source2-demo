@@ -12,7 +12,7 @@ pub(crate) struct Serializer {
 }
 
 impl Serializer {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Serializer {
             fields: vec![],
             fp_cache: RefCell::new(FxHashMap::default()),
@@ -26,20 +26,25 @@ impl Serializer {
         let mut current_field = &current_serializer.fields[fp.path[i] as usize];
         let mut name = String::new();
         loop {
-            i += 1;
             name += &current_field.var_name;
+            i += 1;
             match &current_field.model {
                 FieldModels::FixedArray | FieldModels::VariableArray(_) => {
-                    name += &format!(".{:04}", fp.path[i + 1]);
-                    break;
+                    if fp.last == i {
+                        name += &format!(".{:04}", fp.path[i]);
+                        break;
+                    }
                 }
                 FieldModels::VariableTable(serializer) => {
-                    i += 1;
+                    if fp.last + 1 == i {
+                        break;
+                    }
                     name += &format!(".{:04}.", fp.path[i]);
+                    i += 1;
                     current_serializer = serializer;
                 }
                 FieldModels::FixedTable(serializer) => {
-                    if i > fp.last {
+                    if fp.last + 1 == i {
                         break;
                     }
                     name += ".";
@@ -88,7 +93,7 @@ impl Serializer {
     }
 
     #[inline(always)]
-    pub fn get_decoder_for_field_path(&self, fp: &FieldPath) -> &Decoders {
+    pub(crate) fn get_decoder_for_field_path(&self, fp: &FieldPath) -> &Decoders {
         let mut i = 0;
         let mut current_serializer = self;
         let mut current_field = &current_serializer.fields[fp.path[i] as usize];
@@ -165,7 +170,7 @@ impl Serializer {
         Ok(self.fp_cache.borrow()[name])
     }
 
-    pub fn get_field_paths<'a>(
+    pub(crate) fn get_field_paths<'a>(
         &'a self,
         fp: &'a mut FieldPath,
         st: &'a FieldState,
