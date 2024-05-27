@@ -100,7 +100,7 @@ pub enum FieldModels {
     VariableTable(Rc<Serializer>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum StateType {
     Value(FieldValue),
     State(FieldState),
@@ -134,7 +134,7 @@ impl StateType {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FieldState {
     pub(crate) state: Vec<Option<StateType>>,
 }
@@ -185,7 +185,9 @@ impl FieldState {
                 if current_state.state.len() <= fp.path[i] as usize {
                     current_state
                         .state
-                        .resize_with(fp.path[i] as usize + 1, || None)
+                        .resize_with(fp.path[i] as usize + 1, || {
+                            Some(StateType::State(FieldState::new(0)))
+                        })
                 }
 
                 if i == fp.last {
@@ -193,16 +195,14 @@ impl FieldState {
                     return;
                 }
 
-                if current_state.state[fp.path[i] as usize].is_none()
-                    || matches!(
-                        current_state.state[fp.path[i] as usize]
-                            .as_ref()
-                            .unwrap_unchecked(),
-                        StateType::Value(_)
-                    )
-                {
+                if matches!(
+                    current_state.state[fp.path[i] as usize]
+                        .as_ref()
+                        .unwrap_unchecked(),
+                    StateType::Value(_)
+                ) {
                     current_state.state[fp.path[i] as usize] =
-                        Some(StateType::State(FieldState::new(20)));
+                        Some(StateType::State(FieldState::new(0)));
                 }
 
                 current_state = current_state.state[fp.path[i] as usize]
@@ -281,12 +281,13 @@ impl FieldType {
             s => s.parse::<i32>().unwrap(),
         });
 
-        FieldType {
+        let x = FieldType {
             base,
             generic,
             pointer,
             count,
-        }
+        };
+        x
     }
 
     pub fn as_string(&self) -> String {

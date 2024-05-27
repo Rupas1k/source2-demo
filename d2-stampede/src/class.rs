@@ -1,3 +1,4 @@
+use crate::field::FieldState;
 use crate::serializer::Serializer;
 use anyhow::{anyhow, Context, Result};
 use prettytable::{row, Table};
@@ -45,14 +46,21 @@ pub struct Class {
     pub(crate) id: i32,
     pub(crate) name: Box<str>,
     pub(crate) serializer: Rc<Serializer>,
+    pub(crate) baseline: FieldState,
 }
 
 impl Class {
-    pub(crate) fn new(id: i32, name: &str, serializer: Rc<Serializer>) -> Self {
+    pub(crate) fn new(
+        id: i32,
+        name: &str,
+        serializer: Rc<Serializer>,
+        baseline: FieldState,
+    ) -> Self {
         Class {
             id,
             name: name.into(),
             serializer,
+            baseline,
         }
     }
 

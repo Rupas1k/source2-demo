@@ -1,3 +1,4 @@
+use crate::parser::Baselines;
 use crate::reader::Reader;
 use anyhow::{anyhow, Context, Result};
 use prettytable::{row, Table};
@@ -97,7 +98,7 @@ impl StringTable {
     #[inline]
     pub(crate) fn parse(
         &mut self,
-        baselines: &mut FxHashMap<i32, Rc<Vec<u8>>>,
+        baselines: &mut Baselines,
         buf: &[u8],
         num_updates: i32,
     ) -> Result<()> {
@@ -160,7 +161,7 @@ impl StringTable {
                 });
 
                 if self.name == "instancebaseline" {
-                    baselines.insert(key.as_ref().unwrap().parse::<i32>().unwrap(), value.clone());
+                    baselines.add_baseline(key.as_ref().unwrap().parse().unwrap(), value.clone());
                 }
 
                 value

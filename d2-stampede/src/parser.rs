@@ -2,7 +2,7 @@ use crate::class::{Class, Classes};
 use crate::combat_log::CombatLog;
 use crate::decoder::Decoders;
 use crate::entity::{Entities, Entity, EntityEvent};
-use crate::field::{Encoder, Field, FieldModels, FieldProperties, FieldType};
+use crate::field::{Encoder, Field, FieldModels, FieldProperties, FieldState, FieldType};
 use crate::field_reader::FieldReader;
 use crate::proto::*;
 use crate::reader::Reader;
@@ -20,13 +20,35 @@ pub struct Parser<'a> {
     field_reader: FieldReader,
 
     serializers: FxHashMap<Box<str>, Rc<Serializer>>,
-    baselines: FxHashMap<i32, Rc<Vec<u8>>>,
+    baselines: Baselines,
 
     observers: Vec<Rc<RefCell<dyn Observer + 'a>>>,
 
     combat_log: VecDeque<CMsgDotaCombatLogEntry>,
 
     pub context: Context,
+}
+
+pub(crate) struct Baselines {
+    field_reader: FieldReader,
+    baselines: FxHashMap<i32, Rc<Vec<u8>>>,
+    states: FxHashMap<i32, FieldState>,
+}
+
+impl Baselines {
+    pub(crate) fn add_baseline(&mut self, id: i32, baseline: Rc<Vec<u8>>) {
+        self.baselines.insert(id, baseline);
+    }
+
+    pub(crate) fn read_baseline(&mut self, class: &Class) {
+        let mut state = FieldState::new(0);
+        self.field_reader.read_fields(
+            &mut Reader::new(&self.baselines[&class.id]),
+            &class.serializer,
+            &mut state,
+        );
+        self.states.insert(class.id, state);
+    }
 }
 
 pub struct Context {
@@ -46,12 +68,18 @@ struct OuterMessage {
 
 impl<'a> Parser<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
+        let baselines = Baselines {
+            field_reader: FieldReader::new(),
+            baselines: FxHashMap::default(),
+            states: FxHashMap::default(),
+        };
+
         Parser {
             reader: Reader::new(buf),
             field_reader: FieldReader::new(),
 
             serializers: FxHashMap::default(),
-            baselines: FxHashMap::default(),
+            baselines,
 
             observers: Vec::new(),
 
@@ -383,11 +411,16 @@ impl<'a> Parser<'a> {
         for class in info.classes {
             let class_id = class.class_id();
             let network_name = class.network_name();
+
+            let serializer = self.serializers[network_name].clone();
+
             let class = Rc::new(Class::new(
                 class_id,
                 network_name,
-                self.serializers[network_name].clone(),
+                serializer,
+                FieldState::new(0),
             ));
+
             self.context.classes.classes_vec.push(class.clone());
             self.context
                 .classes
@@ -486,7 +519,6 @@ impl<'a> Parser<'a> {
                         .classes
                         .get_by_id_rc(class_id as usize)?
                         .clone();
-                    let baseline = self.baselines[&class_id].as_slice();
 
                     self.context.entities.entities_vec[index as usize] =
                         Some(Entity::new(index, serial, class.clone()));
@@ -495,11 +527,10 @@ impl<'a> Parser<'a> {
                         .as_mut()
                         .unwrap();
 
-                    self.field_reader.read_fields(
-                        &mut Reader::new(baseline),
-                        &e.class.serializer,
-                        &mut e.state,
-                    );
+                    if !self.baselines.states.contains_key(&class_id) {
+                        self.baselines.read_baseline(&class)
+                    }
+                    e.state = self.baselines.states[&class_id].clone();
 
                     self.field_reader.read_fields(
                         &mut entities_reader,
@@ -513,11 +544,6 @@ impl<'a> Parser<'a> {
                     let e = self.context.entities.entities_vec[index as usize]
                         .as_mut()
                         .unwrap();
-
-                    if !e.active {
-                        e.active = true;
-                        op |= EntityEvent::Entered as isize;
-                    }
 
                     self.field_reader.read_fields(
                         &mut entities_reader,

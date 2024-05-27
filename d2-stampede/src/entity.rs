@@ -73,18 +73,17 @@ pub struct Entity {
     index: i32,
     serial: i32,
     pub(crate) class: Rc<Class>,
-    pub(crate) active: bool,
     pub(crate) state: FieldState,
 }
 
 impl Entity {
     pub(crate) fn new(index: i32, serial: i32, class: Rc<Class>) -> Self {
+        let state = class.baseline.clone();
         Entity {
             index,
             serial,
             class,
-            active: true,
-            state: FieldState::new(20),
+            state,
         }
     }
 
@@ -99,9 +98,6 @@ impl Entity {
     }
     pub fn class(&self) -> &Class {
         &self.class
-    }
-    pub fn is_active(&self) -> bool {
-        self.active
     }
 
     pub fn get_property_by_name(&self, name: &str) -> Result<&FieldValue> {
