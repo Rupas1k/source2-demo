@@ -5,22 +5,9 @@ use d2_stampede::proto::*;
 struct ChatObserver;
 
 impl Observer for ChatObserver {
-    fn on_base_user_message(
-        &mut self,
-        _ctx: &Parser,
-        msg_type: EBaseUserMessages,
-        msg: &[u8],
-    ) -> d2_stampede::Result<()> {
-        if msg_type == EBaseUserMessages::UmSayText2 {
-            let message = CUserMessageSayText2::decode(msg)?;
-            println!("{}: {}", message.param1(), message.param2());
-        }
-        Ok(())
-    }
-
     fn on_dota_user_message(
         &mut self,
-        ctx: &Parser,
+        ctx: &Context,
         msg_type: EDotaUserMessages,
         msg: &[u8],
     ) -> d2_stampede::Result<()> {

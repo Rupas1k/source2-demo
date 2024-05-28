@@ -1,8 +1,7 @@
 use anyhow::bail;
 use d2_stampede::prelude::*;
 use d2_stampede::proto::DotaCombatlogTypes;
-use nohash_hasher::IntMap;
-use rustc_hash::FxHashMap;
+use hashbrown::HashMap;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
@@ -46,21 +45,21 @@ struct PendingEvent {
 
 pub struct Wards {
     pending_events: VecDeque<PendingEvent>,
-    current_life_state: IntMap<i32, i32>,
-    killers: FxHashMap<WardClasses, VecDeque<Box<str>>>,
+    current_life_state: HashMap<i32, i32>,
+    killers: HashMap<WardClasses, VecDeque<Box<str>>>,
 
     observers: Vec<Rc<RefCell<dyn WardsObserver>>>,
 }
 
 impl Wards {
     pub fn new() -> Self {
-        let mut killers = FxHashMap::default();
+        let mut killers = HashMap::default();
         killers.insert(WardClasses::Observer, VecDeque::new());
         killers.insert(WardClasses::Sentry, VecDeque::new());
 
         Wards {
             pending_events: Default::default(),
-            current_life_state: IntMap::default(),
+            current_life_state: HashMap::default(),
             killers,
             observers: Vec::new(),
         }
@@ -79,13 +78,16 @@ impl Default for Wards {
 
 #[allow(unused_variables)]
 impl Observer for Wards {
-    fn on_tick_end(&mut self, ctx: &Parser) -> d2_stampede::Result<()> {
+    fn on_tick_end(&mut self, ctx: &Context) -> d2_stampede::Result<()> {
         while let Some(ev) = self.pending_events.pop_front() {
             let old_state = *self.current_life_state.get(&ev.entity_idx).unwrap_or(&2);
             let new_state = ev.life_state;
 
             let ward_class = WardClasses::from_class_name(
-                ctx.entities.get_by_index(&ev.entity_idx)?.class().name(),
+                ctx.entities
+                    .get_by_index(ev.entity_idx as usize)?
+                    .class()
+                    .name(),
             )?;
 
             if old_state != new_state {
@@ -97,7 +99,7 @@ impl Observer for Wards {
                             ctx,
                             ward_class,
                             WardEvents::Placed,
-                            ctx.entities.get_by_index(&ev.entity_idx)?,
+                            ctx.entities.get_by_index(ev.entity_idx as usize)?,
                         )
                     })?
                 }
@@ -109,7 +111,7 @@ impl Observer for Wards {
                                 ctx,
                                 ward_class,
                                 WardEvents::Killed(Box::clone(&killer)),
-                                ctx.entities.get_by_index(&ev.entity_idx)?,
+                                ctx.entities.get_by_index(ev.entity_idx as usize)?,
                             )
                         })?
                     } else {
@@ -118,7 +120,7 @@ impl Observer for Wards {
                                 ctx,
                                 ward_class,
                                 WardEvents::Expired,
-                                ctx.entities.get_by_index(&ev.entity_idx)?,
+                                ctx.entities.get_by_index(ev.entity_idx as usize)?,
                             )
                         })?
                     }
@@ -130,7 +132,7 @@ impl Observer for Wards {
 
     fn on_entity(
         &mut self,
-        ctx: &Parser,
+        ctx: &Context,
         event: EntityEvent,
         entity: &Entity,
     ) -> d2_stampede::Result<()> {
@@ -159,7 +161,7 @@ impl Observer for Wards {
         Ok(())
     }
 
-    fn on_combat_log(&mut self, ctx: &Parser, combat_log: &CombatLog) -> d2_stampede::Result<()> {
+    fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLog) -> d2_stampede::Result<()> {
         if combat_log.type_() == DotaCombatlogTypes::DotaCombatlogDeath
             && combat_log.target_name().is_ok()
             && WardClasses::from_target_name(combat_log.target_name()?).is_ok()
@@ -183,7 +185,7 @@ impl Observer for Wards {
         Ok(())
     }
 
-    fn epilogue(&mut self, ctx: &Parser) -> d2_stampede::Result<()> {
+    fn epilogue(&mut self, ctx: &Context) -> d2_stampede::Result<()> {
         self.current_life_state.iter().for_each(|state| {
             self.pending_events.push_back(PendingEvent {
                 entity_idx: *state.0,
@@ -198,7 +200,7 @@ impl Observer for Wards {
 pub trait WardsObserver {
     fn on_ward(
         &mut self,
-        ctx: &Parser,
+        ctx: &Context,
         ward_class: WardClasses,
         event: WardEvents,
         ward: &Entity,

@@ -10,5 +10,5 @@ bench = []
 
 [dependencies]
 d2-stampede = { path = "../../../d2-stampede" }
+hashbrown = "0.14.5"
 memmap2 = "0.9.4"
-nohash-hasher = "0.2.0"

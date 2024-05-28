@@ -1,16 +1,16 @@
 use d2_stampede::prelude::*;
-use nohash_hasher::IntMap;
+use hashbrown::HashMap;
 use std::io::Write;
 
 struct LifeStateObserver {
-    current_life_state: IntMap<i32, i32>,
+    current_life_state: HashMap<i32, i32>,
     output: Box<dyn Write>,
 }
 
 impl Default for LifeStateObserver {
     fn default() -> Self {
         LifeStateObserver {
-            current_life_state: IntMap::default(),
+            current_life_state: HashMap::default(),
             output: Box::new(std::io::stdout()),
         }
     }
@@ -19,7 +19,7 @@ impl Default for LifeStateObserver {
 impl Observer for LifeStateObserver {
     fn on_entity(
         &mut self,
-        ctx: &Parser,
+        ctx: &Context,
         event: EntityEvent,
         entity: &Entity,
     ) -> d2_stampede::Result<()> {

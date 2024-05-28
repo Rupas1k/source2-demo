@@ -20,7 +20,7 @@ impl GameTime {
         self.observers.push(obs)
     }
 
-    pub fn tick(&self, ctx: &Parser) -> Result<i32> {
+    pub fn tick(&self, ctx: &Context) -> Result<i32> {
         if let Ok(game_rules) = ctx.entities.get_by_class_name("CDOTAGamerulesProxy") {
             let is_paused: bool = game_rules
                 .get_property_by_name("m_pGameRules.m_bGamePaused")?
@@ -41,7 +41,7 @@ impl GameTime {
 }
 
 impl Observer for GameTime {
-    fn on_tick_start(&mut self, ctx: &Parser) -> Result<()> {
+    fn on_tick_start(&mut self, ctx: &Context) -> Result<()> {
         if self.start_time.is_none() {
             if let Ok(game_rules) = ctx.entities.get_by_class_name("CDOTAGamerulesProxy") {
                 let start_time: f32 = game_rules
@@ -59,8 +59,9 @@ impl Observer for GameTime {
     }
 }
 
+#[allow(unused_variables)]
 pub trait GameTimeObserver {
-    fn on_game_started(&mut self, ctx: &Parser, start_time: f32) -> Result<()> {
+    fn on_game_started(&mut self, ctx: &Context, start_time: f32) -> Result<()> {
         Ok(())
     }
 }

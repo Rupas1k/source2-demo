@@ -9,7 +9,7 @@ impl Observer for MyObs {}
 impl WardsObserver for MyObs {
     fn on_ward(
         &mut self,
-        ctx: &Parser,
+        ctx: &Context,
         ward_class: WardClasses,
         event: WardEvents,
         ward: &Entity,

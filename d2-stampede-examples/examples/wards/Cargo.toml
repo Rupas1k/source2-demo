@@ -12,6 +12,5 @@ bench = []
 d2-stampede = { path = "../../../d2-stampede" }
 d2-stampede-observers = { path = "../../../d2-stampede-observers" }
 memmap2 = "0.9.4"
-nohash-hasher = "0.2.0"
 anyhow = "1.0.81"
-rustc-hash = "1.1.0"
+hashbrown = "0.14.5"

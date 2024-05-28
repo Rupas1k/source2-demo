@@ -19,7 +19,7 @@ impl Chat {
 impl Observer for Chat {
     fn on_dota_user_message(
         &mut self,
-        ctx: &Parser,
+        ctx: &Context,
         msg_type: EDotaUserMessages,
         msg: &[u8],
     ) -> Result<()> {
@@ -52,15 +52,19 @@ impl Observer for Chat {
 
 #[allow(unused_variables)]
 pub trait ChatObserver {
-    fn on_chat_event(&mut self, ctx: &Parser, event: &CdotaUserMsgChatEvent) -> Result<()> {
+    fn on_chat_event(&mut self, ctx: &Context, event: &CdotaUserMsgChatEvent) -> Result<()> {
         Ok(())
     }
 
-    fn on_all_chat_message(&mut self, ctx: &Parser, event: &CdotaUserMsgChatMessage) -> Result<()> {
+    fn on_all_chat_message(
+        &mut self,
+        ctx: &Context,
+        event: &CdotaUserMsgChatMessage,
+    ) -> Result<()> {
         Ok(())
     }
 
-    fn on_chat_wheel(&mut self, ctx: &Parser, event: &CdotaUserMsgChatWheel) -> Result<()> {
+    fn on_chat_wheel(&mut self, ctx: &Context, event: &CdotaUserMsgChatWheel) -> Result<()> {
         Ok(())
     }
 }
