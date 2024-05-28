@@ -17,7 +17,7 @@ impl Field {
     pub fn get_field_paths(
         &self,
         fp: &mut FieldPath,
-        st: &FieldState,
+        st: &FieldVector,
     ) -> impl Iterator<Item = FieldPath> {
         let mut vec: Vec<FieldPath> = vec![];
         match &self.model {
@@ -25,7 +25,7 @@ impl Field {
                 vec.push(*fp);
             }
             FieldModels::FixedArray | FieldModels::VariableArray(_) => {
-                if let Some(s) = st.get_field_state(fp) {
+                if let Some(s) = st.get_field_vector(fp) {
                     fp.last += 1;
                     for (i, _) in s.state.iter().enumerate() {
                         fp.path[fp.last] = i as u8;
@@ -35,17 +35,17 @@ impl Field {
                 }
             }
             FieldModels::FixedTable(serializer) => {
-                if let Some(v) = st.get_field_state(fp) {
+                if let Some(v) = st.get_field_vector(fp) {
                     fp.last += 1;
                     vec.extend(serializer.get_field_paths(fp, v));
                     fp.pop(1);
                 }
             }
             FieldModels::VariableTable(serializer) => {
-                if let Some(x) = st.get_field_state(fp) {
+                if let Some(x) = st.get_field_vector(fp) {
                     fp.last += 2;
                     for (i, v) in x.state.iter().enumerate() {
-                        if let Some(StateType::State(vv)) = v.as_ref() {
+                        if let StateType::Vector(vv) = v {
                             fp.path[fp.last - 1] = i as u8;
                             vec.extend(serializer.get_field_paths(fp, vv));
                         }
@@ -103,25 +103,17 @@ pub enum FieldModels {
 #[derive(Clone, Debug)]
 pub enum StateType {
     Value(FieldValue),
-    State(FieldState),
+    Vector(FieldVector),
 }
 
 impl StateType {
     #[inline(always)]
-    pub fn as_field_state(&self) -> Option<&FieldState> {
-        if let StateType::State(x) = self {
+    pub fn as_field_vector(&self) -> Option<&FieldVector> {
+        if let StateType::Vector(x) = self {
             Some(x)
         } else {
             None
         }
-    }
-
-    #[inline(always)]
-    unsafe fn as_field_state_mut(&mut self) -> &mut FieldState {
-        if let StateType::State(x) = self {
-            return x;
-        }
-        unreachable!()
     }
 
     #[inline(always)]
@@ -135,16 +127,14 @@ impl StateType {
 }
 
 #[derive(Clone, Debug)]
-pub struct FieldState {
-    pub(crate) state: Vec<Option<StateType>>,
+pub struct FieldVector {
+    pub(crate) state: Vec<StateType>,
 }
 
-impl FieldState {
+impl FieldVector {
     #[inline(always)]
-    pub fn new(len: usize) -> Self {
-        FieldState {
-            state: vec![None; len],
-        }
+    pub fn new() -> Self {
+        FieldVector { state: vec![] }
     }
 
     #[inline(always)]
@@ -154,61 +144,57 @@ impl FieldState {
             current_state = current_state
                 .state
                 .get(fp.path[i] as usize)?
-                .as_ref()?
-                .as_field_state()?;
+                .as_field_vector()?;
         }
         current_state
             .state
             .get(fp.path[fp.last] as usize)?
-            .as_ref()?
             .as_value()
     }
 
     #[inline(always)]
-    pub fn get_field_state(&self, fp: &FieldPath) -> Option<&FieldState> {
+    pub fn get_field_vector(&self, fp: &FieldPath) -> Option<&FieldVector> {
         let mut current_state = self;
         for i in 0..fp.last {
-            current_state = current_state.state[fp.path[i] as usize]
-                .as_ref()?
-                .as_field_state()?;
+            current_state = current_state
+                .state
+                .get(fp.path[i] as usize)?
+                .as_field_vector()?;
         }
-        current_state.state[fp.path[fp.last] as usize]
-            .as_ref()?
-            .as_field_state()
+        current_state
+            .state
+            .get(fp.path[fp.last] as usize)?
+            .as_field_vector()
     }
 
     #[inline(always)]
     pub fn set(&mut self, fp: &FieldPath, v: FieldValue) {
-        unsafe {
-            let mut current_state = self;
-            for i in 0..=fp.last {
-                if current_state.state.len() <= fp.path[i] as usize {
-                    current_state
-                        .state
-                        .resize_with(fp.path[i] as usize + 1, || {
-                            Some(StateType::State(FieldState::new(0)))
-                        })
-                }
+        let mut current_state = self;
+        for i in 0..=fp.last {
+            let index = fp.path[i] as usize;
+            if current_state.state.len() <= index {
+                current_state
+                    .state
+                    .resize_with(index + 1, || StateType::Vector(FieldVector::new()))
+            }
 
-                if i == fp.last {
-                    current_state.state[fp.path[i] as usize] = Some(StateType::Value(v));
-                    return;
-                }
+            if i == fp.last {
+                current_state.state[index] = StateType::Value(v);
+                return;
+            }
 
-                if matches!(
-                    current_state.state[fp.path[i] as usize]
-                        .as_ref()
-                        .unwrap_unchecked(),
-                    StateType::Value(_)
-                ) {
-                    current_state.state[fp.path[i] as usize] =
-                        Some(StateType::State(FieldState::new(0)));
+            match &mut current_state.state[index] {
+                StateType::Value(_) => {
+                    current_state.state[index] = StateType::Vector(FieldVector::new());
                 }
+                StateType::Vector(_) => {}
+            }
 
-                current_state = current_state.state[fp.path[i] as usize]
-                    .as_mut()
-                    .unwrap_unchecked()
-                    .as_field_state_mut()
+            match &mut current_state.state[index] {
+                StateType::Vector(x) => {
+                    current_state = x;
+                }
+                _ => unreachable!(),
             }
         }
     }

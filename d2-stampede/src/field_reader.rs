@@ -1,4 +1,4 @@
-use crate::field::{FieldPath, FieldState};
+use crate::field::{FieldPath, FieldVector};
 use crate::reader::Reader;
 use crate::serializer::Serializer;
 use std::cell::RefCell;
@@ -24,7 +24,7 @@ impl FieldReader {
         &self,
         reader: &mut Reader,
         serializer: &Serializer,
-        state: &mut FieldState,
+        state: &mut FieldVector,
     ) {
         let mut paths = self.paths_buf.borrow_mut();
         let mut node = &self.tree;

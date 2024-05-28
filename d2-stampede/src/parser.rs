@@ -2,15 +2,15 @@ use crate::class::{Class, Classes};
 use crate::combat_log::CombatLog;
 use crate::decoder::Decoders;
 use crate::entity::{Entities, Entity, EntityEvent};
-use crate::field::{Encoder, Field, FieldModels, FieldProperties, FieldState, FieldType};
+use crate::field::{Encoder, Field, FieldModels, FieldProperties, FieldType, FieldVector};
 use crate::field_reader::FieldReader;
 use crate::proto::*;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTables};
 use anyhow::{bail, Result};
+use hashbrown::{HashMap, HashSet};
 use regex::Regex;
-use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
@@ -19,7 +19,7 @@ pub struct Parser<'a> {
     reader: Reader<'a>,
     field_reader: FieldReader,
 
-    serializers: FxHashMap<Box<str>, Rc<Serializer>>,
+    serializers: HashMap<Box<str>, Rc<Serializer>>,
     baselines: Baselines,
 
     observers: Vec<Rc<RefCell<dyn Observer + 'a>>>,
@@ -31,8 +31,8 @@ pub struct Parser<'a> {
 
 pub(crate) struct Baselines {
     field_reader: FieldReader,
-    baselines: FxHashMap<i32, Rc<Vec<u8>>>,
-    states: FxHashMap<i32, FieldState>,
+    baselines: HashMap<i32, Rc<Vec<u8>>>,
+    states: HashMap<i32, FieldVector>,
 }
 
 impl Baselines {
@@ -41,12 +41,14 @@ impl Baselines {
     }
 
     pub(crate) fn read_baseline(&mut self, class: &Class) {
-        let mut state = FieldState::new(0);
+        let mut state = FieldVector::new();
+
         self.field_reader.read_fields(
             &mut Reader::new(&self.baselines[&class.id]),
             &class.serializer,
             &mut state,
         );
+
         self.states.insert(class.id, state);
     }
 }
@@ -70,15 +72,15 @@ impl<'a> Parser<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
         let baselines = Baselines {
             field_reader: FieldReader::new(),
-            baselines: FxHashMap::default(),
-            states: FxHashMap::default(),
+            baselines: HashMap::default(),
+            states: HashMap::default(),
         };
 
         Parser {
             reader: Reader::new(buf),
             field_reader: FieldReader::new(),
 
-            serializers: FxHashMap::default(),
+            serializers: HashMap::default(),
             baselines,
 
             observers: Vec::new(),
@@ -224,14 +226,6 @@ impl<'a> Parser<'a> {
     }
 
     #[inline(always)]
-    fn on_base_entity_message(&mut self, msg_type: EBaseEntityMessages, msg: &[u8]) -> Result<()> {
-        self.observers.iter().try_for_each(|obs| {
-            obs.borrow_mut()
-                .on_base_entity_message(&self.context, msg_type, msg)
-        })
-    }
-
-    #[inline(always)]
     fn on_base_game_event(&mut self, msg_type: EBaseGameEvents, msg: &[u8]) -> Result<()> {
         self.observers.iter().try_for_each(|obs| {
             obs.borrow_mut()
@@ -297,7 +291,7 @@ impl<'a> Parser<'a> {
             "".into()
         };
 
-        let pointer_types: FxHashSet<&'static str> = [
+        let pointer_types: HashSet<&'static str> = [
             "PhysicsRagdollPose_t",
             "CBodyComponent",
             "CEntityIdentity",
@@ -315,7 +309,7 @@ impl<'a> Parser<'a> {
         .collect();
 
         let mut fields = vec![];
-        let mut field_types = FxHashMap::<Box<str>, Rc<FieldType>>::default();
+        let mut field_types = HashMap::<Box<str>, Rc<FieldType>>::default();
 
         for s in fs.serializers.iter() {
             let serializer_name = fs.symbols[s.serializer_name_sym() as usize].clone();
@@ -418,7 +412,7 @@ impl<'a> Parser<'a> {
                 class_id,
                 network_name,
                 serializer,
-                FieldState::new(0),
+                FieldVector::new(),
             ));
 
             self.context.classes.classes_vec.push(class.clone());
@@ -449,8 +443,6 @@ impl<'a> Parser<'a> {
                 self.on_base_game_event(msg, &packet_buf)?;
             } else if let Ok(msg) = NetMessages::try_from(msg_type) {
                 self.on_net_message(msg, &packet_buf)?;
-            } else if let Ok(msg) = EBaseEntityMessages::try_from(msg_type) {
-                self.on_base_entity_message(msg, &packet_buf)?;
             }
         }
 
@@ -667,15 +659,6 @@ pub trait Observer {
         &mut self,
         ctx: &Context,
         msg_type: EBaseUserMessages,
-        msg: &[u8],
-    ) -> Result<()> {
-        Ok(())
-    }
-
-    fn on_base_entity_message(
-        &mut self,
-        ctx: &Context,
-        msg_type: EBaseEntityMessages,
         msg: &[u8],
     ) -> Result<()> {
         Ok(())

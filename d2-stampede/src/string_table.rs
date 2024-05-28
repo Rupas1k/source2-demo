@@ -1,22 +1,22 @@
 use crate::parser::Baselines;
 use crate::reader::Reader;
 use anyhow::{anyhow, Context, Result};
+use hashbrown::HashMap;
 use prettytable::{row, Table};
-use rustc_hash::FxHashMap;
 use std::cell::{Ref, RefCell};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 pub struct StringTables {
     pub tables: Vec<Rc<RefCell<StringTable>>>,
-    pub name_to_table: FxHashMap<Box<str>, Rc<RefCell<StringTable>>>,
+    pub name_to_table: HashMap<Box<str>, Rc<RefCell<StringTable>>>,
 }
 
 impl StringTables {
     pub(crate) fn new() -> Self {
         StringTables {
             tables: vec![],
-            name_to_table: FxHashMap::default(),
+            name_to_table: HashMap::default(),
         }
     }
 

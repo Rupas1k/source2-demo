@@ -1,21 +1,21 @@
 use crate::decoder::Decoders;
-use crate::field::{Field, FieldModels, FieldPath, FieldState, FieldType};
+use crate::field::{Field, FieldModels, FieldPath, FieldType, FieldVector};
 use anyhow::{bail, Result};
-use rustc_hash::FxHashMap;
+use hashbrown::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Clone)]
 pub(crate) struct Serializer {
     pub(crate) fields: Vec<Rc<Field>>,
-    pub(crate) fp_cache: RefCell<FxHashMap<Box<str>, FieldPath>>,
+    pub(crate) fp_cache: RefCell<HashMap<Box<str>, FieldPath>>,
 }
 
 impl Serializer {
     pub(crate) fn new() -> Self {
         Serializer {
             fields: vec![],
-            fp_cache: RefCell::new(FxHashMap::default()),
+            fp_cache: RefCell::new(HashMap::default()),
         }
     }
 
@@ -173,7 +173,7 @@ impl Serializer {
     pub(crate) fn get_field_paths<'a>(
         &'a self,
         fp: &'a mut FieldPath,
-        st: &'a FieldState,
+        st: &'a FieldVector,
     ) -> impl Iterator<Item = FieldPath> + 'a {
         self.fields.iter().enumerate().flat_map(|(i, f)| {
             fp.path[fp.last] = i as u8;

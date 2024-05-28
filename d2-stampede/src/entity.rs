@@ -1,5 +1,5 @@
 use crate::class::Class;
-use crate::field::{FieldPath, FieldState};
+use crate::field::{FieldPath, FieldVector};
 use crate::field_value::FieldValue;
 use anyhow::{anyhow, bail, Context, Result};
 use prettytable::{row, Table};
@@ -73,7 +73,7 @@ pub struct Entity {
     index: i32,
     serial: i32,
     pub(crate) class: Rc<Class>,
-    pub(crate) state: FieldState,
+    pub(crate) state: FieldVector,
 }
 
 impl Entity {

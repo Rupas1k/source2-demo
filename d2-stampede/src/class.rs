@@ -1,14 +1,14 @@
-use crate::field::FieldState;
+use crate::field::FieldVector;
 use crate::serializer::Serializer;
 use anyhow::{anyhow, Context, Result};
+use hashbrown::HashMap;
 use prettytable::{row, Table};
-use rustc_hash::FxHashMap;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 pub struct Classes {
     pub(crate) classes_vec: Vec<Rc<Class>>,
-    pub(crate) classes_by_name: FxHashMap<Box<str>, Rc<Class>>,
+    pub(crate) classes_by_name: HashMap<Box<str>, Rc<Class>>,
     pub(crate) class_id_size: Option<u32>,
 }
 
@@ -16,7 +16,7 @@ impl Classes {
     pub(crate) fn new() -> Self {
         Classes {
             classes_vec: vec![],
-            classes_by_name: FxHashMap::default(),
+            classes_by_name: HashMap::default(),
             class_id_size: None,
         }
     }
@@ -46,7 +46,7 @@ pub struct Class {
     pub(crate) id: i32,
     pub(crate) name: Box<str>,
     pub(crate) serializer: Rc<Serializer>,
-    pub(crate) baseline: FieldState,
+    pub(crate) baseline: FieldVector,
 }
 
 impl Class {
@@ -54,7 +54,7 @@ impl Class {
         id: i32,
         name: &str,
         serializer: Rc<Serializer>,
-        baseline: FieldState,
+        baseline: FieldVector,
     ) -> Self {
         Class {
             id,
