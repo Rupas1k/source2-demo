@@ -7,7 +7,6 @@ pub enum Decoders {
     Fixed64,
     Boolean,
     String,
-    Default,
     Signed8,
     Signed16,
     Signed32,
@@ -62,7 +61,7 @@ impl Decoders {
 
             "QAngle" => Decoders::QAngle(properties),
 
-            _ => Decoders::Default,
+            _ => Decoders::Unsigned32,
         }
     }
 
@@ -76,7 +75,6 @@ impl Decoders {
                 reader.read_bool()
             }),
             Decoders::String => FieldValue::String(reader.read_string()),
-            Decoders::Default => FieldValue::Unsigned32(reader.read_var_u32()),
             Decoders::Signed8 => FieldValue::Signed8(reader.read_var_i32() as i8),
             Decoders::Signed16 => FieldValue::Signed16(reader.read_var_i32() as i16),
             Decoders::Signed32 => FieldValue::Signed32(reader.read_var_i32()),
@@ -302,6 +300,12 @@ impl QFloatDecoder {
                 | QFloatFlags::RoundDown as u32
                 | QFloatFlags::EncodeZero as u32);
         }
+
+        debug_assert!(
+            self.flags & (QFloatFlags::RoundDown as u32 | QFloatFlags::RoundUp as u32)
+                != (QFloatFlags::RoundDown as u32 | QFloatFlags::RoundUp as u32),
+            "Roundup / Rounddown are mutually exclusive"
+        )
     }
 
     fn assign_multipliers(&mut self, steps: u32) {
@@ -331,14 +335,27 @@ impl QFloatDecoder {
         self.high_low_mul = high_mul;
 
         self.dec_mul = 1.0 / ((steps - 1) as f32);
+
+        debug_assert!(
+            self.high_low_mul != 0.0,
+            "Error computing high / low multiplier"
+        )
     }
 
     pub(crate) fn quantize(&self, v: f32) -> f32 {
         if v < self.low {
+            debug_assert!(
+                self.flags & QFloatFlags::RoundUp as u32 != 0,
+                "Field tried to quantize an out of range value"
+            );
             return self.low;
         }
 
         if v > self.high {
+            debug_assert!(
+                self.flags & QFloatFlags::RoundDown as u32 != 0,
+                "Field tried to quantize an out of range value"
+            );
             return self.high;
         }
 
