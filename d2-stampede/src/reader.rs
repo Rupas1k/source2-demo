@@ -53,9 +53,7 @@ impl<'a> Reader<'a> {
     #[inline(always)]
     pub(crate) fn read_bool(&mut self) -> bool {
         // self.refill();
-        let x = self.le_reader.peek(1);
-        self.le_reader.consume(1);
-        x == 1
+        self.read_bits_no_refill(1) == 1
     }
 
     #[inline(always)]

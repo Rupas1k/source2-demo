@@ -1,60 +1,57 @@
-use crate::decoder::Decoders;
+use crate::decoder::Decoder;
 use crate::field_value::FieldValue;
 use crate::serializer::Serializer;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 pub(crate) struct Field {
     pub(crate) var_name: Box<str>,
     pub(crate) field_type: Rc<FieldType>,
-    pub(crate) model: FieldModels,
+    pub(crate) model: FieldModel,
 
-    pub(crate) decoder: Decoders,
+    pub(crate) decoder: Decoder,
 }
 
 impl Field {
-    pub fn get_field_paths(
-        &self,
-        fp: &mut FieldPath,
-        st: &FieldVector,
-    ) -> impl Iterator<Item = FieldPath> {
+    pub fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldVector) -> Vec<FieldPath> {
         let mut vec: Vec<FieldPath> = vec![];
         match &self.model {
-            FieldModels::Simple => {
+            FieldModel::Simple => {
                 vec.push(*fp);
             }
-            FieldModels::FixedArray | FieldModels::VariableArray(_) => {
+            FieldModel::FixedArray | FieldModel::VariableArray(_) => {
                 if let Some(s) = st.get_field_vector(fp) {
                     fp.last += 1;
                     for (i, _) in s.state.iter().enumerate() {
                         fp.path[fp.last] = i as u8;
                         vec.push(*fp);
                     }
-                    fp.pop(1);
+                    fp.last -= 1;
                 }
             }
-            FieldModels::FixedTable(serializer) => {
-                if let Some(v) = st.get_field_vector(fp) {
+            FieldModel::FixedTable(serializer) => {
+                if let Some(_) = st.get_field_vector(fp) {
                     fp.last += 1;
-                    vec.extend(serializer.get_field_paths(fp, v));
-                    fp.pop(1);
+                    vec.extend(serializer.get_field_paths(fp, st));
+                    fp.last -= 1;
                 }
             }
-            FieldModels::VariableTable(serializer) => {
+            FieldModel::VariableTable(serializer) => {
                 if let Some(x) = st.get_field_vector(fp) {
                     fp.last += 2;
                     for (i, v) in x.state.iter().enumerate() {
-                        if let StateType::Vector(vv) = v {
+                        if let StateType::Vector(_) = v {
                             fp.path[fp.last - 1] = i as u8;
-                            vec.extend(serializer.get_field_paths(fp, vv));
+                            vec.extend(serializer.get_field_paths(fp, st));
                         }
                     }
-                    fp.pop(2);
+                    fp.last -= 2;
                 }
             }
         }
-        vec.into_iter()
+        vec
     }
 }
 
@@ -92,10 +89,10 @@ pub struct FieldProperties {
     pub high_value: f32,
 }
 
-pub enum FieldModels {
+pub enum FieldModel {
     Simple,
     FixedArray,
-    VariableArray(Decoders),
+    VariableArray(Decoder),
     FixedTable(Rc<Serializer>),
     VariableTable(Rc<Serializer>),
 }
@@ -206,6 +203,18 @@ pub struct FieldPath {
     pub(crate) last: usize,
 }
 
+impl Display for FieldPath {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for i in 0..=self.last {
+            write!(f, "{}", self.path[i])?;
+            if i != self.last {
+                write!(f, "/")?;
+            }
+        }
+        Ok(())
+    }
+}
+
 impl FieldPath {
     #[inline(always)]
     pub(crate) fn new() -> Self {
@@ -267,13 +276,12 @@ impl FieldType {
             s => s.parse::<i32>().unwrap(),
         });
 
-        let x = FieldType {
+        FieldType {
             base,
             generic,
             pointer,
             count,
-        };
-        x
+        }
     }
 
     pub fn as_string(&self) -> String {

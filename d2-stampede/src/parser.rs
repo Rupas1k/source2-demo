@@ -1,8 +1,8 @@
 use crate::class::{Class, Classes};
 use crate::combat_log::CombatLog;
-use crate::decoder::Decoders;
-use crate::entity::{Entities, Entity, EntityEvent};
-use crate::field::{Encoder, Field, FieldModels, FieldProperties, FieldType, FieldVector};
+use crate::decoder::Decoder;
+use crate::entity::{Entities, Entity, EntityEvents};
+use crate::field::{Encoder, Field, FieldModel, FieldProperties, FieldType, FieldVector};
 use crate::field_reader::FieldReader;
 use crate::proto::*;
 use crate::reader::Reader;
@@ -10,9 +10,11 @@ use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTables};
 use anyhow::{bail, Result};
 use hashbrown::{HashMap, HashSet};
+use prettytable::{row, Table};
 use regex::Regex;
 use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 pub struct Parser<'a> {
@@ -63,6 +65,19 @@ pub struct Context {
     pub game_build: Option<u32>,
 }
 
+impl Display for Context {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut table = Table::new();
+        table.add_row(row!["Classes", self.classes.classes_vec.len()]);
+        table.add_row(row!["Entities", self.entities.entities_vec.len()]);
+        table.add_row(row!["String Tables", self.string_tables.tables.len()]);
+        table.add_row(row!["Tick", self.tick]);
+        table.add_row(row!["Net Tick", self.net_tick]);
+        table.add_row(row!["Game Build", format!("{:?}", self.game_build)]);
+        write!(f, "{}", table)
+    }
+}
+
 struct OuterMessage {
     msg_type: EDemoCommands,
     buf: Vec<u8>,
@@ -109,7 +124,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn run(&mut self) -> Result<()> {
-        if self.reader.read_bytes(8) != b"PBDEMS2\0" {
+        if self.reader.read_string() != "PBDEMS2" {
             bail!("Supports only Source 2 replays")
         };
 
@@ -126,7 +141,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn run_to_tick(&mut self, tick: u32) -> Result<()> {
-        if self.reader.read_bytes(8) != b"PBDEMS2\0" {
+        if self.reader.read_string() != "PBDEMS2" {
             bail!("Supports only Source 2 replays")
         };
 
@@ -353,33 +368,33 @@ impl<'a> Parser<'a> {
 
                     let model = if let Some(serializer) = current_field_serializer {
                         if field_type.pointer || pointer_types.contains(field_type.base.as_ref()) {
-                            FieldModels::FixedTable(serializer)
+                            FieldModel::FixedTable(serializer)
                         } else {
-                            FieldModels::VariableTable(serializer)
+                            FieldModel::VariableTable(serializer)
                         }
                     } else if field_type.count.is_some()
                         && field_type.count.unwrap() > 0
                         && field_type.base.as_ref() != "char"
                     {
-                        FieldModels::FixedArray
+                        FieldModel::FixedArray
                     } else if field_type.base.as_ref() == "CUtlVector"
                         || field_type.base.as_ref() == "CNetworkUtlVectorBase"
                     {
-                        FieldModels::VariableArray(Decoders::from_field(
+                        FieldModel::VariableArray(Decoder::from_field(
                             field_type.generic.as_ref().unwrap(),
                             properties,
                         ))
                     } else {
-                        FieldModels::Simple
+                        FieldModel::Simple
                     };
 
                     let decoder = match model {
-                        FieldModels::Simple | FieldModels::FixedArray => {
-                            Decoders::from_field(&field_type, properties)
+                        FieldModel::Simple | FieldModel::FixedArray => {
+                            Decoder::from_field(&field_type, properties)
                         }
-                        FieldModels::VariableArray(_) => Decoders::Unsigned32,
-                        FieldModels::FixedTable(_) => Decoders::Boolean,
-                        FieldModels::VariableTable(_) => Decoders::Unsigned32,
+                        FieldModel::VariableArray(_) => Decoder::Unsigned32,
+                        FieldModel::FixedTable(_) => Decoder::Boolean,
+                        FieldModel::VariableTable(_) => Decoder::Unsigned32,
                     };
 
                     let field = Field {
@@ -408,12 +423,7 @@ impl<'a> Parser<'a> {
 
             let serializer = self.serializers[network_name].clone();
 
-            let class = Rc::new(Class::new(
-                class_id,
-                network_name,
-                serializer,
-                FieldVector::new(),
-            ));
+            let class = Rc::new(Class::new(class_id, network_name.into(), serializer));
 
             self.context.classes.classes_vec.push(class.clone());
             self.context
@@ -482,7 +492,7 @@ impl<'a> Parser<'a> {
             self.context.entities.entity_full_packets += 1;
         }
 
-        let throw_event = |ctx: &Context, index: i32, event: EntityEvent| -> Result<()> {
+        let throw_event = |ctx: &Context, index: i32, event: EntityEvents| -> Result<()> {
             self.observers.iter().try_for_each(|obs| {
                 obs.borrow_mut().on_entity(
                     ctx,
@@ -512,17 +522,18 @@ impl<'a> Parser<'a> {
                         .get_by_id_rc(class_id as usize)?
                         .clone();
 
+                    if !self.baselines.states.contains_key(&class_id) {
+                        self.baselines.read_baseline(&class)
+                    }
+
+                    let entity_baseline = self.baselines.states[&class_id].clone();
+
                     self.context.entities.entities_vec[index as usize] =
-                        Some(Entity::new(index, serial, class.clone()));
+                        Some(Entity::new(index, serial, class.clone(), entity_baseline));
 
                     let e = self.context.entities.entities_vec[index as usize]
                         .as_mut()
                         .unwrap();
-
-                    if !self.baselines.states.contains_key(&class_id) {
-                        self.baselines.read_baseline(&class)
-                    }
-                    e.state = self.baselines.states[&class_id].clone();
 
                     self.field_reader.read_fields(
                         &mut entities_reader,
@@ -530,9 +541,9 @@ impl<'a> Parser<'a> {
                         &mut e.state,
                     );
 
-                    op = EntityEvent::Created as isize | EntityEvent::Entered as isize;
+                    op = EntityEvents::Created as isize | EntityEvents::Entered as isize;
                 } else {
-                    op = EntityEvent::Updated as isize;
+                    op = EntityEvents::Updated as isize;
                     let e = self.context.entities.entities_vec[index as usize]
                         .as_mut()
                         .unwrap();
@@ -544,26 +555,26 @@ impl<'a> Parser<'a> {
                     );
                 }
             } else {
-                op = EntityEvent::Left as isize;
+                op = EntityEvents::Left as isize;
                 if cmd & 0x02 != 0 {
-                    op |= EntityEvent::Deleted as isize;
+                    op |= EntityEvents::Deleted as isize;
                 }
             }
 
-            if op & EntityEvent::Created as isize != 0 {
-                throw_event(&self.context, index, EntityEvent::Created)?;
+            if op & EntityEvents::Created as isize != 0 {
+                throw_event(&self.context, index, EntityEvents::Created)?;
             }
-            if op & EntityEvent::Entered as isize != 0 {
-                throw_event(&self.context, index, EntityEvent::Entered)?;
+            if op & EntityEvents::Entered as isize != 0 {
+                throw_event(&self.context, index, EntityEvents::Entered)?;
             }
-            if op & EntityEvent::Updated as isize != 0 {
-                throw_event(&self.context, index, EntityEvent::Updated)?;
+            if op & EntityEvents::Updated as isize != 0 {
+                throw_event(&self.context, index, EntityEvents::Updated)?;
             }
-            if op & EntityEvent::Left as isize != 0 {
-                throw_event(&self.context, index, EntityEvent::Left)?;
+            if op & EntityEvents::Left as isize != 0 {
+                throw_event(&self.context, index, EntityEvents::Left)?;
             }
-            if op & EntityEvent::Deleted as isize != 0 {
-                throw_event(&self.context, index, EntityEvent::Deleted)?;
+            if op & EntityEvents::Deleted as isize != 0 {
+                throw_event(&self.context, index, EntityEvents::Deleted)?;
                 self.context.entities.entities_vec[index as usize] = None;
             }
         }
@@ -690,7 +701,7 @@ pub trait Observer {
         Ok(())
     }
 
-    fn on_entity(&mut self, ctx: &Context, event: EntityEvent, entity: &Entity) -> Result<()> {
+    fn on_entity(&mut self, ctx: &Context, event: EntityEvents, entity: &Entity) -> Result<()> {
         Ok(())
     }
 

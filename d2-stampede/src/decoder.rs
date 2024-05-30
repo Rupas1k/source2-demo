@@ -2,7 +2,7 @@ use crate::field::{Encoder, FieldProperties, FieldType};
 use crate::field_value::FieldValue;
 use crate::reader::Reader;
 
-pub enum Decoders {
+pub enum Decoder {
     VectorNormal,
     Fixed64,
     Boolean,
@@ -27,117 +27,117 @@ pub enum Decoders {
     QAngle(FieldProperties),
 }
 
-impl Decoders {
+impl Decoder {
     #[inline(always)]
-    pub fn from_field(field_type: &FieldType, properties: FieldProperties) -> Self {
+    pub(crate) fn from_field(field_type: &FieldType, properties: FieldProperties) -> Self {
         match field_type.base.as_ref() {
-            "bool" => Decoders::Boolean,
-            "char" | "CUtlString" | "CUtlSymbolLarge" => Decoders::String,
-            "int8" => Decoders::Signed8,
-            "int16" => Decoders::Signed16,
-            "int32" => Decoders::Signed32,
-            "int64" => Decoders::Signed64,
-            "uint8" | "BloodType" => Decoders::Unsigned8,
-            "uint16" => Decoders::Unsigned16,
+            "bool" => Decoder::Boolean,
+            "char" | "CUtlString" | "CUtlSymbolLarge" => Decoder::String,
+            "int8" => Decoder::Signed8,
+            "int16" => Decoder::Signed16,
+            "int32" => Decoder::Signed32,
+            "int64" => Decoder::Signed64,
+            "uint8" | "BloodType" => Decoder::Unsigned8,
+            "uint16" => Decoder::Unsigned16,
             "uint32"
             | "color32"
             | "CGameSceneNodeHandle"
             | "Color"
             | "CUtlStringToken"
             | "CHandle"
-            | "CEntityHandle" => Decoders::Unsigned32,
-            "GameTime_t" => Decoders::NoScale,
-            "CBodyComponent" | "CPhysicsComponent" | "CRenderComponent" => Decoders::Component,
+            | "CEntityHandle" => Decoder::Unsigned32,
+            "GameTime_t" => Decoder::NoScale,
+            "CBodyComponent" | "CPhysicsComponent" | "CRenderComponent" => Decoder::Component,
 
-            "CNetworkedQuantizedFloat" => Decoders::QuantizedFloat(properties),
+            "CNetworkedQuantizedFloat" => Decoder::QuantizedFloat(properties),
 
-            "float32" => Decoders::Float32(properties),
+            "float32" => Decoder::Float32(properties),
 
-            "Vector" => Decoders::Vector(properties, 3),
-            "Vector2D" => Decoders::Vector(properties, 2),
-            "Vector4D" => Decoders::Vector(properties, 4),
+            "Vector" => Decoder::Vector(properties, 3),
+            "Vector2D" => Decoder::Vector(properties, 2),
+            "Vector4D" => Decoder::Vector(properties, 4),
 
-            "uint64" | "CStrongHandle" | "HeroFacetKey_t" => Decoders::Unsigned64(properties),
+            "uint64" | "CStrongHandle" | "HeroFacetKey_t" => Decoder::Unsigned64(properties),
 
-            "QAngle" => Decoders::QAngle(properties),
+            "QAngle" => Decoder::QAngle(properties),
 
-            _ => Decoders::Unsigned32,
+            _ => Decoder::Unsigned32,
         }
     }
 
     #[inline(always)]
     pub(crate) fn decode(&self, reader: &mut Reader) -> FieldValue {
         match self {
-            Decoders::VectorNormal => FieldValue::Vector3D(reader.read_3bit_normal()),
-            Decoders::Fixed64 => FieldValue::Unsigned64(reader.read_le_u64()),
-            Decoders::Boolean => FieldValue::Boolean({
+            Decoder::VectorNormal => FieldValue::Vector3D(reader.read_3bit_normal()),
+            Decoder::Fixed64 => FieldValue::Unsigned64(reader.read_le_u64()),
+            Decoder::Boolean => FieldValue::Boolean({
                 reader.refill();
                 reader.read_bool()
             }),
-            Decoders::String => FieldValue::String(reader.read_string()),
-            Decoders::Signed8 => FieldValue::Signed8(reader.read_var_i32() as i8),
-            Decoders::Signed16 => FieldValue::Signed16(reader.read_var_i32() as i16),
-            Decoders::Signed32 => FieldValue::Signed32(reader.read_var_i32()),
-            Decoders::Signed64 => FieldValue::Signed64(reader.read_var_i32() as i64),
-            Decoders::FloatCoordinate => FieldValue::Float(reader.read_coordinate()),
-            Decoders::NoScale => FieldValue::Float(reader.read_f32()),
-            Decoders::RuneTime => FieldValue::Float(f32::from_bits(reader.read_bits(4))),
-            Decoders::SimulationTime => FieldValue::Float(reader.read_var_u32() as f32 / 30.0),
-            Decoders::Unsigned8 => FieldValue::Unsigned8(reader.read_var_u32() as u8),
-            Decoders::Unsigned16 => FieldValue::Unsigned16(reader.read_var_u32() as u16),
-            Decoders::Unsigned32 => FieldValue::Unsigned32(reader.read_var_u32()),
-            Decoders::Component => FieldValue::Boolean({
+            Decoder::String => FieldValue::String(reader.read_string()),
+            Decoder::Signed8 => FieldValue::Signed8(reader.read_var_i32() as i8),
+            Decoder::Signed16 => FieldValue::Signed16(reader.read_var_i32() as i16),
+            Decoder::Signed32 => FieldValue::Signed32(reader.read_var_i32()),
+            Decoder::Signed64 => FieldValue::Signed64(reader.read_var_i32() as i64),
+            Decoder::FloatCoordinate => FieldValue::Float(reader.read_coordinate()),
+            Decoder::NoScale => FieldValue::Float(reader.read_f32()),
+            Decoder::RuneTime => FieldValue::Float(f32::from_bits(reader.read_bits(4))),
+            Decoder::SimulationTime => FieldValue::Float(reader.read_var_u32() as f32 / 30.0),
+            Decoder::Unsigned8 => FieldValue::Unsigned8(reader.read_var_u32() as u8),
+            Decoder::Unsigned16 => FieldValue::Unsigned16(reader.read_var_u32() as u16),
+            Decoder::Unsigned32 => FieldValue::Unsigned32(reader.read_var_u32()),
+            Decoder::Component => FieldValue::Boolean({
                 reader.refill();
                 reader.read_bool()
             }),
-            Decoders::Float32(fp) => match fp.encoder {
-                Some(Encoder::Coord) => Decoders::FloatCoordinate.decode(reader),
-                Some(Encoder::SimTime) => Decoders::SimulationTime.decode(reader),
-                Some(Encoder::RuneTime) => Decoders::RuneTime.decode(reader),
+            Decoder::Float32(fp) => match fp.encoder {
+                Some(Encoder::Coord) => Decoder::FloatCoordinate.decode(reader),
+                Some(Encoder::SimTime) => Decoder::SimulationTime.decode(reader),
+                Some(Encoder::RuneTime) => Decoder::RuneTime.decode(reader),
                 _ => {
                     if fp.bit_count <= 0 || fp.bit_count >= 32 {
-                        return Decoders::NoScale.decode(reader);
+                        return Decoder::NoScale.decode(reader);
                     }
-                    Decoders::QuantizedFloat(*fp).decode(reader)
+                    Decoder::QuantizedFloat(*fp).decode(reader)
                 }
             },
-            Decoders::Vector(fp, n) => {
+            Decoder::Vector(fp, n) => {
                 if *n == 2 {
                     return FieldValue::Vector2D([
-                        Decoders::Float32(*fp).decode(reader).as_float(),
-                        Decoders::Float32(*fp).decode(reader).as_float(),
+                        Decoder::Float32(*fp).decode(reader).as_float(),
+                        Decoder::Float32(*fp).decode(reader).as_float(),
                     ]);
                 }
                 if *n == 3 {
                     if fp.encoder == Some(Encoder::Normal) {
-                        return Decoders::VectorNormal.decode(reader);
+                        return Decoder::VectorNormal.decode(reader);
                     }
                     return FieldValue::Vector3D([
-                        Decoders::Float32(*fp).decode(reader).as_float(),
-                        Decoders::Float32(*fp).decode(reader).as_float(),
-                        Decoders::Float32(*fp).decode(reader).as_float(),
+                        Decoder::Float32(*fp).decode(reader).as_float(),
+                        Decoder::Float32(*fp).decode(reader).as_float(),
+                        Decoder::Float32(*fp).decode(reader).as_float(),
                     ]);
                 }
                 if *n == 4 {
                     return FieldValue::Vector4D([
-                        Decoders::Float32(*fp).decode(reader).as_float(),
-                        Decoders::Float32(*fp).decode(reader).as_float(),
-                        Decoders::Float32(*fp).decode(reader).as_float(),
-                        Decoders::Float32(*fp).decode(reader).as_float(),
+                        Decoder::Float32(*fp).decode(reader).as_float(),
+                        Decoder::Float32(*fp).decode(reader).as_float(),
+                        Decoder::Float32(*fp).decode(reader).as_float(),
+                        Decoder::Float32(*fp).decode(reader).as_float(),
                     ]);
                 }
                 unreachable!()
             }
-            Decoders::Unsigned64(fp) => {
+            Decoder::Unsigned64(fp) => {
                 if fp.encoder == Some(Encoder::Fixed64) {
-                    return Decoders::Fixed64.decode(reader);
+                    return Decoder::Fixed64.decode(reader);
                 }
                 FieldValue::Unsigned64(reader.read_var_u64())
             }
-            Decoders::QuantizedFloat(fp) => {
-                FieldValue::Float(QFloatDecoder::new(fp).decode(reader))
+            Decoder::QuantizedFloat(fp) => {
+                FieldValue::Float(QuantizedFloatDecoder::new(fp).decode(reader))
             }
-            Decoders::QAngle(fp) => {
+            Decoder::QAngle(fp) => {
                 reader.refill();
                 if fp.encoder == Some(Encoder::QAnglePitchYaw) {
                     return FieldValue::Vector3D([
@@ -177,7 +177,7 @@ impl Decoders {
 
 // Quantized float decoder
 
-enum QFloatFlags {
+enum QuantizedFloatFlags {
     RoundDown = 1 << 0,
     RoundUp = 1 << 1,
     EncodeZero = 1 << 2,
@@ -185,7 +185,7 @@ enum QFloatFlags {
 }
 
 #[derive(Debug)]
-pub(crate) struct QFloatDecoder {
+pub(crate) struct QuantizedFloatDecoder {
     bit_count: u32,
     low: f32,
     high: f32,
@@ -195,10 +195,10 @@ pub(crate) struct QFloatDecoder {
     flags: u32,
 }
 
-impl QFloatDecoder {
+impl QuantizedFloatDecoder {
     pub(crate) fn new(field_properties: &FieldProperties) -> Self {
         if field_properties.bit_count == 0 || field_properties.bit_count >= 32 {
-            return QFloatDecoder {
+            return QuantizedFloatDecoder {
                 bit_count: 32,
                 low: 0.0,
                 high: 1.0,
@@ -209,7 +209,7 @@ impl QFloatDecoder {
             };
         }
 
-        let mut decoder = QFloatDecoder {
+        let mut decoder = QuantizedFloatDecoder {
             bit_count: field_properties.bit_count as u32,
             offset: 0.0,
             low: field_properties.low_value,
@@ -223,15 +223,15 @@ impl QFloatDecoder {
 
         let mut steps = (1 << decoder.bit_count) as u32;
 
-        if decoder.flags & (QFloatFlags::RoundDown as u32) != 0 {
+        if decoder.flags & (QuantizedFloatFlags::RoundDown as u32) != 0 {
             decoder.offset = (decoder.high - decoder.low) / (steps as f32);
             decoder.high -= decoder.offset;
-        } else if decoder.flags & (QFloatFlags::RoundUp as u32) != 0 {
+        } else if decoder.flags & (QuantizedFloatFlags::RoundUp as u32) != 0 {
             decoder.offset = (decoder.high - decoder.low) / (steps as f32);
             decoder.low += decoder.offset;
         }
 
-        if decoder.flags & (QFloatFlags::EncodeInteger as u32) != 0 {
+        if decoder.flags & (QuantizedFloatFlags::EncodeInteger as u32) != 0 {
             let delta = 1.0f32.max(decoder.high + decoder.low).log2().ceil() as u32;
             let range2 = (1 << delta) as u32;
             let mut bc = decoder.bit_count;
@@ -251,20 +251,22 @@ impl QFloatDecoder {
 
         decoder.assign_multipliers(steps);
 
-        if decoder.flags & (QFloatFlags::RoundDown as u32) != 0
+        if decoder.flags & (QuantizedFloatFlags::RoundDown as u32) != 0
             && decoder.quantize(decoder.low) == decoder.low
         {
-            decoder.flags &= !(QFloatFlags::RoundDown as u32)
+            decoder.flags &= !(QuantizedFloatFlags::RoundDown as u32)
         }
 
-        if decoder.flags & (QFloatFlags::RoundUp as u32) != 0
+        if decoder.flags & (QuantizedFloatFlags::RoundUp as u32) != 0
             && decoder.quantize(decoder.high) == decoder.high
         {
-            decoder.flags &= !(QFloatFlags::RoundUp as u32)
+            decoder.flags &= !(QuantizedFloatFlags::RoundUp as u32)
         }
 
-        if decoder.flags & (QFloatFlags::EncodeZero as u32) != 0 && decoder.quantize(0.0) == 0.0 {
-            decoder.flags &= !(QFloatFlags::EncodeZero as u32)
+        if decoder.flags & (QuantizedFloatFlags::EncodeZero as u32) != 0
+            && decoder.quantize(0.0) == 0.0
+        {
+            decoder.flags &= !(QuantizedFloatFlags::EncodeZero as u32)
         }
 
         decoder
@@ -275,35 +277,36 @@ impl QFloatDecoder {
             return;
         }
 
-        if self.low == 0.0 && (self.flags & QFloatFlags::RoundDown as u32) != 0
-            || self.high == 0.0 && (self.flags & QFloatFlags::RoundUp as u32) != 0
+        if self.low == 0.0 && (self.flags & QuantizedFloatFlags::RoundDown as u32) != 0
+            || self.high == 0.0 && (self.flags & QuantizedFloatFlags::RoundUp as u32) != 0
         {
-            self.flags &= !(QFloatFlags::EncodeZero as u32);
+            self.flags &= !(QuantizedFloatFlags::EncodeZero as u32);
         }
 
-        if self.low == 0.0 && (self.flags & QFloatFlags::EncodeZero as u32) != 0 {
-            self.flags |= QFloatFlags::RoundUp as u32;
-            self.flags &= !(QFloatFlags::EncodeZero as u32);
+        if self.low == 0.0 && (self.flags & QuantizedFloatFlags::EncodeZero as u32) != 0 {
+            self.flags |= QuantizedFloatFlags::RoundUp as u32;
+            self.flags &= !(QuantizedFloatFlags::EncodeZero as u32);
         }
 
-        if self.high == 0.0 && (self.flags & QFloatFlags::EncodeZero as u32) != 0 {
-            self.flags |= QFloatFlags::RoundDown as u32;
-            self.flags &= !(QFloatFlags::EncodeZero as u32);
+        if self.high == 0.0 && (self.flags & QuantizedFloatFlags::EncodeZero as u32) != 0 {
+            self.flags |= QuantizedFloatFlags::RoundDown as u32;
+            self.flags &= !(QuantizedFloatFlags::EncodeZero as u32);
         }
 
         if self.low > 0.0 || self.high < 0.0 {
-            self.flags &= !(QFloatFlags::EncodeZero as u32);
+            self.flags &= !(QuantizedFloatFlags::EncodeZero as u32);
         }
 
-        if self.flags & (QFloatFlags::EncodeInteger as u32) != 0 {
-            self.flags &= !(QFloatFlags::RoundUp as u32
-                | QFloatFlags::RoundDown as u32
-                | QFloatFlags::EncodeZero as u32);
+        if self.flags & (QuantizedFloatFlags::EncodeInteger as u32) != 0 {
+            self.flags &= !(QuantizedFloatFlags::RoundUp as u32
+                | QuantizedFloatFlags::RoundDown as u32
+                | QuantizedFloatFlags::EncodeZero as u32);
         }
 
         debug_assert!(
-            self.flags & (QFloatFlags::RoundDown as u32 | QFloatFlags::RoundUp as u32)
-                != (QFloatFlags::RoundDown as u32 | QFloatFlags::RoundUp as u32),
+            self.flags
+                & (QuantizedFloatFlags::RoundDown as u32 | QuantizedFloatFlags::RoundUp as u32)
+                != (QuantizedFloatFlags::RoundDown as u32 | QuantizedFloatFlags::RoundUp as u32),
             "Roundup / Rounddown are mutually exclusive"
         )
     }
@@ -345,7 +348,7 @@ impl QFloatDecoder {
     pub(crate) fn quantize(&self, v: f32) -> f32 {
         if v < self.low {
             debug_assert!(
-                self.flags & QFloatFlags::RoundUp as u32 != 0,
+                self.flags & QuantizedFloatFlags::RoundUp as u32 != 0,
                 "Field tried to quantize an out of range value"
             );
             return self.low;
@@ -353,7 +356,7 @@ impl QFloatDecoder {
 
         if v > self.high {
             debug_assert!(
-                self.flags & QFloatFlags::RoundDown as u32 != 0,
+                self.flags & QuantizedFloatFlags::RoundDown as u32 != 0,
                 "Field tried to quantize an out of range value"
             );
             return self.high;
@@ -367,15 +370,15 @@ impl QFloatDecoder {
     pub(crate) fn decode(&self, reader: &mut Reader) -> f32 {
         reader.refill();
 
-        if self.flags & (QFloatFlags::RoundDown as u32) != 0 && reader.read_bool() {
+        if self.flags & (QuantizedFloatFlags::RoundDown as u32) != 0 && reader.read_bool() {
             return self.low;
         }
 
-        if self.flags & (QFloatFlags::RoundUp as u32) != 0 && reader.read_bool() {
+        if self.flags & (QuantizedFloatFlags::RoundUp as u32) != 0 && reader.read_bool() {
             return self.high;
         }
 
-        if self.flags & (QFloatFlags::EncodeZero as u32) != 0 && reader.read_bool() {
+        if self.flags & (QuantizedFloatFlags::EncodeZero as u32) != 0 && reader.read_bool() {
             return 0.0;
         }
 

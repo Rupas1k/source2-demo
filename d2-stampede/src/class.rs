@@ -1,4 +1,3 @@
-use crate::field::FieldVector;
 use crate::serializer::Serializer;
 use anyhow::{anyhow, Context, Result};
 use hashbrown::HashMap;
@@ -46,27 +45,21 @@ pub struct Class {
     pub(crate) id: i32,
     pub(crate) name: Box<str>,
     pub(crate) serializer: Rc<Serializer>,
-    pub(crate) baseline: FieldVector,
 }
 
 impl Class {
-    pub(crate) fn new(
-        id: i32,
-        name: &str,
-        serializer: Rc<Serializer>,
-        baseline: FieldVector,
-    ) -> Self {
+    pub(crate) fn new(id: i32, name: Box<str>, serializer: Rc<Serializer>) -> Self {
         Class {
             id,
-            name: name.into(),
+            name,
             serializer,
-            baseline,
         }
     }
 
     pub fn name(&self) -> &str {
         self.name.as_ref()
     }
+
     pub fn id(&self) -> i32 {
         self.id
     }

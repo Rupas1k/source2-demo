@@ -13,13 +13,7 @@ mod string_table;
 pub mod prelude {
     pub use crate::parser::{Context, Observer, Parser};
 
-    pub use crate::string_table::{StringTable, StringTableEntry};
-
-    pub use crate::entity::{Entity, EntityEvent};
-
-    pub use crate::field_value::FieldValue;
-
-    pub use crate::class::Class;
+    pub use crate::entity::{Entity, EntityEvents};
 
     pub use crate::combat_log::CombatLog;
 
@@ -28,7 +22,9 @@ pub mod prelude {
 
 pub use crate::parser::{Context, Observer, Parser};
 
-pub use crate::string_table::{StringTable, StringTableEntry};
+pub use crate::entity::{Entity, EntityEvents};
+
+pub use crate::combat_log::CombatLog;
 
 pub use anyhow::Error;
 

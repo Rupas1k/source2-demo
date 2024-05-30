@@ -1,13 +1,13 @@
 use crate::class::Class;
 use crate::field::{FieldPath, FieldVector};
 use crate::field_value::FieldValue;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use prettytable::{row, Table};
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum EntityEvent {
+pub enum EntityEvents {
     Created = 1 << 0,
     Updated = 1 << 1,
     Deleted = 1 << 2,
@@ -33,25 +33,22 @@ impl Entities {
     }
 
     pub fn get_by_index(&self, index: usize) -> Result<&Entity> {
-        if index > self.entities_vec.len() {
-            bail!("{} > {}", index, self.entities_vec.len())
-        }
         self.entities_vec[index]
             .as_ref()
             .with_context(|| anyhow!("No entities for index \"{index}\""))
     }
+
     pub fn get_by_handle(&self, handle: usize) -> Result<&Entity> {
-        if handle & 0x3fff > self.entities_vec.len() {
-            bail!("{} > {}", handle & 0x3fff, self.entities_vec.len())
-        }
         self.get_by_index(handle & 0x3fff)
             .with_context(|| anyhow!("No entities for handle \"{handle}\""))
     }
+
     pub fn get_by_class_id(&self, id: &i32) -> Result<&Entity> {
         self.iter()
             .find(|&entity| &entity.class().id() == id)
             .with_context(|| anyhow!("No entities for class with id {id}"))
     }
+
     pub fn get_by_class_name(&self, name: &str) -> Result<&Entity> {
         self.iter()
             .find(|&entity| entity.class().name() == name)
@@ -77,8 +74,7 @@ pub struct Entity {
 }
 
 impl Entity {
-    pub(crate) fn new(index: i32, serial: i32, class: Rc<Class>) -> Self {
-        let state = class.baseline.clone();
+    pub(crate) fn new(index: i32, serial: i32, class: Rc<Class>, state: FieldVector) -> Self {
         Entity {
             index,
             serial,
@@ -90,12 +86,15 @@ impl Entity {
     pub fn index(&self) -> i32 {
         self.index
     }
+
     pub fn serial(&self) -> i32 {
         self.serial
     }
+
     pub fn handle(&self) -> i32 {
         self.serial << 14 | self.index
     }
+
     pub fn class(&self) -> &Class {
         &self.class
     }
@@ -132,7 +131,8 @@ impl Display for Entities {
 impl Display for Entity {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut table = Table::new();
-        table.add_row(row!["Field", "Type", "Value"]);
+
+        table.add_row(row!["#", "Field", "Type", "Value"]);
 
         for fp in self
             .class
@@ -143,7 +143,9 @@ impl Display for Entity {
             let name = self.class.serializer.get_name_for_field_path(&fp);
             let value = self.state.get_value(&fp);
             if let Some(v) = value {
-                table.add_row(row![name, field_type.as_string(), v]);
+                table.add_row(row![fp, name, field_type.as_string(), format!("{:?}", v)]);
+            } else {
+                table.add_row(row![fp, name, field_type.as_string(), "None"]);
             }
         }
 

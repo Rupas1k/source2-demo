@@ -1,5 +1,5 @@
-use crate::decoder::Decoders;
-use crate::field::{Field, FieldModels, FieldPath, FieldType, FieldVector};
+use crate::decoder::Decoder;
+use crate::field::{Field, FieldModel, FieldPath, FieldType, FieldVector};
 use anyhow::{bail, Result};
 use hashbrown::HashMap;
 use std::cell::RefCell;
@@ -29,13 +29,13 @@ impl Serializer {
             name += &current_field.var_name;
             i += 1;
             match &current_field.model {
-                FieldModels::FixedArray | FieldModels::VariableArray(_) => {
+                FieldModel::FixedArray | FieldModel::VariableArray(_) => {
                     if fp.last == i {
                         name += &format!(".{:04}", fp.path[i]);
                         break;
                     }
                 }
-                FieldModels::VariableTable(serializer) => {
+                FieldModel::VariableTable(serializer) => {
                     if fp.last + 1 == i {
                         break;
                     }
@@ -43,14 +43,14 @@ impl Serializer {
                     i += 1;
                     current_serializer = serializer;
                 }
-                FieldModels::FixedTable(serializer) => {
+                FieldModel::FixedTable(serializer) => {
                     if fp.last + 1 == i {
                         break;
                     }
                     name += ".";
                     current_serializer = serializer;
                 }
-                FieldModels::Simple => break,
+                FieldModel::Simple => break,
             }
             current_field = &current_serializer.fields[fp.path[i] as usize];
         }
@@ -65,22 +65,22 @@ impl Serializer {
         loop {
             i += 1;
             match &current_field.model {
-                FieldModels::Simple | FieldModels::FixedArray => {
+                FieldModel::Simple | FieldModel::FixedArray => {
                     return current_field.field_type.as_ref()
                 }
-                FieldModels::FixedTable(serializer) => {
+                FieldModel::FixedTable(serializer) => {
                     if fp.last + 1 == i {
                         return current_field.field_type.as_ref();
                     }
                     current_serializer = serializer;
                 }
-                FieldModels::VariableArray(_) => {
+                FieldModel::VariableArray(_) => {
                     if fp.last == i {
                         return current_field.field_type.as_ref().generic.as_ref().unwrap();
                     }
                     return current_field.field_type.as_ref();
                 }
-                FieldModels::VariableTable(serializer) => {
+                FieldModel::VariableTable(serializer) => {
                     if i >= fp.last {
                         return current_field.field_type.as_ref();
                     }
@@ -93,27 +93,27 @@ impl Serializer {
     }
 
     #[inline(always)]
-    pub(crate) fn get_decoder_for_field_path(&self, fp: &FieldPath) -> &Decoders {
+    pub(crate) fn get_decoder_for_field_path(&self, fp: &FieldPath) -> &Decoder {
         let mut i = 0;
         let mut current_serializer = self;
         let mut current_field = &current_serializer.fields[fp.path[i] as usize];
         loop {
             i += 1;
             match &current_field.model {
-                FieldModels::Simple | FieldModels::FixedArray => return &current_field.decoder,
-                FieldModels::FixedTable(serializer) => {
+                FieldModel::Simple | FieldModel::FixedArray => return &current_field.decoder,
+                FieldModel::FixedTable(serializer) => {
                     if fp.last + 1 == i {
                         return &current_field.decoder;
                     }
                     current_serializer = serializer;
                 }
-                FieldModels::VariableArray(child_decoder) => {
+                FieldModel::VariableArray(child_decoder) => {
                     if fp.last == i {
                         return child_decoder;
                     }
                     return &current_field.decoder;
                 }
-                FieldModels::VariableTable(serializer) => {
+                FieldModel::VariableTable(serializer) => {
                     if i >= fp.last {
                         return &current_field.decoder;
                     }
@@ -144,22 +144,22 @@ impl Serializer {
                         fp.last += 1;
                         offset += f.var_name.len() + 1;
                         match &f.model {
-                            FieldModels::FixedArray | FieldModels::VariableArray(_) => {
+                            FieldModel::FixedArray | FieldModel::VariableArray(_) => {
                                 fp.path[fp.last] = name[offset..].parse::<u8>()?;
                                 break 'outer;
                             }
-                            FieldModels::FixedTable(serializer) => {
+                            FieldModel::FixedTable(serializer) => {
                                 current_serializer = serializer;
                                 continue 'outer;
                             }
-                            FieldModels::VariableTable(serializer) => {
+                            FieldModel::VariableTable(serializer) => {
                                 fp.path[fp.last] = name[offset..(offset + 4)].parse::<u8>()?;
                                 fp.last += 1;
                                 offset += 5;
                                 current_serializer = serializer;
                                 continue 'outer;
                             }
-                            FieldModels::Simple => unreachable!(),
+                            FieldModel::Simple => unreachable!(),
                         }
                     }
                 }
@@ -174,10 +174,14 @@ impl Serializer {
         &'a self,
         fp: &'a mut FieldPath,
         st: &'a FieldVector,
-    ) -> impl Iterator<Item = FieldPath> + 'a {
-        self.fields.iter().enumerate().flat_map(|(i, f)| {
-            fp.path[fp.last] = i as u8;
-            f.get_field_paths(fp, st)
-        })
+    ) -> Vec<FieldPath> {
+        self.fields
+            .iter()
+            .enumerate()
+            .flat_map(|(i, f)| {
+                fp.path[fp.last] = i as u8;
+                f.get_field_paths(fp, st)
+            })
+            .collect::<Vec<_>>()
     }
 }

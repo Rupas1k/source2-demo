@@ -412,9 +412,9 @@ impl_try_into_for_integers!(u128);
 
 impl FieldValue {
     #[inline]
-    pub fn as_str(&self) -> &str {
+    pub fn as_string(&self) -> String {
         if let FieldValue::String(s) = self {
-            s.as_str()
+            s.to_string()
         } else {
             panic!("Tried to read as String, Found {:?}", self);
         }
@@ -448,7 +448,7 @@ impl FieldValue {
     }
 
     #[inline]
-    pub fn as_vector3d(&self) -> &[f32; 3] {
+    pub fn as_vector(&self) -> &[f32; 3] {
         if let FieldValue::Vector3D(v) = self {
             v
         } else {

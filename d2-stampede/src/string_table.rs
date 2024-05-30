@@ -8,8 +8,8 @@ use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 pub struct StringTables {
-    pub tables: Vec<Rc<RefCell<StringTable>>>,
-    pub name_to_table: HashMap<Box<str>, Rc<RefCell<StringTable>>>,
+    pub(crate) tables: Vec<Rc<RefCell<StringTable>>>,
+    pub(crate) name_to_table: HashMap<Box<str>, Rc<RefCell<StringTable>>>,
 }
 
 impl StringTables {
@@ -24,9 +24,9 @@ impl StringTables {
         self.tables.iter().map(|table| table.borrow())
     }
 
-    pub fn get_by_id(&self, id: &i32) -> Result<Ref<StringTable>> {
+    pub fn get_by_id(&self, id: usize) -> Result<Ref<StringTable>> {
         self.tables
-            .get(*id as usize)
+            .get(id)
             .with_context(|| anyhow!("No string table for given id"))
             .map(|table| table.borrow())
     }
