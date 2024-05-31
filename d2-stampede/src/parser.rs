@@ -60,6 +60,8 @@ pub struct Context {
     pub entities: Entities,
     pub string_tables: StringTables,
 
+    pub replay_info: Option<CDemoFileInfo>,
+
     pub tick: u32,
     pub net_tick: u32,
     pub game_build: Option<u32>,
@@ -80,6 +82,7 @@ impl Display for Context {
 
 struct OuterMessage {
     msg_type: EDemoCommands,
+    tick: u32,
     buf: Vec<u8>,
 }
 
@@ -107,8 +110,10 @@ impl<'a> Parser<'a> {
                 entities: Entities::new(),
                 string_tables: StringTables::new(),
 
-                tick: 0,
-                net_tick: 0,
+                replay_info: None,
+
+                tick: u32::MAX,
+                net_tick: u32::MAX,
                 game_build: None,
             },
         }
@@ -123,6 +128,17 @@ impl<'a> Parser<'a> {
         rc.clone()
     }
 
+    pub fn replay_info(&mut self) -> Result<CDemoFileInfo> {
+        let offset = u32::from_le_bytes(self.reader.buf[8..12].try_into()?) as usize;
+        if self.reader.buf.len() < offset {
+            bail!("Buf is too small")
+        }
+        let mut reader = Reader::new(&self.reader.buf[offset..]);
+        Ok(CDemoFileInfo::decode(
+            Self::read_message(&mut reader)?.unwrap().buf.as_slice(),
+        )?)
+    }
+
     pub fn run(&mut self) -> Result<()> {
         if self.reader.read_string() != "PBDEMS2" {
             bail!("Supports only Source 2 replays")
@@ -130,11 +146,15 @@ impl<'a> Parser<'a> {
 
         self.reader.read_bytes(8);
 
-        while let Some(message) = self.read_outer_message()? {
+        self.context.replay_info = self.replay_info().ok();
+
+        while let Some(message) = Self::read_message(&mut self.reader)? {
+            self.context.tick = message.tick;
             self.on_tick_start()?;
             self.on_packet(message.msg_type, message.buf.as_slice())?;
             self.on_tick_end()?;
         }
+
         self.observers
             .iter()
             .try_for_each(|obs| obs.borrow_mut().epilogue(&self.context))
@@ -147,46 +167,48 @@ impl<'a> Parser<'a> {
 
         self.reader.read_bytes(8);
 
-        while let Some(message) = self.read_outer_message()? {
+        self.context.replay_info = self.replay_info().ok();
+
+        while let Some(message) = Self::read_message(&mut self.reader)? {
             self.on_tick_start()?;
             self.on_packet(message.msg_type, message.buf.as_slice())?;
             self.on_tick_end()?;
-            if self.context.tick >= tick {
+            if self.context.tick >= tick && tick != u32::MAX {
                 break;
             }
         }
+
         self.observers
             .iter()
             .try_for_each(|obs| obs.borrow_mut().epilogue(&self.context))
     }
 
     #[inline(always)]
-    fn read_outer_message(&mut self) -> Result<Option<OuterMessage>> {
-        if self.reader.empty() {
+    fn read_message(reader: &mut Reader) -> Result<Option<OuterMessage>> {
+        if reader.empty() {
             return Ok(None);
         }
 
-        let raw_command = self.reader.read_var_u32() as i32;
-        let msg_type =
-            EDemoCommands::try_from(raw_command & !(EDemoCommands::DemIsCompressed as i32))?;
-        let msg_compressed = raw_command & EDemoCommands::DemIsCompressed as i32 != 0;
-        let tick = match self.reader.read_var_u32() {
-            0xffffffff => 0,
-            x => x,
-        };
+        let cmd = reader.read_var_u32() as i32;
+        let tick = reader.read_var_u32();
+        let size = reader.read_var_u32();
 
-        let size = self.reader.read_var_u32();
+        let msg_type = EDemoCommands::try_from(cmd & !(EDemoCommands::DemIsCompressed as i32))?;
+        let msg_compressed = cmd & EDemoCommands::DemIsCompressed as i32 != 0;
+
         let buf = if msg_compressed {
-            let buf = self.reader.read_bytes(size);
+            let buf = reader.read_bytes(size);
             let mut decoder = snap::raw::Decoder::new();
             decoder.decompress_vec(&buf)?
         } else {
-            self.reader.read_bytes(size)
+            reader.read_bytes(size)
         };
 
-        self.context.tick = tick;
-
-        Ok(Some(OuterMessage { msg_type, buf }))
+        Ok(Some(OuterMessage {
+            msg_type,
+            tick,
+            buf,
+        }))
     }
 
     #[inline(always)]
@@ -196,6 +218,8 @@ impl<'a> Parser<'a> {
             EDemoCommands::DemClassInfo => self.class_info(msg)?,
             EDemoCommands::DemPacket | EDemoCommands::DemSignonPacket => self.dem_packet(msg)?,
             EDemoCommands::DemFullPacket => self.full_packet(msg)?,
+            EDemoCommands::DemFileHeader => {}
+            EDemoCommands::DemFileInfo => {}
             _ => {}
         };
 
@@ -293,9 +317,9 @@ impl<'a> Parser<'a> {
 
     fn send_tables(&mut self, msg: &[u8]) -> Result<()> {
         let send_tables = CDemoSendTables::decode(msg)?;
-        let mut r = Reader::new(send_tables.data());
-        let amount = r.read_var_u32();
-        let buf = r.read_bytes(amount);
+        let mut reader = Reader::new(send_tables.data());
+        let amount = reader.read_var_u32();
+        let buf = reader.read_bytes(amount);
 
         let fs = CsvcMsgFlattenedSerializer::decode(buf.as_slice())?;
 
