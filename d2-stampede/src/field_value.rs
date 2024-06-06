@@ -409,6 +409,8 @@ impl_try_into_for_integers!(u16);
 impl_try_into_for_integers!(u32);
 impl_try_into_for_integers!(u64);
 impl_try_into_for_integers!(u128);
+impl_try_into_for_integers!(usize);
+impl_try_into_for_integers!(isize);
 
 impl FieldValue {
     #[inline]
