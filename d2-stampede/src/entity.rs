@@ -33,9 +33,10 @@ impl Entities {
     }
 
     pub fn get_by_index(&self, index: usize) -> Result<&Entity> {
-        self.entities_vec[index]
-            .as_ref()
-            .with_context(|| anyhow!("No entities for index \"{index}\""))
+        self.entities_vec
+            .get(index)
+            .and_then(|x| x.as_ref())
+            .with_context(|| anyhow!("No entities for index \"{}\"", index))
     }
 
     pub fn get_by_handle(&self, handle: usize) -> Result<&Entity> {
