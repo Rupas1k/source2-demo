@@ -48,7 +48,7 @@ pub struct Wards {
     current_life_state: HashMap<i32, i32>,
     killers: HashMap<WardClasses, VecDeque<Box<str>>>,
 
-    observers: Vec<Rc<RefCell<dyn WardsObserver>>>,
+    observers: Vec<Rc<RefCell<dyn WardsObserver + 'static>>>,
 }
 
 impl Wards {
@@ -133,10 +133,10 @@ impl Observer for Wards {
     fn on_entity(
         &mut self,
         ctx: &Context,
-        event: EntityEvent,
+        event: EntityEvents,
         entity: &Entity,
     ) -> d2_stampede::Result<()> {
-        if event == EntityEvent::Created
+        if event == EntityEvents::Created
             && WardClasses::from_class_name(entity.class().name()).is_ok()
         {
             if let Ok(life_state) = entity.get_property_by_name("m_lifeState") {
@@ -147,7 +147,7 @@ impl Observer for Wards {
                 });
             }
         }
-        if event == EntityEvent::Updated && self.current_life_state.contains_key(&entity.index()) {
+        if event == EntityEvents::Updated && self.current_life_state.contains_key(&entity.index()) {
             if let Ok(life_state) = entity.get_property_by_name("m_lifeState") {
                 self.pending_events.push_back(PendingEvent {
                     entity_idx: entity.index(),
@@ -155,7 +155,7 @@ impl Observer for Wards {
                 });
             }
         }
-        if event == EntityEvent::Deleted && self.current_life_state.contains_key(&entity.index()) {
+        if event == EntityEvents::Deleted && self.current_life_state.contains_key(&entity.index()) {
             self.current_life_state.remove(&entity.index());
         }
         Ok(())
