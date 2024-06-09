@@ -32,7 +32,7 @@ impl Field {
                 }
             }
             FieldModel::FixedTable(serializer) => {
-                if let Some(_) = st.get_field_vector(fp) {
+                if st.get_field_vector(fp).is_some() {
                     fp.last += 1;
                     vec.extend(serializer.get_field_paths(fp, st));
                     fp.last -= 1;
