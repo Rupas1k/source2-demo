@@ -20,10 +20,10 @@ impl Observer for LifeStateObserver {
     fn on_entity(
         &mut self,
         ctx: &Context,
-        event: EntityEvent,
+        event: EntityEvents,
         entity: &Entity,
     ) -> d2_stampede::Result<()> {
-        if EntityEvent::Created == event || EntityEvent::Updated == event {
+        if EntityEvents::Created == event || EntityEvents::Updated == event {
             if let Ok(life_state) = entity.get_property_by_name("m_lifeState") {
                 let new_state: i32 = life_state.try_into()?;
                 let old_state: i32 = *self.current_life_state.get(&entity.index()).unwrap_or(&2);
@@ -57,7 +57,7 @@ impl Observer for LifeStateObserver {
                 }
             }
         }
-        if EntityEvent::Deleted == event {
+        if EntityEvents::Deleted == event {
             self.current_life_state.remove(&entity.index());
         }
         Ok(())

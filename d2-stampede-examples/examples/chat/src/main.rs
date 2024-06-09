@@ -14,12 +14,11 @@ impl Observer for ChatObserver {
         if msg_type == EDotaUserMessages::DotaUmChatMessage {
             if let Ok(pr) = ctx.entities.get_by_class_name("CDOTA_PlayerResource") {
                 let message = CdotaUserMsgChatMessage::decode(msg)?;
-                let name: String = pr
-                    .get_property_by_name(&format!(
-                        "m_vecPlayerData.{:04}.m_iszPlayerName",
-                        message.source_player_id()
-                    ))?
-                    .try_into()?;
+                let name: String = property!(
+                    pr,
+                    "m_vecPlayerData.{:04}.m_iszPlayerName",
+                    message.source_player_id()
+                );
                 println!("{}: {}", name, message.message_text());
             }
         }
