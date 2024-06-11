@@ -41,6 +41,15 @@ macro_rules! try_property {
     }};
 }
 
+#[macro_export]
+macro_rules! try_observers {
+    ($self:ident, $method:ident ( $($arg:expr),* )) => {
+        $self.observers
+            .iter()
+            .try_for_each(|obs| obs.borrow_mut().$method($($arg),*))
+    };
+}
+
 pub mod prelude {
     pub use crate::{property, try_property};
 

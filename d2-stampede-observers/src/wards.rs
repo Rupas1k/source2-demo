@@ -1,37 +1,38 @@
 use anyhow::bail;
 use d2_stampede::prelude::*;
 use d2_stampede::proto::DotaCombatlogTypes;
+use d2_stampede::try_observers;
 use hashbrown::HashMap;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub enum WardClasses {
+pub enum WardClass {
     Observer,
     Sentry,
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum WardEvents {
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum WardEvent {
     Placed,
     Killed(Box<str>),
     Expired,
 }
 
-impl WardClasses {
+impl WardClass {
     fn from_target_name(value: &str) -> d2_stampede::Result<Self> {
         match value {
-            "npc_dota_observer_wards" => Ok(WardClasses::Observer),
-            "npc_dota_sentry_wards" => Ok(WardClasses::Sentry),
+            "npc_dota_observer_wards" => Ok(WardClass::Observer),
+            "npc_dota_sentry_wards" => Ok(WardClass::Sentry),
             _ => bail!(""),
         }
     }
 
     fn from_class_name(value: &str) -> d2_stampede::Result<Self> {
         match value {
-            "CDOTA_NPC_Observer_Ward" => Ok(WardClasses::Observer),
-            "CDOTA_NPC_Observer_Ward_TrueSight" => Ok(WardClasses::Sentry),
+            "CDOTA_NPC_Observer_Ward" => Ok(WardClass::Observer),
+            "CDOTA_NPC_Observer_Ward_TrueSight" => Ok(WardClass::Sentry),
             _ => bail!(""),
         }
     }
@@ -46,25 +47,12 @@ struct PendingEvent {
 pub struct Wards {
     pending_events: VecDeque<PendingEvent>,
     current_life_state: HashMap<i32, i32>,
-    killers: HashMap<WardClasses, VecDeque<Box<str>>>,
+    killers: HashMap<WardClass, VecDeque<Box<str>>>,
 
     observers: Vec<Rc<RefCell<dyn WardsObserver + 'static>>>,
 }
 
 impl Wards {
-    pub fn new() -> Self {
-        let mut killers = HashMap::default();
-        killers.insert(WardClasses::Observer, VecDeque::new());
-        killers.insert(WardClasses::Sentry, VecDeque::new());
-
-        Wards {
-            pending_events: Default::default(),
-            current_life_state: HashMap::default(),
-            killers,
-            observers: Vec::new(),
-        }
-    }
-
     pub fn register_observer<T: WardsObserver + 'static>(&mut self, obs: Rc<RefCell<T>>) {
         self.observers.push(obs as Rc<RefCell<dyn WardsObserver>>)
     }
@@ -72,7 +60,16 @@ impl Wards {
 
 impl Default for Wards {
     fn default() -> Self {
-        Self::new()
+        let mut killers = HashMap::default();
+        killers.insert(WardClass::Observer, VecDeque::new());
+        killers.insert(WardClass::Sentry, VecDeque::new());
+
+        Wards {
+            pending_events: Default::default(),
+            current_life_state: HashMap::default(),
+            killers,
+            observers: Vec::new(),
+        }
     }
 }
 
@@ -83,46 +80,37 @@ impl Observer for Wards {
             let old_state = *self.current_life_state.get(&ev.entity_idx).unwrap_or(&2);
             let new_state = ev.life_state;
 
-            let ward_class = WardClasses::from_class_name(
+            let ward_class = WardClass::from_class_name(
                 ctx.entities
                     .get_by_index(ev.entity_idx as usize)?
                     .class()
                     .name(),
             )?;
 
+            let event = |event: WardEvent| -> d2_stampede::Result<()> {
+                try_observers!(
+                    self,
+                    on_ward(
+                        ctx,
+                        ward_class,
+                        event.clone(),
+                        ctx.entities.get_by_index(ev.entity_idx as usize)?
+                    )
+                )
+            };
+
             if old_state != new_state {
                 self.current_life_state.insert(ev.entity_idx, new_state);
                 // created
                 if new_state == 0 {
-                    self.observers.iter_mut().try_for_each(|obs| {
-                        obs.borrow_mut().on_ward(
-                            ctx,
-                            ward_class,
-                            WardEvents::Placed,
-                            ctx.entities.get_by_index(ev.entity_idx as usize)?,
-                        )
-                    })?
+                    event(WardEvent::Placed)?;
                 }
                 // killed / expired
                 if new_state == 1 {
                     if let Some(killer) = self.killers.get_mut(&ward_class).unwrap().pop_front() {
-                        self.observers.iter_mut().try_for_each(|obs| {
-                            obs.borrow_mut().on_ward(
-                                ctx,
-                                ward_class,
-                                WardEvents::Killed(Box::clone(&killer)),
-                                ctx.entities.get_by_index(ev.entity_idx as usize)?,
-                            )
-                        })?
+                        event(WardEvent::Killed(killer.clone()))?;
                     } else {
-                        self.observers.iter_mut().try_for_each(|obs| {
-                            obs.borrow_mut().on_ward(
-                                ctx,
-                                ward_class,
-                                WardEvents::Expired,
-                                ctx.entities.get_by_index(ev.entity_idx as usize)?,
-                            )
-                        })?
+                        event(WardEvent::Expired)?;
                     }
                 }
             }
@@ -137,7 +125,7 @@ impl Observer for Wards {
         entity: &Entity,
     ) -> d2_stampede::Result<()> {
         if event == EntityEvents::Created
-            && WardClasses::from_class_name(entity.class().name()).is_ok()
+            && WardClass::from_class_name(entity.class().name()).is_ok()
         {
             if let Ok(life_state) = entity.get_property_by_name("m_lifeState") {
                 self.current_life_state.remove(&entity.index());
@@ -164,20 +152,20 @@ impl Observer for Wards {
     fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLog) -> d2_stampede::Result<()> {
         if combat_log.type_() == DotaCombatlogTypes::DotaCombatlogDeath
             && combat_log.target_name().is_ok()
-            && WardClasses::from_target_name(combat_log.target_name()?).is_ok()
+            && WardClass::from_target_name(combat_log.target_name()?).is_ok()
         {
             if let (Ok(killer), Ok(attacker)) =
                 (combat_log.damage_source_name(), combat_log.attacker_name())
             {
-                if WardClasses::from_target_name(attacker).is_err() {
+                if WardClass::from_target_name(attacker).is_err() {
                     self.killers
-                        .get_mut(&WardClasses::from_target_name(combat_log.target_name()?)?)
+                        .get_mut(&WardClass::from_target_name(combat_log.target_name()?)?)
                         .unwrap()
                         .push_back(killer.into());
                 }
             } else {
                 self.killers
-                    .get_mut(&WardClasses::from_target_name(combat_log.target_name()?)?)
+                    .get_mut(&WardClass::from_target_name(combat_log.target_name()?)?)
                     .unwrap()
                     .push_back(combat_log.damage_source_name()?.into());
             }
@@ -201,8 +189,8 @@ pub trait WardsObserver {
     fn on_ward(
         &mut self,
         ctx: &Context,
-        ward_class: WardClasses,
-        event: WardEvents,
+        ward_class: WardClass,
+        event: WardEvent,
         ward: &Entity,
     ) -> d2_stampede::Result<()> {
         Ok(())

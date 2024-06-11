@@ -1,5 +1,6 @@
 use anyhow::{anyhow, bail, Result};
 use d2_stampede::prelude::*;
+use d2_stampede::try_observers;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -16,7 +17,7 @@ impl GameTime {
             .ok_or_else(|| anyhow!("Game has not started yet."))
     }
 
-    pub fn register_observer(&mut self, obs: Rc<RefCell<dyn GameTimeObserver>>) {
+    pub fn register_observer(&mut self, obs: Rc<RefCell<dyn GameTimeObserver + 'static>>) {
         self.observers.push(obs)
     }
 
@@ -49,9 +50,7 @@ impl Observer for GameTime {
                     .try_into()?;
                 if start_time > 0.0 {
                     self.start_time = Some(start_time);
-                    self.observers
-                        .iter()
-                        .try_for_each(|obs| obs.borrow_mut().on_game_started(ctx, start_time))?;
+                    try_observers!(self, on_game_started(ctx, start_time))?;
                 }
             }
         }

@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use d2_stampede::prelude::*;
 use d2_stampede::proto::*;
+use d2_stampede::try_observers;
 
 #[derive(Default)]
 pub struct Chat {
@@ -25,28 +26,19 @@ impl Observer for Chat {
     ) -> Result<()> {
         match msg_type {
             EDotaUserMessages::DotaUmChatEvent => {
-                let event = CdotaUserMsgChatEvent::decode(msg)?;
-                self.observers
-                    .iter()
-                    .try_for_each(|obs| obs.borrow_mut().on_chat_event(ctx, &event))?;
+                let chat_event = CdotaUserMsgChatEvent::decode(msg)?;
+                try_observers!(self, on_chat_event(ctx, &chat_event))
             }
             EDotaUserMessages::DotaUmChatMessage => {
                 let chat_msg = CdotaUserMsgChatMessage::decode(msg)?;
-                self.observers
-                    .iter()
-                    .try_for_each(|obs| obs.borrow_mut().on_all_chat_message(ctx, &chat_msg))?;
+                try_observers!(self, on_all_chat_message(ctx, &chat_msg))
             }
             EDotaUserMessages::DotaUmChatWheel => {
-                if msg_type == EDotaUserMessages::DotaUmChatWheel {
-                    let chat_wheel = CdotaUserMsgChatWheel::decode(msg)?;
-                    self.observers
-                        .iter()
-                        .try_for_each(|obs| obs.borrow_mut().on_chat_wheel(ctx, &chat_wheel))?;
-                }
+                let chat_wheel = CdotaUserMsgChatWheel::decode(msg)?;
+                try_observers!(self, on_chat_wheel(ctx, &chat_wheel))
             }
-            _ => {}
+            _ => Ok(()),
         }
-        Ok(())
     }
 }
 

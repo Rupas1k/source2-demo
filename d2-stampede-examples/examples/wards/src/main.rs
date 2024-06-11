@@ -10,8 +10,8 @@ impl WardsObserver for MyObs {
     fn on_ward(
         &mut self,
         ctx: &Context,
-        ward_class: WardClasses,
-        event: WardEvents,
+        ward_class: WardClass,
+        event: WardEvent,
         ward: &Entity,
     ) -> d2_stampede::Result<()> {
         println!(

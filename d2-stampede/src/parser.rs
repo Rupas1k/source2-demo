@@ -8,6 +8,7 @@ use crate::proto::*;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTables};
+use crate::try_observers;
 use anyhow::{bail, Result};
 use hashbrown::{HashMap, HashSet};
 use prettytable::{row, Table};
@@ -155,9 +156,7 @@ impl<'a> Parser<'a> {
             self.on_tick_end()?;
         }
 
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().epilogue(&self.context))
+        try_observers!(self, epilogue(&self.context))
     }
 
     pub fn run_to_tick(&mut self, tick: u32) -> Result<()> {
@@ -178,9 +177,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().epilogue(&self.context))
+        try_observers!(self, epilogue(&self.context))
     }
 
     #[inline(always)]
@@ -223,9 +220,7 @@ impl<'a> Parser<'a> {
             _ => {}
         };
 
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_packet(&self.context, msg_type, msg))
+        try_observers!(self, on_packet(&self.context, msg_type, msg))
     }
 
     #[inline(always)]
@@ -234,10 +229,7 @@ impl<'a> Parser<'a> {
             self.context.net_tick = CnetMsgTick::decode(msg)?.tick();
         }
 
-        self.observers.iter().try_for_each(|obs| {
-            obs.borrow_mut()
-                .on_net_message(&self.context, msg_type, msg)
-        })
+        try_observers!(self, on_net_message(&self.context, msg_type, msg))
     }
 
     #[inline(always)]
@@ -250,26 +242,17 @@ impl<'a> Parser<'a> {
             _ => {}
         }
 
-        self.observers.iter().try_for_each(|obs| {
-            obs.borrow_mut()
-                .on_svc_message(&self.context, msg_type, msg)
-        })
+        try_observers!(self, on_svc_message(&self.context, msg_type, msg))
     }
 
     #[inline(always)]
     fn on_base_user_message(&mut self, msg_type: EBaseUserMessages, msg: &[u8]) -> Result<()> {
-        self.observers.iter().try_for_each(|obs| {
-            obs.borrow_mut()
-                .on_base_user_message(&self.context, msg_type, msg)
-        })
+        try_observers!(self, on_base_user_message(&self.context, msg_type, msg))
     }
 
     #[inline(always)]
     fn on_base_game_event(&mut self, msg_type: EBaseGameEvents, msg: &[u8]) -> Result<()> {
-        self.observers.iter().try_for_each(|obs| {
-            obs.borrow_mut()
-                .on_base_game_event(&self.context, msg_type, msg)
-        })
+        try_observers!(self, on_base_game_event(&self.context, msg_type, msg))
     }
 
     #[inline(always)]
@@ -278,17 +261,13 @@ impl<'a> Parser<'a> {
             let entry = CMsgDotaCombatLogEntry::decode(msg)?;
             self.combat_log.push_back(entry);
         }
-        self.observers.iter().try_for_each(|obs| {
-            obs.borrow_mut()
-                .on_dota_user_message(&self.context, msg_type, msg)
-        })
+
+        try_observers!(self, on_dota_user_message(&self.context, msg_type, msg))
     }
 
     #[inline(always)]
     pub(crate) fn on_tick_start(&mut self) -> Result<()> {
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_tick_start(&self.context))
+        try_observers!(self, on_tick_start(&self.context))
     }
 
     #[inline(always)]
@@ -303,16 +282,12 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_tick_end(&self.context))
+        try_observers!(self, on_tick_end(&self.context))
     }
 
     #[inline(always)]
     pub(crate) fn on_combat_log(&self, entry: &CombatLog) -> Result<()> {
-        self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().on_combat_log(&self.context, entry))
+        try_observers!(self, on_combat_log(&self.context, entry))
     }
 
     fn send_tables(&mut self, msg: &[u8]) -> Result<()> {
@@ -517,13 +492,14 @@ impl<'a> Parser<'a> {
         }
 
         let throw_event = |ctx: &Context, index: i32, event: EntityEvents| -> Result<()> {
-            self.observers.iter().try_for_each(|obs| {
-                obs.borrow_mut().on_entity(
+            try_observers!(
+                self,
+                on_entity(
                     ctx,
                     event,
-                    ctx.entities.entities_vec[index as usize].as_ref().unwrap(),
+                    ctx.entities.entities_vec[index as usize].as_ref().unwrap()
                 )
-            })
+            )
         };
 
         for _ in 0..updates {
