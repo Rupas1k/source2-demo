@@ -17,4 +17,5 @@ path = "./lib.rs"
 prost-build = "0.12.3"
 
 [dependencies]
-prost = "0.12.3"
+serde = { version = "1.0.203", features = ["derive"] }
+prost = { version = "0.12.3" }
