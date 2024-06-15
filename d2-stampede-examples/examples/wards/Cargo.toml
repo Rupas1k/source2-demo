@@ -9,7 +9,7 @@ edition = "2021"
 bench = []
 
 [dependencies]
-d2-stampede = { path = "../../../d2-stampede" }
+d2-stampede = { path = "../../../d2-stampede", features = ["mimalloc"] }
 d2-stampede-observers = { path = "../../../d2-stampede-observers" }
 memmap2 = "0.9.4"
 anyhow = "1.0.81"
