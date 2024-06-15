@@ -40,13 +40,13 @@ impl WardClass {
 
 #[derive(Debug)]
 struct PendingEvent {
-    entity_idx: i32,
+    entity_idx: u32,
     life_state: i32,
 }
 
 pub struct Wards {
     pending_events: VecDeque<PendingEvent>,
-    current_life_state: HashMap<i32, i32>,
+    current_life_state: HashMap<u32, i32>,
     killers: HashMap<WardClass, VecDeque<Box<str>>>,
 
     observers: Vec<Rc<RefCell<dyn WardsObserver + 'static>>>,
@@ -180,7 +180,8 @@ impl Observer for Wards {
                 life_state: 1,
             })
         });
-        self.on_tick_end(ctx)
+        Ok(())
+        // self.on_tick_end(ctx)
     }
 }
 

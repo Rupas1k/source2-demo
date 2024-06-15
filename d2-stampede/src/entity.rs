@@ -68,14 +68,14 @@ impl Entities {
 
 #[derive(Clone)]
 pub struct Entity {
-    index: i32,
-    serial: i32,
+    index: u32,
+    serial: u32,
     pub(crate) class: Rc<Class>,
     pub(crate) state: FieldVector,
 }
 
 impl Entity {
-    pub(crate) fn new(index: i32, serial: i32, class: Rc<Class>, state: FieldVector) -> Self {
+    pub(crate) fn new(index: u32, serial: u32, class: Rc<Class>, state: FieldVector) -> Self {
         Entity {
             index,
             serial,
@@ -84,15 +84,15 @@ impl Entity {
         }
     }
 
-    pub fn index(&self) -> i32 {
+    pub fn index(&self) -> u32 {
         self.index
     }
 
-    pub fn serial(&self) -> i32 {
+    pub fn serial(&self) -> u32 {
         self.serial
     }
 
-    pub fn handle(&self) -> i32 {
+    pub fn handle(&self) -> u32 {
         self.serial << 14 | self.index
     }
 
@@ -107,9 +107,14 @@ impl Entity {
     }
 
     pub(crate) fn get_property_by_field_path(&self, fp: &FieldPath) -> Result<&FieldValue> {
-        self.state
-            .get_value(fp)
-            .with_context(|| anyhow!("No property for given field path {:?}", fp))
+        self.state.get_value(fp).with_context(|| {
+            anyhow!(
+                "No property for given name \"{}\" ({}, {:?})",
+                self.class.serializer.get_name_for_field_path(fp),
+                self.class().name(),
+                fp
+            )
+        })
     }
 }
 

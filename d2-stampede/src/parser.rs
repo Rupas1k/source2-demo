@@ -474,7 +474,7 @@ impl<'a> Parser<'a> {
 
         let updates = packet.updated_entries();
 
-        let mut index = -1;
+        let mut index = u32::MAX;
         let mut op: isize;
 
         if packet.max_entries() as usize > self.context.entities.entities_vec.len() {
@@ -491,7 +491,7 @@ impl<'a> Parser<'a> {
             self.context.entities.entity_full_packets += 1;
         }
 
-        let throw_event = |ctx: &Context, index: i32, event: EntityEvents| -> Result<()> {
+        let throw_event = |ctx: &Context, index: u32, event: EntityEvents| -> Result<()> {
             try_observers!(
                 self,
                 on_entity(
@@ -503,7 +503,7 @@ impl<'a> Parser<'a> {
         };
 
         for _ in 0..updates {
-            index += entities_reader.read_ubit_var() as i32 + 1;
+            index = index.wrapping_add(entities_reader.read_ubit_var() + 1);
 
             let cmd = entities_reader.read_bits(2);
 
@@ -512,7 +512,7 @@ impl<'a> Parser<'a> {
                     let class_id = entities_reader
                         .read_bits(self.context.classes.class_id_size.unwrap())
                         as i32;
-                    let serial = entities_reader.read_bits(17) as i32;
+                    let serial = entities_reader.read_bits(17);
 
                     entities_reader.read_var_u32();
 
