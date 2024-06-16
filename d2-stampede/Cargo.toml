@@ -14,7 +14,7 @@ readme = "../README.md"
 path = "src/lib.rs"
 
 [dependencies]
-d2-stampede-protobufs = { path = "../d2-stampede-protobufs", version = "0.1.0" }
+d2-stampede-protobufs = { git = "https://github.com/Rupas1k/d2-stampede" }
 
 snap = "1.1.1"
 regex = { version = "1.10.4", features = ["std", "unicode-perl"], default-features = false }
