@@ -12,6 +12,7 @@ pub struct GameTime {
 }
 
 impl GameTime {
+    #[inline(always)]
     pub fn start_time(&self) -> Result<f32> {
         self.start_time
             .ok_or_else(|| anyhow!("Game has not started yet."))
@@ -21,6 +22,7 @@ impl GameTime {
         self.observers.push(obs)
     }
 
+    #[inline(always)]
     pub fn tick(&self, ctx: &Context) -> Result<i32> {
         if let Ok(game_rules) = ctx.entities.get_by_class_name("CDOTAGamerulesProxy") {
             let is_paused: bool = game_rules

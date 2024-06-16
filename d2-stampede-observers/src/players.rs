@@ -48,6 +48,7 @@ pub struct Players {
     pub players: Vec<Rc<Player>>,
     pub steam_id_to_player: HashMap<u64, Rc<Player>>,
     pub hero_to_player: HashMap<Box<str>, Rc<Player>>,
+    pub handle_to_player: HashMap<usize, Rc<Player>>,
     pre_game_tick: Option<u32>,
 }
 
@@ -76,6 +77,7 @@ impl Players {
 
                 self.players.push(player.clone());
                 self.hero_to_player.insert(hero_str.clone(), player.clone());
+                self.handle_to_player.insert(handle, player.clone());
 
                 for name in class_to_combat_log(&hero_str) {
                     self.hero_to_player.insert(name, player.clone());
