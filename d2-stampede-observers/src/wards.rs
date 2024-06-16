@@ -180,8 +180,7 @@ impl Observer for Wards {
                 life_state: 1,
             })
         });
-        Ok(())
-        // self.on_tick_end(ctx)
+        self.on_tick_end(ctx)
     }
 }
 
