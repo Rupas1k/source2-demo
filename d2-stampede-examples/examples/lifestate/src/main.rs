@@ -3,7 +3,7 @@ use hashbrown::HashMap;
 use std::io::Write;
 
 struct LifeStateObserver {
-    current_life_state: HashMap<i32, i32>,
+    current_life_state: HashMap<u32, i32>,
     output: Box<dyn Write>,
 }
 
