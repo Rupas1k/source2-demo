@@ -59,6 +59,8 @@ pub mod prelude {
 
     pub use crate::combat_log::CombatLog;
 
+    pub use crate::field_value::FieldValue;
+
     pub use d2_stampede_protobufs::prost::Message;
 }
 
@@ -67,6 +69,8 @@ pub use crate::parser::{Context, Observer, Parser};
 pub use crate::entity::{Entity, EntityEvents};
 
 pub use crate::combat_log::CombatLog;
+
+pub use crate::field_value::FieldValue;
 
 pub use anyhow::Error;
 
