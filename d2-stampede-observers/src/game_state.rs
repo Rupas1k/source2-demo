@@ -39,19 +39,19 @@ impl Observer for GameState {
 
 #[allow(unused_variables)]
 pub trait GameStateObserver {
-    fn on_game_state_change(&self, ctx: &Context, new_state: DotaGameState) -> Result<()> {
+    fn on_game_state_change(&mut self, ctx: &Context, new_state: DotaGameState) -> Result<()> {
         Ok(())
     }
 
-    fn on_pregame(&self, ctx: &Context) -> Result<()> {
+    fn on_pregame(&mut self, ctx: &Context) -> Result<()> {
         Ok(())
     }
 
-    fn on_game_start(&self, ctx: &Context) -> Result<()> {
+    fn on_game_start(&mut self, ctx: &Context) -> Result<()> {
         Ok(())
     }
 
-    fn on_postgame(&self, ctx: &Context) -> Result<()> {
+    fn on_postgame(&mut self, ctx: &Context) -> Result<()> {
         Ok(())
     }
 }
