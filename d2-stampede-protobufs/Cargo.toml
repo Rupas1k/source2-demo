@@ -14,8 +14,8 @@ exclude = ["protos/*"]
 path = "./lib.rs"
 
 [build-dependencies]
-prost-build = "0.12.3"
+prost-build = "0.12.6"
 
 [dependencies]
 serde = { version = "1.0.203", features = ["derive"] }
-prost = { version = "0.12.3" }
+prost = { version = "0.12.6" }

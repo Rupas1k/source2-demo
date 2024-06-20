@@ -17,7 +17,7 @@ path = "src/lib.rs"
 d2-stampede-protobufs = { git = "https://github.com/Rupas1k/d2-stampede" }
 
 snap = "1.1.1"
-regex = { version = "1.10.4", features = ["std", "unicode-perl"], default-features = false }
+regex = { version = "1.10.5", features = ["std", "unicode-perl"], default-features = false }
 bitter = "0.7.0"
 hashbrown = "0.14.5"
 lazy_static = "1.4.0"
