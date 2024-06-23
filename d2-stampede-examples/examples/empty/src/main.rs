@@ -2,12 +2,10 @@ use d2_stampede::prelude::*;
 
 fn main() -> std::io::Result<()> {
     let args = std::env::args().collect::<Vec<_>>();
-    // let Some(filepath) = args.get(1) else {
-    //     eprintln!("Usage: {} <demofile>", args[0]);
-    //     return Ok(());
-    // };
-
-    let filepath = "/home/artemrupasov/projects/d2-stampede/replays/7391247517_310492352.dem";
+    let Some(filepath) = args.get(1) else {
+        eprintln!("Usage: {} <demofile>", args[0]);
+        return Ok(());
+    };
 
     let Ok(file) = std::fs::File::open(filepath) else {
         eprintln!("Failed to open file: {}", filepath);
