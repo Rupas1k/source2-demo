@@ -38,15 +38,18 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     };
 
-    let mmap = unsafe { memmap2::Mmap::map(&file)? };
+    let replay = unsafe { memmap2::Mmap::map(&file)? };
+    let Ok(mut parser) = Parser::new(&replay) else {
+        eprintln!("Not a replay");
+        return Ok(());
+    };
 
-    let mut parser = Parser::new(&mmap);
     parser.register_observer::<ChatObserver>();
 
     #[cfg(feature = "bench")]
     let start = std::time::Instant::now();
 
-    if let Err(e) = parser.run() {
+    if let Err(e) = parser.run_to_end() {
         eprintln!("Parser error: {:?}", e);
     };
 
