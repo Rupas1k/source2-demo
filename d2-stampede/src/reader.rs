@@ -15,9 +15,14 @@ impl<'a> Reader<'a> {
         }
     }
 
+    pub(crate) fn reset_to(&mut self, offset: usize) {
+        assert!(offset <= self.buf.len());
+        self.le_reader = LittleEndianReader::new(&self.buf[offset..])
+    }
+
     #[inline(always)]
-    pub(crate) fn empty(&mut self) -> bool {
-        self.le_reader.bytes_remaining() == 0
+    pub(crate) fn bytes_remaining(&mut self) -> usize {
+        self.le_reader.bytes_remaining()
     }
 
     #[inline(always)]

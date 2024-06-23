@@ -7,7 +7,7 @@ use crate::field_reader::FieldReader;
 use crate::proto::*;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
-use crate::string_table::{StringTable, StringTables};
+use crate::string_table::{StringTable, StringTableEntry, StringTables};
 use crate::try_observers;
 use anyhow::{bail, Result};
 use hashbrown::{HashMap, HashSet};
@@ -16,18 +16,20 @@ use regex::Regex;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
+use std::mem;
 use std::rc::Rc;
 
 pub struct Parser<'a> {
     reader: Reader<'a>,
     field_reader: FieldReader,
-
-    serializers: HashMap<Box<str>, Rc<Serializer>>,
-    baselines: Baselines,
-
     observers: Vec<Rc<RefCell<dyn Observer + 'a>>>,
+    start_offset: usize,
 
     combat_log: VecDeque<CMsgDotaCombatLogEntry>,
+
+    replay_validated: bool,
+    prologue_completed: bool,
+    processing_deltas: bool,
 
     pub context: Context,
 }
@@ -45,7 +47,6 @@ impl Baselines {
 
     pub(crate) fn read_baseline(&mut self, class: &Class) {
         let mut state = FieldVector::new();
-
         self.field_reader.read_fields(
             &mut Reader::new(&self.baselines[&class.id]),
             &class.serializer,
@@ -60,12 +61,16 @@ pub struct Context {
     pub classes: Classes,
     pub entities: Entities,
     pub string_tables: StringTables,
-
     pub replay_info: Option<CDemoFileInfo>,
 
     pub tick: u32,
+
     pub net_tick: u32,
-    pub game_build: Option<u32>,
+    pub game_build: u32,
+
+    baselines: Baselines,
+    serializers: HashMap<Box<str>, Rc<Serializer>>,
+    last_full_packet_tick: u32,
 }
 
 impl Display for Context {
@@ -83,28 +88,28 @@ impl Display for Context {
 
 struct OuterMessage {
     msg_type: EDemoCommands,
+    size: usize,
     tick: u32,
     buf: Vec<u8>,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(buf: &'a [u8]) -> Self {
+    pub fn new(buf: &'a [u8]) -> Result<Self> {
         let baselines = Baselines {
             field_reader: FieldReader::new(),
             baselines: HashMap::default(),
             states: HashMap::default(),
         };
 
-        Parser {
+        let mut parser = Parser {
             reader: Reader::new(buf),
             field_reader: FieldReader::new(),
-
-            serializers: HashMap::default(),
-            baselines,
-
             observers: Vec::new(),
-
             combat_log: VecDeque::new(),
+            prologue_completed: false,
+            replay_validated: false,
+            start_offset: 0,
+            processing_deltas: true,
 
             context: Context {
                 classes: Classes::new(),
@@ -115,9 +120,18 @@ impl<'a> Parser<'a> {
 
                 tick: u32::MAX,
                 net_tick: u32::MAX,
-                game_build: None,
+                last_full_packet_tick: u32::MAX,
+
+                game_build: 0,
+
+                baselines,
+                serializers: HashMap::default(),
             },
-        }
+        };
+
+        parser.validate_replay()?;
+
+        Ok(parser)
     }
 
     pub fn register_observer<T>(&mut self) -> Rc<RefCell<T>>
@@ -130,7 +144,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn replay_info(&mut self) -> Result<CDemoFileInfo> {
-        let offset = u32::from_le_bytes(self.reader.buf[8..12].try_into()?) as usize;
+        let offset = usize::from_le_bytes(self.reader.buf[8..12].try_into()?);
         if self.reader.buf.len() < offset {
             bail!("Buf is too small")
         }
@@ -140,14 +154,46 @@ impl<'a> Parser<'a> {
         )?)
     }
 
-    pub fn run(&mut self) -> Result<()> {
-        if self.reader.read_string() != "PBDEMS2" {
+    fn validate_replay(&mut self) -> Result<()> {
+        if self.replay_validated {
+            return Ok(());
+        }
+
+        if self.reader.read_bytes(8) != b"PBDEMS2\0" {
             bail!("Supports only Source 2 replays")
         };
 
         self.reader.read_bytes(8);
 
         self.context.replay_info = self.replay_info().ok();
+
+        Ok(())
+    }
+
+    fn prologue(&mut self) -> Result<()> {
+        if self.prologue_completed {
+            return Ok(());
+        }
+        let mut offset: usize = 16;
+        while let Some(message) = Self::read_message(&mut self.reader)? {
+            self.context.tick = message.tick;
+            self.on_tick_start()?;
+            self.on_packet(message.msg_type, message.buf.as_slice())?;
+            self.on_tick_end()?;
+
+            offset += message.size;
+
+            if message.msg_type == EDemoCommands::DemSyncTick {
+                self.prologue_completed = true;
+                self.start_offset = offset;
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn run_to_end(&mut self) -> Result<()> {
+        self.prologue()?;
 
         while let Some(message) = Self::read_message(&mut self.reader)? {
             self.context.tick = message.tick;
@@ -159,36 +205,94 @@ impl<'a> Parser<'a> {
         try_observers!(self, epilogue(&self.context))
     }
 
-    pub fn run_to_tick(&mut self, tick: u32) -> Result<()> {
-        if self.reader.read_string() != "PBDEMS2" {
-            bail!("Supports only Source 2 replays")
-        };
+    pub fn jump_to_tick(&mut self, target_tick: u32) -> Result<()> {
+        self.prologue()?;
 
-        self.reader.read_bytes(8);
+        if target_tick < self.context.tick {
+            self.context.last_full_packet_tick = u32::MAX;
+            self.context.tick = u32::MAX;
+            self.context.net_tick = u32::MAX;
+            self.reader.reset_to(self.start_offset);
+        }
+
+        self.processing_deltas = false;
+
+        let observers = mem::take(&mut self.observers);
+
+        let mut first_fp_checked = true;
+        let mut last_fp_checked = false;
 
         self.context.replay_info = self.replay_info().ok();
+        while let Some(mut message) = Self::read_message(&mut self.reader)? {
+            let next_fp = self.context.last_full_packet_tick == u32::MAX
+                || (target_tick - self.context.last_full_packet_tick) > 1800;
+            self.context.tick = message.tick;
+            if message.msg_type == EDemoCommands::DemFullPacket {
+                if next_fp && first_fp_checked {
+                    message.msg_type = EDemoCommands::DemStringTables;
+                    message.buf = CDemoFullPacket::decode(message.buf.as_slice())?
+                        .string_table
+                        .unwrap()
+                        .encode_to_vec();
+                }
 
-        while let Some(message) = Self::read_message(&mut self.reader)? {
-            self.on_tick_start()?;
-            self.on_packet(message.msg_type, message.buf.as_slice())?;
-            self.on_tick_end()?;
-            if self.context.tick >= tick && tick != u32::MAX {
+                self.on_packet(message.msg_type, message.buf.as_slice())?;
+            }
+
+            if last_fp_checked {
+                self.on_packet(message.msg_type, message.buf.as_slice())?;
+            }
+
+            if message.msg_type == EDemoCommands::DemFullPacket && !first_fp_checked {
+                first_fp_checked = true;
+            }
+
+            if message.msg_type == EDemoCommands::DemFullPacket && !next_fp {
+                last_fp_checked = true;
+                self.processing_deltas = true;
+            }
+
+            if self.context.tick >= target_tick {
                 break;
             }
         }
 
+        self.observers = observers;
+
         try_observers!(self, epilogue(&self.context))
+    }
+
+    pub fn run_to_tick(&mut self, tick: u32) -> Result<()> {
+        assert!(tick > self.context.tick);
+
+        self.prologue()?;
+
+        while let Some(message) = Self::read_message(&mut self.reader)? {
+            self.context.tick = message.tick;
+            self.on_tick_start()?;
+            self.on_packet(message.msg_type, message.buf.as_slice())?;
+            self.on_tick_end()?;
+            if self.context.tick >= tick {
+                break;
+            }
+        }
+
+        Ok(())
     }
 
     #[inline(always)]
     fn read_message(reader: &mut Reader) -> Result<Option<OuterMessage>> {
-        if reader.empty() {
+        if reader.bytes_remaining() == 0 {
             return Ok(None);
         }
+
+        let start = reader.bytes_remaining();
 
         let cmd = reader.read_var_u32() as i32;
         let tick = reader.read_var_u32();
         let size = reader.read_var_u32();
+
+        let end = start - reader.bytes_remaining();
 
         let msg_type = EDemoCommands::try_from(cmd & !(EDemoCommands::DemIsCompressed as i32))?;
         let msg_compressed = cmd & EDemoCommands::DemIsCompressed as i32 != 0;
@@ -202,6 +306,7 @@ impl<'a> Parser<'a> {
         };
 
         Ok(Some(OuterMessage {
+            size: end + size as usize,
             msg_type,
             tick,
             buf,
@@ -211,12 +316,11 @@ impl<'a> Parser<'a> {
     #[inline(always)]
     fn on_packet(&mut self, msg_type: EDemoCommands, msg: &[u8]) -> Result<()> {
         match msg_type {
-            EDemoCommands::DemSendTables => self.send_tables(msg)?,
-            EDemoCommands::DemClassInfo => self.class_info(msg)?,
+            EDemoCommands::DemSendTables => self.dem_send_tables(msg)?,
+            EDemoCommands::DemClassInfo => self.dem_class_info(msg)?,
             EDemoCommands::DemPacket | EDemoCommands::DemSignonPacket => self.dem_packet(msg)?,
-            EDemoCommands::DemFullPacket => self.full_packet(msg)?,
-            EDemoCommands::DemFileHeader => {}
-            EDemoCommands::DemFileInfo => {}
+            EDemoCommands::DemFullPacket => self.dem_full_packet(msg)?,
+            EDemoCommands::DemStringTables => self.dem_string_tables(msg)?,
             _ => {}
         };
 
@@ -290,7 +394,7 @@ impl<'a> Parser<'a> {
         try_observers!(self, on_combat_log(&self.context, entry))
     }
 
-    fn send_tables(&mut self, msg: &[u8]) -> Result<()> {
+    fn dem_send_tables(&mut self, msg: &[u8]) -> Result<()> {
         let send_tables = CDemoSendTables::decode(msg)?;
         let mut reader = Reader::new(send_tables.data());
         let amount = reader.read_var_u32();
@@ -335,8 +439,11 @@ impl<'a> Parser<'a> {
 
                 if *i as usize >= fields.len() {
                     let var_type_str = resolve(current_field.var_type_sym);
-                    let current_field_serializer =
-                        self.serializers.get(&field_serializer_name).cloned();
+                    let current_field_serializer = self
+                        .context
+                        .serializers
+                        .get(&field_serializer_name)
+                        .cloned();
 
                     if !field_types.contains_key(&var_type_str) {
                         field_types.insert(
@@ -407,20 +514,21 @@ impl<'a> Parser<'a> {
                 }
                 serializer.fields.push(fields[*i as usize].clone());
             }
-            self.serializers
+            self.context
+                .serializers
                 .insert(serializer_name.into(), Rc::new(serializer));
         }
         Ok(())
     }
 
     #[inline(always)]
-    fn class_info(&mut self, msg: &[u8]) -> Result<()> {
+    fn dem_class_info(&mut self, msg: &[u8]) -> Result<()> {
         let info = CDemoClassInfo::decode(msg)?;
         for class in info.classes {
             let class_id = class.class_id();
             let network_name = class.network_name();
 
-            let serializer = self.serializers[network_name].clone();
+            let serializer = self.context.serializers[network_name].clone();
 
             let class = Rc::new(Class::new(class_id, network_name.into(), serializer));
 
@@ -437,7 +545,7 @@ impl<'a> Parser<'a> {
     fn dem_packet(&mut self, msg: &[u8]) -> Result<()> {
         let packet = CDemoPacket::decode(msg)?;
         let mut packet_reader = Reader::new(packet.data());
-        while !packet_reader.empty() {
+        while packet_reader.bytes_remaining() != 0 {
             let msg_type = packet_reader.read_ubit_var() as i32;
             let size = packet_reader.read_var_u32();
             let packet_buf = packet_reader.read_bytes(size);
@@ -459,12 +567,24 @@ impl<'a> Parser<'a> {
     }
 
     #[inline(always)]
-    fn full_packet(&mut self, msg: &[u8]) -> Result<()> {
+    fn dem_full_packet(&mut self, msg: &[u8]) -> Result<()> {
         let packet = CDemoFullPacket::decode(msg)?;
+
+        if !self.processing_deltas {
+            self.on_packet(
+                EDemoCommands::DemStringTables,
+                &packet.string_table.unwrap().encode_to_vec(),
+            )?;
+        }
+
         self.on_packet(
             EDemoCommands::DemPacket,
-            packet.packet.unwrap().encode_to_vec().as_slice(),
-        )
+            &packet.packet.unwrap().encode_to_vec(),
+        )?;
+
+        self.context.last_full_packet_tick = self.context.tick;
+
+        Ok(())
     }
 
     #[inline(always)]
@@ -484,11 +604,11 @@ impl<'a> Parser<'a> {
                 .resize_with(packet.max_entries() as usize, || None);
         }
 
-        if !packet.legacy_is_delta() {
-            if self.context.entities.entity_full_packets > 0 {
-                return Ok(());
-            }
-            self.context.entities.entity_full_packets += 1;
+        if self.processing_deltas
+            && !packet.legacy_is_delta()
+            && self.context.last_full_packet_tick != u32::MAX
+        {
+            return Ok(());
         }
 
         let throw_event = |ctx: &Context, index: u32, event: EntityEvents| -> Result<()> {
@@ -522,11 +642,11 @@ impl<'a> Parser<'a> {
                         .get_by_id_rc(class_id as usize)?
                         .clone();
 
-                    if !self.baselines.states.contains_key(&class_id) {
-                        self.baselines.read_baseline(&class)
+                    if !self.context.baselines.states.contains_key(&class_id) {
+                        self.context.baselines.read_baseline(&class)
                     }
 
-                    let entity_baseline = self.baselines.states[&class_id].clone();
+                    let entity_baseline = self.context.baselines.states[&class_id].clone();
 
                     self.context.entities.entities_vec[index as usize] =
                         Some(Entity::new(index, serial, class.clone(), entity_baseline));
@@ -588,7 +708,7 @@ impl<'a> Parser<'a> {
             self.context.string_tables.tables[table_msg.table_id() as usize].borrow_mut();
 
         table.parse(
-            &mut self.baselines,
+            &mut self.context.baselines,
             table_msg.string_data(),
             table_msg.num_changed_entries(),
         )
@@ -616,7 +736,11 @@ impl<'a> Parser<'a> {
         };
 
         if table.name != "decalprecache" {
-            table.parse(&mut self.baselines, buf.as_slice(), table_msg.num_entries())?;
+            table.parse(
+                &mut self.context.baselines,
+                buf.as_slice(),
+                table_msg.num_entries(),
+            )?;
         }
 
         let rc = Rc::new(RefCell::new(table));
@@ -625,6 +749,37 @@ impl<'a> Parser<'a> {
             .string_tables
             .name_to_table
             .insert(rc.borrow().name.clone().into(), rc.clone());
+
+        Ok(())
+    }
+
+    fn dem_string_tables(&mut self, msg: &[u8]) -> Result<()> {
+        let cmd = CDemoStringTables::decode(msg)?;
+        for table in cmd.tables.iter() {
+            let mut x = self
+                .context
+                .string_tables
+                .name_to_table
+                .get_mut(table.table_name())
+                .unwrap()
+                .borrow_mut();
+            if table.items.len() < x.items.len() {
+                return Ok(());
+            }
+            x.items
+                .resize_with(table.items.len(), StringTableEntry::default);
+            for (i, item) in table.items.iter().enumerate() {
+                x.items[i].index = i as i32;
+                x.items[i].key = item.str().to_string();
+                x.items[i].value = Rc::new(item.data().to_vec()).into();
+                if table.table_name() == "instancebaseline" {
+                    self.context.baselines.add_baseline(
+                        item.str().parse()?,
+                        x.items[i].value.as_ref().unwrap().clone(),
+                    );
+                }
+            }
+        }
 
         Ok(())
     }
@@ -641,7 +796,7 @@ impl<'a> Parser<'a> {
             if let Some(build_match) = captures.get(1) {
                 let build_str = build_match.as_str();
                 let build = build_str.parse::<u32>()?;
-                self.context.game_build = Some(build);
+                self.context.game_build = build;
             } else {
                 bail!("No build number found in regex capture");
             }

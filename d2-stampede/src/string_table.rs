@@ -39,7 +39,7 @@ impl StringTables {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct StringTableEntry {
     pub(crate) index: i32,
     pub(crate) key: String,

@@ -16,7 +16,6 @@ pub enum EntityEvents {
 }
 
 pub struct Entities {
-    pub(crate) entity_full_packets: u32,
     pub(crate) entities_vec: Vec<Option<Entity>>,
 }
 
@@ -24,7 +23,6 @@ impl Entities {
     pub(crate) fn new() -> Self {
         Entities {
             entities_vec: vec![],
-            entity_full_packets: 0,
         }
     }
 
@@ -101,9 +99,7 @@ impl Entity {
     }
 
     pub fn get_property_by_name(&self, name: &str) -> Result<&FieldValue> {
-        self.get_property_by_field_path(
-            &self.class.serializer.get_field_path_for_name(name)?, // .with_context(|| anyhow!("No property for given name \"{}\"", name))?,
-        )
+        self.get_property_by_field_path(&self.class.serializer.get_field_path_for_name(name)?)
     }
 
     pub(crate) fn get_property_by_field_path(&self, fp: &FieldPath) -> Result<&FieldValue> {

@@ -11,6 +11,15 @@ mod serializer;
 mod string_table;
 
 #[macro_export]
+macro_rules! try_observers {
+    ($self:ident, $method:ident ( $($arg:expr),* )) => {
+        $self.observers
+            .iter()
+            .try_for_each(|obs| obs.borrow_mut().$method($($arg),*))
+    };
+}
+
+#[macro_export]
 macro_rules! property {
     ($ent:expr, $fmt:expr, $($arg:tt)*) => {
         $ent.get_property_by_name(&format!($fmt, $($arg)*))?.try_into()?
@@ -39,15 +48,6 @@ macro_rules! try_property {
                 x.try_into().ok()
             })
     }};
-}
-
-#[macro_export]
-macro_rules! try_observers {
-    ($self:ident, $method:ident ( $($arg:expr),* )) => {
-        $self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().$method($($arg),*))
-    };
 }
 
 pub mod prelude {
