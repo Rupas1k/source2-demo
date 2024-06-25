@@ -287,7 +287,7 @@ impl<'a> Parser<'a> {
 
         self.observers = observers;
 
-        try_observers!(self, epilogue(&self.context))
+        Ok(())
     }
 
     /// Moves to target tick.
