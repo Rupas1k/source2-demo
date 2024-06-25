@@ -24,7 +24,7 @@ impl GameTime {
 
     #[inline(always)]
     pub fn tick(&self, ctx: &Context) -> Result<i32> {
-        if let Ok(game_rules) = ctx.entities.get_by_class_name("CDOTAGamerulesProxy") {
+        if let Ok(game_rules) = ctx.entities().get_by_class_name("CDOTAGamerulesProxy") {
             let is_paused: bool = game_rules
                 .get_property_by_name("m_pGameRules.m_bGamePaused")?
                 .try_into()?;
@@ -32,7 +32,7 @@ impl GameTime {
                 true => game_rules
                     .get_property_by_name("m_pGameRules.m_nPauseStartTick")?
                     .try_into()?,
-                false => ctx.net_tick as i32,
+                false => ctx.net_tick() as i32,
             };
             let paused_ticks: i32 = game_rules
                 .get_property_by_name("m_pGameRules.m_nTotalPausedTicks")?
@@ -46,7 +46,7 @@ impl GameTime {
 impl Observer for GameTime {
     fn on_tick_start(&mut self, ctx: &Context) -> Result<()> {
         if self.start_time.is_none() {
-            if let Ok(game_rules) = ctx.entities.get_by_class_name("CDOTAGamerulesProxy") {
+            if let Ok(game_rules) = ctx.entities().get_by_class_name("CDOTAGamerulesProxy") {
                 let start_time: f32 = game_rules
                     .get_property_by_name("m_pGameRules.m_flGameStartTime")?
                     .try_into()?;

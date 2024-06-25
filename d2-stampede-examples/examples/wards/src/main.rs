@@ -16,7 +16,7 @@ impl WardsObserver for MyObs {
     ) -> d2_stampede::Result<()> {
         println!(
             "{:06} Ward event: {:?} {:?} {:?}",
-            ctx.tick,
+            ctx.tick(),
             ward.index(),
             ward_class,
             event

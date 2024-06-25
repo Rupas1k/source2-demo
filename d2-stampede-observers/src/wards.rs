@@ -81,7 +81,7 @@ impl Observer for Wards {
             let new_state = ev.life_state;
 
             let ward_class = WardClass::from_class_name(
-                ctx.entities
+                ctx.entities()
                     .get_by_index(ev.entity_idx as usize)?
                     .class()
                     .name(),
@@ -94,7 +94,7 @@ impl Observer for Wards {
                         ctx,
                         ward_class,
                         event.clone(),
-                        ctx.entities.get_by_index(ev.entity_idx as usize)?
+                        ctx.entities().get_by_index(ev.entity_idx as usize)?
                     )
                 )
             };

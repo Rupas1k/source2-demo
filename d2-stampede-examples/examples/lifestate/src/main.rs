@@ -33,7 +33,7 @@ impl Observer for LifeStateObserver {
                             writeln!(
                                 self.output,
                                 "{:06}: {} at index {} has spawned",
-                                ctx.tick,
+                                ctx.tick(),
                                 entity.class().name(),
                                 entity.index()
                             )?;
@@ -43,7 +43,7 @@ impl Observer for LifeStateObserver {
                             writeln!(
                                 self.output,
                                 "{:06}: {} at index {} has died",
-                                ctx.tick,
+                                ctx.tick(),
                                 entity.class().name(),
                                 entity.index()
                             )?;

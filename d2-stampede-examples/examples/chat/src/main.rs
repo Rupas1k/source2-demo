@@ -12,7 +12,7 @@ impl Observer for ChatObserver {
         msg: &[u8],
     ) -> d2_stampede::Result<()> {
         if msg_type == EDotaUserMessages::DotaUmChatMessage {
-            if let Ok(pr) = ctx.entities.get_by_class_name("CDOTA_PlayerResource") {
+            if let Ok(pr) = ctx.entities().get_by_class_name("CDOTA_PlayerResource") {
                 let message = CdotaUserMsgChatMessage::decode(msg)?;
                 let name: String = property!(
                     pr,

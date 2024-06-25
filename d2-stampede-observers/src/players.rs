@@ -54,7 +54,7 @@ pub struct Players {
 
 impl Players {
     fn init(&mut self, ctx: &Context) -> Result<()> {
-        if let Ok(pr) = ctx.entities.get_by_class_name("CDOTA_PlayerResource") {
+        if let Ok(pr) = ctx.entities().get_by_class_name("CDOTA_PlayerResource") {
             self.players = vec![];
             self.steam_id_to_player = HashMap::default();
             self.hero_to_player = HashMap::default();
@@ -65,7 +65,7 @@ impl Players {
                 let slot: i32 = property!(pr, "m_vecPlayerTeamData.{added:04}.m_iTeamSlot");
                 let handle: usize = property!(pr, "m_vecPlayerTeamData.{added:04}.m_hSelectedHero");
 
-                let hero_str = ctx.entities.get_by_handle(handle)?.class().name().into();
+                let hero_str = ctx.entities().get_by_handle(handle)?.class().name().into();
 
                 let player = Rc::new(Player {
                     id,
@@ -100,7 +100,7 @@ impl Observer for Players {
     fn on_tick_start(&mut self, ctx: &Context) -> Result<()> {
         if !self.init
             && self.pre_game_tick.is_some()
-            && (self.pre_game_tick.unwrap() + 30) < ctx.tick
+            && (self.pre_game_tick.unwrap() + 30) < ctx.tick()
         {
             self.init(ctx)?;
         }
@@ -112,7 +112,7 @@ impl Observer for Players {
             && combat_log.type_() == DotaCombatlogTypes::DotaCombatlogGameState
             && combat_log.value()? == DotaGameState::DotaGamerulesStatePreGame as u32
         {
-            self.pre_game_tick = Some(ctx.tick);
+            self.pre_game_tick = Some(ctx.tick());
         }
         Ok(())
     }
