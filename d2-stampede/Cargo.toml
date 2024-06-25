@@ -20,10 +20,10 @@ snap = "1.1.1"
 regex = { version = "1.10.5", features = ["std", "unicode-perl"], default-features = false }
 bitter = "0.7.0"
 hashbrown = "0.14.5"
-lazy_static = "1.4.0"
+lazy_static = "1.5.0"
 anyhow = "1.0.86"
 prettytable-rs = "0.10.0"
-mimalloc = { version = "=0.1.43", default-features = false, optional = true }
+mimalloc = { version = "0.1.43", default-features = false, optional = true }
 
 [features]
 default = ["mimalloc"]
