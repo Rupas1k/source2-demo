@@ -95,7 +95,6 @@ impl StringTable {
             .with_context(|| anyhow!("No string table entry for given index {idx}"))
     }
 
-    #[inline]
     pub(crate) fn parse(
         &mut self,
         baselines: &mut Baselines,

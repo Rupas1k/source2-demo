@@ -175,7 +175,7 @@ impl<'a> Parser<'a> {
 
     pub fn register_observer<T>(&mut self) -> Rc<RefCell<T>>
     where
-        T: Observer + Default + 'static,
+        T: Observer + Default + 'a,
     {
         let rc = Rc::new(RefCell::new(T::default()));
         self.observers.push(rc.clone());
@@ -306,7 +306,6 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    #[inline(always)]
     fn read_message(reader: &mut Reader) -> Result<Option<OuterMessage>> {
         if reader.bytes_remaining() == 0 {
             return Ok(None);
@@ -339,7 +338,6 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    #[inline(always)]
     fn on_packet(&mut self, msg_type: EDemoCommands, msg: &[u8]) -> Result<()> {
         match msg_type {
             EDemoCommands::DemSendTables => self.dem_send_tables(msg)?,
@@ -353,7 +351,6 @@ impl<'a> Parser<'a> {
         try_observers!(self, on_packet(&self.context, msg_type, msg))
     }
 
-    #[inline(always)]
     fn on_net_message(&mut self, msg_type: NetMessages, msg: &[u8]) -> Result<()> {
         if msg_type == NetMessages::NetTick {
             self.context.net_tick = CnetMsgTick::decode(msg)?.tick();
@@ -362,7 +359,6 @@ impl<'a> Parser<'a> {
         try_observers!(self, on_net_message(&self.context, msg_type, msg))
     }
 
-    #[inline(always)]
     fn on_svc_message(&mut self, msg_type: SvcMessages, msg: &[u8]) -> Result<()> {
         match msg_type {
             SvcMessages::SvcServerInfo => self.server_info(msg)?,
@@ -375,17 +371,14 @@ impl<'a> Parser<'a> {
         try_observers!(self, on_svc_message(&self.context, msg_type, msg))
     }
 
-    #[inline(always)]
     fn on_base_user_message(&mut self, msg_type: EBaseUserMessages, msg: &[u8]) -> Result<()> {
         try_observers!(self, on_base_user_message(&self.context, msg_type, msg))
     }
 
-    #[inline(always)]
     fn on_base_game_event(&mut self, msg_type: EBaseGameEvents, msg: &[u8]) -> Result<()> {
         try_observers!(self, on_base_game_event(&self.context, msg_type, msg))
     }
 
-    #[inline(always)]
     fn on_dota_user_message(&mut self, msg_type: EDotaUserMessages, msg: &[u8]) -> Result<()> {
         if msg_type == EDotaUserMessages::DotaUmCombatLogDataHltv {
             let entry = CMsgDotaCombatLogEntry::decode(msg)?;
@@ -395,12 +388,10 @@ impl<'a> Parser<'a> {
         try_observers!(self, on_dota_user_message(&self.context, msg_type, msg))
     }
 
-    #[inline(always)]
     pub(crate) fn on_tick_start(&mut self) -> Result<()> {
         try_observers!(self, on_tick_start(&self.context))
     }
 
-    #[inline(always)]
     pub(crate) fn on_tick_end(&mut self) -> Result<()> {
         if let Ok(names) = self.context.string_tables.get_by_name("CombatLogNames") {
             while let Some(entry) = self.combat_log.pop_front() {
@@ -415,7 +406,6 @@ impl<'a> Parser<'a> {
         try_observers!(self, on_tick_end(&self.context))
     }
 
-    #[inline(always)]
     pub(crate) fn on_combat_log(&self, entry: &CombatLog) -> Result<()> {
         try_observers!(self, on_combat_log(&self.context, entry))
     }
@@ -547,7 +537,6 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    #[inline(always)]
     fn dem_class_info(&mut self, msg: &[u8]) -> Result<()> {
         let info = CDemoClassInfo::decode(msg)?;
         for class in info.classes {
@@ -567,7 +556,6 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    #[inline(always)]
     fn dem_packet(&mut self, msg: &[u8]) -> Result<()> {
         let packet = CDemoPacket::decode(msg)?;
         let mut packet_reader = Reader::new(packet.data());
@@ -592,7 +580,6 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    #[inline(always)]
     fn dem_full_packet(&mut self, msg: &[u8]) -> Result<()> {
         let packet = CDemoFullPacket::decode(msg)?;
 
@@ -613,7 +600,6 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    #[inline(always)]
     fn packet_entities(&mut self, msg: &[u8]) -> Result<()> {
         let packet = CsvcMsgPacketEntities::decode(msg)?;
         let mut entities_reader = Reader::new(packet.entity_data());
@@ -810,7 +796,6 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    #[inline(always)]
     fn server_info(&mut self, msg: &[u8]) -> Result<()> {
         let info = CsvcMsgServerInfo::decode(msg)?;
         self.context.classes.class_id_size =

@@ -113,7 +113,6 @@ impl StateType {
         }
     }
 
-    #[inline(always)]
     pub fn as_value(&self) -> Option<&FieldValue> {
         if let StateType::Value(x) = self {
             Some(x)

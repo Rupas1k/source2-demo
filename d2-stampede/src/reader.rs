@@ -20,12 +20,12 @@ impl<'a> Reader<'a> {
         self.le_reader = LittleEndianReader::new(&self.buf[offset..])
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn bytes_remaining(&mut self) -> usize {
         self.le_reader.bytes_remaining()
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn refill(&mut self) {
         #[cfg(not(debug_assertions))]
         unsafe {
@@ -35,7 +35,7 @@ impl<'a> Reader<'a> {
         self.le_reader.refill_lookahead();
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_bits(&mut self, amount: u32) -> u32 {
         self.refill();
         self.read_bits_no_refill(amount)
@@ -57,18 +57,18 @@ impl<'a> Reader<'a> {
         bytes
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_bool(&mut self) -> bool {
         // self.refill();
         self.read_bits_no_refill(1) == 1
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_f32(&mut self) -> f32 {
         f32::from_bits(self.read_bits(32))
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_var_u32(&mut self) -> u32 {
         let mut x: u32 = 0;
         let mut y: u32 = 0;
@@ -85,7 +85,7 @@ impl<'a> Reader<'a> {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_var_u64(&mut self) -> u64 {
         let mut x: u64 = 0;
         let mut y: u8 = 0;
@@ -106,7 +106,7 @@ impl<'a> Reader<'a> {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_var_i32(&mut self) -> i32 {
         let ux: u32 = self.read_var_u32();
         if ux & 1 != 0 {
@@ -116,7 +116,7 @@ impl<'a> Reader<'a> {
     }
 
     const UBV_COUNT: [u8; 4] = [0, 4, 8, 28];
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_ubit_var(&mut self) -> u32 {
         self.refill();
         let a = self.read_bits_no_refill(6);
@@ -128,7 +128,7 @@ impl<'a> Reader<'a> {
     }
 
     const UBVFP_COUNT: [u8; 5] = [2, 4, 10, 17, 31];
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_ubit_var_fp(&mut self) -> i32 {
         let mut i: u8 = 0;
         self.refill();
@@ -138,7 +138,7 @@ impl<'a> Reader<'a> {
         self.read_bits_no_refill(Self::UBVFP_COUNT[i as usize] as u32) as i32
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_ubit_var_fp_no_refill(&mut self) -> i32 {
         let mut i: u8 = 0;
         while i < 4 && !self.read_bool() {
@@ -148,7 +148,7 @@ impl<'a> Reader<'a> {
     }
 
     const NORMAL_FACTOR: f32 = (1.0 / (1 << 11) as f32) - 1.0;
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_normal(&mut self) -> f32 {
         let is_neg = self.read_bool();
         let len = self.read_bits_no_refill(11) as f32;
@@ -159,7 +159,7 @@ impl<'a> Reader<'a> {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_3bit_normal(&mut self) -> [f32; 3] {
         self.refill();
         let mut vec = [0.0f32; 3];
@@ -182,12 +182,12 @@ impl<'a> Reader<'a> {
         vec
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_le_u64(&mut self) -> u64 {
         self.le_reader.read_u64().unwrap()
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_string(&mut self) -> String {
         let mut i = 0;
         loop {
@@ -201,7 +201,7 @@ impl<'a> Reader<'a> {
     }
 
     const FRACTION_FACTOR: f32 = (1.0 / (1 << 5) as f32);
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_coordinate(&mut self) -> f32 {
         self.refill();
 
@@ -230,12 +230,12 @@ impl<'a> Reader<'a> {
         value
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_angle(&mut self, n: u32) -> f32 {
         (self.read_bits_no_refill(n) as f32) * 360.0 / (1 << n) as f32
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn read_bits_as_bytes(&mut self, n: u32) -> Vec<u8> {
         let bits = n % 8;
         let mut tmp = vec![0; (n >> 3) as usize];
