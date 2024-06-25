@@ -412,9 +412,10 @@ impl_try_into_for_integers!(u128);
 impl_try_into_for_integers!(usize);
 impl_try_into_for_integers!(isize);
 
+#[allow(dead_code)]
 impl FieldValue {
     #[inline]
-    pub fn as_string(&self) -> String {
+    pub(crate) fn as_string(&self) -> String {
         if let FieldValue::String(s) = self {
             s.to_string()
         } else {
@@ -423,7 +424,7 @@ impl FieldValue {
     }
 
     #[inline]
-    pub fn as_bool(&self) -> bool {
+    pub(crate) fn as_bool(&self) -> bool {
         if let FieldValue::Boolean(b) = self {
             *b
         } else {
@@ -432,7 +433,7 @@ impl FieldValue {
     }
 
     #[inline]
-    pub fn as_float(&self) -> f32 {
+    pub(crate) fn as_float(&self) -> f32 {
         if let FieldValue::Float(f) = self {
             *f
         } else {
@@ -441,7 +442,7 @@ impl FieldValue {
     }
 
     #[inline]
-    pub fn as_vector2d(&self) -> &[f32; 2] {
+    pub(crate) fn as_vector2d(&self) -> &[f32; 2] {
         if let FieldValue::Vector2D(v) = self {
             v
         } else {
@@ -450,7 +451,7 @@ impl FieldValue {
     }
 
     #[inline]
-    pub fn as_vector(&self) -> &[f32; 3] {
+    pub(crate) fn as_vector(&self) -> &[f32; 3] {
         if let FieldValue::Vector3D(v) = self {
             v
         } else {
@@ -459,7 +460,7 @@ impl FieldValue {
     }
 
     #[inline]
-    pub fn as_vector4d(&self) -> &[f32; 4] {
+    pub(crate) fn as_vector4d(&self) -> &[f32; 4] {
         if let FieldValue::Vector4D(v) = self {
             v
         } else {
