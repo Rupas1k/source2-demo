@@ -66,7 +66,11 @@ pub mod prelude {
 
 pub use crate::parser::{Context, Observer, Parser};
 
-pub use crate::entity::{Entity, EntityEvents};
+pub use crate::entity::{Entities, Entity, EntityEvents};
+
+pub use crate::class::{Class, Classes};
+
+pub use crate::string_table::{StringTable, StringTableEntry, StringTables};
 
 pub use crate::combat_log::CombatLog;
 
