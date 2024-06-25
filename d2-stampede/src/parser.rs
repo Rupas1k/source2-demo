@@ -123,7 +123,6 @@ struct OuterMessage {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(buf: &'a [u8]) -> Result<Self> {
     pub fn new(replay: &'a [u8]) -> Result<Self> {
         let baselines = Baselines {
             field_reader: FieldReader::new(),
@@ -173,6 +172,8 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// Registers new observers and returns shared reference if you need it.
+    /// Observer struct must implement Observer and Default traits.
     pub fn register_observer<T>(&mut self) -> Rc<RefCell<T>>
     where
         T: Observer + Default + 'a,
@@ -217,6 +218,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    /// Moves to end from current state.
     pub fn run_to_end(&mut self) -> Result<()> {
         self.prologue()?;
 
@@ -230,6 +232,8 @@ impl<'a> Parser<'a> {
         try_observers!(self, epilogue(&self.context))
     }
 
+    /// Moves to target tick without calling observers and processing delta
+    /// packets.
     pub fn jump_to_tick(&mut self, target_tick: u32) -> Result<()> {
         self.prologue()?;
 
@@ -286,8 +290,7 @@ impl<'a> Parser<'a> {
         try_observers!(self, epilogue(&self.context))
     }
 
-    pub fn run_to_tick(&mut self, tick: u32) -> Result<()> {
-        assert!(tick > self.context.tick);
+    /// Moves to target tick.
     pub fn run_to_tick(&mut self, target_tick: u32) -> Result<()> {
         assert!(target_tick > self.context.tick);
 
