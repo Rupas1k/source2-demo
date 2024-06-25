@@ -248,7 +248,7 @@ impl<'a> Parser<'a> {
 
         let observers = mem::take(&mut self.observers);
 
-        let mut first_fp_checked = true;
+        let mut first_fp_checked = false;
         let mut last_fp_checked = false;
 
         while let Some(mut message) = Self::read_message(&mut self.reader)? {
