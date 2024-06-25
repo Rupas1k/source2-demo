@@ -42,9 +42,9 @@ impl Entities {
             .with_context(|| anyhow!("No entities for handle \"{handle}\""))
     }
 
-    pub fn get_by_class_id(&self, id: &i32) -> Result<&Entity> {
+    pub fn get_by_class_id(&self, id: i32) -> Result<&Entity> {
         self.iter()
-            .find(|&entity| &entity.class().id() == id)
+            .find(|&entity| entity.class().id() == id)
             .with_context(|| anyhow!("No entities for class with id {id}"))
     }
 
@@ -54,8 +54,8 @@ impl Entities {
             .with_context(|| anyhow!("No entities for class with name {name}"))
     }
 
-    pub fn get_all_by_class_id<'a>(&'a self, id: &'a i32) -> impl Iterator<Item = &Entity> {
-        self.iter().filter(|&entity| entity.class().id() == *id)
+    pub fn get_all_by_class_id(&self, id: i32) -> impl Iterator<Item = &Entity> {
+        self.iter().filter(move |&entity| entity.class().id() == id)
     }
 
     pub fn get_all_by_class_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &Entity> {
