@@ -5,6 +5,7 @@ use prettytable::{row, Table};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
+/// Container of
 pub struct Classes {
     pub(crate) classes_vec: Vec<Rc<Class>>,
     pub(crate) classes_by_name: HashMap<Box<str>, Rc<Class>>,
@@ -22,7 +23,10 @@ impl Classes {
 
     pub(crate) fn get_by_id_rc(&self, id: usize) -> Result<&Rc<Class>> {
         Ok(&self.classes_vec[id])
-        // .ok_or_else(|| anyhow!("No class for given id {}", id))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Class> {
+        self.classes_vec.iter().map(|class| class.as_ref())
     }
 
     pub fn get_by_id(&self, id: usize) -> Result<&Class> {
