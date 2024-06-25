@@ -58,19 +58,49 @@ impl Baselines {
 }
 
 pub struct Context {
-    pub classes: Classes,
-    pub entities: Entities,
-    pub string_tables: StringTables,
-    pub replay_info: Option<CDemoFileInfo>,
+    pub(crate) classes: Classes,
+    pub(crate) entities: Entities,
+    pub(crate) string_tables: StringTables,
+    pub(crate) replay_info: CDemoFileInfo,
 
-    pub tick: u32,
+    pub(crate) tick: u32,
 
-    pub net_tick: u32,
-    pub game_build: u32,
+    pub(crate) net_tick: u32,
+    pub(crate) game_build: u32,
 
     baselines: Baselines,
     serializers: HashMap<Box<str>, Rc<Serializer>>,
     last_full_packet_tick: u32,
+}
+
+impl Context {
+    pub fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    pub fn entities(&self) -> &Entities {
+        &self.entities
+    }
+
+    pub fn string_tables(&self) -> &StringTables {
+        &self.string_tables
+    }
+
+    pub fn replay_info(&self) -> &CDemoFileInfo {
+        &self.replay_info
+    }
+
+    pub fn tick(&self) -> u32 {
+        self.tick
+    }
+
+    pub fn net_tick(&self) -> u32 {
+        self.net_tick
+    }
+
+    pub fn game_build(&self) -> u32 {
+        self.game_build
+    }
 }
 
 impl Display for Context {
