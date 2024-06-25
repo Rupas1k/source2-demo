@@ -27,7 +27,6 @@ pub struct Parser<'a> {
 
     combat_log: VecDeque<CMsgDotaCombatLogEntry>,
 
-    replay_validated: bool,
     prologue_completed: bool,
     processing_deltas: bool,
 
@@ -125,19 +124,33 @@ struct OuterMessage {
 
 impl<'a> Parser<'a> {
     pub fn new(buf: &'a [u8]) -> Result<Self> {
+    pub fn new(replay: &'a [u8]) -> Result<Self> {
         let baselines = Baselines {
             field_reader: FieldReader::new(),
             baselines: HashMap::default(),
             states: HashMap::default(),
         };
 
-        let mut parser = Parser {
-            reader: Reader::new(buf),
+        let mut reader = Reader::new(replay);
+
+        if replay.len() < 16 {
+            bail!("Couldn't validate file header")
+        }
+
+        if reader.read_bytes(8) != b"PBDEMS2\0" {
+            bail!("Supports only Source 2 replays")
+        };
+
+        reader.read_bytes(8);
+
+        let replay_info = Self::replay_info(&mut reader)?;
+
+        Ok(Parser {
+            reader,
             field_reader: FieldReader::new(),
             observers: Vec::new(),
             combat_log: VecDeque::new(),
             prologue_completed: false,
-            replay_validated: false,
             start_offset: 0,
             processing_deltas: true,
 
@@ -146,7 +159,7 @@ impl<'a> Parser<'a> {
                 entities: Entities::new(),
                 string_tables: StringTables::new(),
 
-                replay_info: None,
+                replay_info,
 
                 tick: u32::MAX,
                 net_tick: u32::MAX,
@@ -157,11 +170,7 @@ impl<'a> Parser<'a> {
                 baselines,
                 serializers: HashMap::default(),
             },
-        };
-
-        parser.validate_replay()?;
-
-        Ok(parser)
+        })
     }
 
     pub fn register_observer<T>(&mut self) -> Rc<RefCell<T>>
@@ -173,37 +182,22 @@ impl<'a> Parser<'a> {
         rc.clone()
     }
 
-    pub fn replay_info(&mut self) -> Result<CDemoFileInfo> {
-        let offset = usize::from_le_bytes(self.reader.buf[8..12].try_into()?);
-        if self.reader.buf.len() < offset {
+    fn replay_info(reader: &mut Reader) -> Result<CDemoFileInfo> {
+        let offset = u32::from_le_bytes(reader.buf[8..12].try_into()?) as usize;
+        if reader.buf.len() < offset {
             bail!("Buf is too small")
         }
-        let mut reader = Reader::new(&self.reader.buf[offset..]);
+        let mut reader = Reader::new(&reader.buf[offset..]);
         Ok(CDemoFileInfo::decode(
             Self::read_message(&mut reader)?.unwrap().buf.as_slice(),
         )?)
-    }
-
-    fn validate_replay(&mut self) -> Result<()> {
-        if self.replay_validated {
-            return Ok(());
-        }
-
-        if self.reader.read_bytes(8) != b"PBDEMS2\0" {
-            bail!("Supports only Source 2 replays")
-        };
-
-        self.reader.read_bytes(8);
-
-        self.context.replay_info = self.replay_info().ok();
-
-        Ok(())
     }
 
     fn prologue(&mut self) -> Result<()> {
         if self.prologue_completed {
             return Ok(());
         }
+
         let mut offset: usize = 16;
         while let Some(message) = Self::read_message(&mut self.reader)? {
             self.context.tick = message.tick;
@@ -219,6 +213,7 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
+
         Ok(())
     }
 
@@ -252,7 +247,6 @@ impl<'a> Parser<'a> {
         let mut first_fp_checked = true;
         let mut last_fp_checked = false;
 
-        self.context.replay_info = self.replay_info().ok();
         while let Some(mut message) = Self::read_message(&mut self.reader)? {
             let next_fp = self.context.last_full_packet_tick == u32::MAX
                 || (target_tick - self.context.last_full_packet_tick) > 1800;
@@ -294,6 +288,8 @@ impl<'a> Parser<'a> {
 
     pub fn run_to_tick(&mut self, tick: u32) -> Result<()> {
         assert!(tick > self.context.tick);
+    pub fn run_to_tick(&mut self, target_tick: u32) -> Result<()> {
+        assert!(target_tick > self.context.tick);
 
         self.prologue()?;
 
@@ -302,7 +298,7 @@ impl<'a> Parser<'a> {
             self.on_tick_start()?;
             self.on_packet(message.msg_type, message.buf.as_slice())?;
             self.on_tick_end()?;
-            if self.context.tick >= tick {
+            if self.context.tick >= target_tick {
                 break;
             }
         }
