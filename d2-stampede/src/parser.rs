@@ -450,7 +450,7 @@ impl<'a> Parser<'a> {
 
         for s in fs.serializers.iter() {
             let serializer_name = fs.symbols[s.serializer_name_sym() as usize].clone();
-            let mut serializer = Serializer::new();
+            let mut serializer = Serializer::default();
 
             for i in s.fields_index.iter() {
                 let current_field = &fs.fields[*i as usize];

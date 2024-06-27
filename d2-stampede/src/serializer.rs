@@ -5,21 +5,14 @@ use hashbrown::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(crate) struct Serializer {
     pub(crate) fields: Vec<Rc<Field>>,
     pub(crate) fp_cache: RefCell<HashMap<Box<str>, FieldPath>>,
 }
 
 impl Serializer {
-    pub(crate) fn new() -> Self {
-        Serializer {
-            fields: vec![],
-            fp_cache: RefCell::new(HashMap::default()),
-        }
-    }
-
-    #[inline(always)]
+    #[inline]
     pub(crate) fn get_name_for_field_path(&self, fp: &FieldPath) -> String {
         let mut i = 0;
         let mut current_serializer = self;
@@ -57,7 +50,7 @@ impl Serializer {
         name
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn get_type_for_field_path(&self, fp: &FieldPath) -> &FieldType {
         let mut i = 0;
         let mut current_serializer = self;
@@ -92,7 +85,7 @@ impl Serializer {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn get_decoder_for_field_path(&self, fp: &FieldPath) -> &Decoder {
         let mut i = 0;
         let mut current_serializer = self;
@@ -125,7 +118,7 @@ impl Serializer {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn get_field_path_for_name(&self, name: &str) -> Result<FieldPath> {
         if !self.fp_cache.borrow().contains_key(name) {
             let mut current_serializer = self;
