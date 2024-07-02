@@ -139,11 +139,7 @@ impl<'a> Parser<'a> {
 
         let mut reader = Reader::new(replay);
 
-        if replay.len() < 16 {
-            bail!("Couldn't validate file header")
-        }
-
-        if reader.read_bytes(8) != b"PBDEMS2\0" {
+        if replay.len() < 16 || reader.read_bytes(8) != b"PBDEMS2\0" {
             bail!("Supports only Source 2 replays")
         };
 
@@ -193,7 +189,11 @@ impl<'a> Parser<'a> {
     fn replay_info(reader: &mut Reader) -> Result<CDemoFileInfo> {
         let offset = u32::from_le_bytes(reader.buf[8..12].try_into()?) as usize;
         if reader.buf.len() < offset {
-            bail!("Buf is too small")
+            bail!(
+                "CDemoFileInfo offset is {}, but buf len is {}",
+                offset,
+                reader.buf.len()
+            )
         }
         let mut reader = Reader::new(&reader.buf[offset..]);
         Ok(CDemoFileInfo::decode(
