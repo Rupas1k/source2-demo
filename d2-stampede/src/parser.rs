@@ -30,7 +30,7 @@ pub struct Parser<'a> {
     prologue_completed: bool,
     processing_deltas: bool,
 
-    pub context: Context,
+    context: Context,
 }
 
 pub(crate) struct Baselines {
@@ -219,6 +219,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Moves to end from current state.
+    pub fn context(&self) -> &Context {
+        &self.context
+    }
     pub fn run_to_end(&mut self) -> Result<()> {
         self.prologue()?;
 
