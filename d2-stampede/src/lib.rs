@@ -10,6 +10,8 @@ mod reader;
 mod serializer;
 mod string_table;
 
+/// Shortcut for getting property from [`core::Entity`]. Supports
+/// formatting. [`try_property`]
 #[macro_export]
 macro_rules! property {
     ($ent:expr, $fmt:expr, $($arg:tt)*) => {

@@ -655,9 +655,8 @@ impl<'a> Parser<'a> {
 
             if cmd & 0x01 == 0 {
                 if cmd & 0x02 != 0 {
-                    let class_id = entities_reader
-                        .read_bits(self.context.classes.class_id_size.unwrap())
-                        as i32;
+                    let class_id =
+                        entities_reader.read_bits(self.context.classes.class_id_size) as i32;
                     let serial = entities_reader.read_bits(17);
 
                     entities_reader.read_var_u32();
@@ -812,8 +811,7 @@ impl<'a> Parser<'a> {
 
     fn server_info(&mut self, msg: &[u8]) -> Result<()> {
         let info = CsvcMsgServerInfo::decode(msg)?;
-        self.context.classes.class_id_size =
-            Some((f64::log2(info.max_classes() as f64) + 1.0) as u32);
+        self.context.classes.class_id_size = (f64::log2(info.max_classes() as f64) + 1.0) as u32;
 
         let game_build_regexp = Regex::new(r"/dota_v(\d+)/")?;
 
@@ -823,10 +821,10 @@ impl<'a> Parser<'a> {
                 let build = build_str.parse::<u32>()?;
                 self.context.game_build = build;
             } else {
-                bail!("No build number found in regex capture");
+                // bail!("No build number found in regex capture");
             }
         } else {
-            bail!("Failed to parse build number: '{}'", info.game_dir());
+            // bail!("Failed to parse build number: '{}'", info.game_dir());
         }
         Ok(())
     }

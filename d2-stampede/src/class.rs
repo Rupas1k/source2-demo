@@ -5,22 +5,14 @@ use prettytable::{row, Table};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-/// Container of
+#[derive(Default)]
 pub struct Classes {
     pub(crate) classes_vec: Vec<Rc<Class>>,
     pub(crate) classes_by_name: HashMap<Box<str>, Rc<Class>>,
-    pub(crate) class_id_size: Option<u32>,
+    pub(crate) class_id_size: u32,
 }
 
 impl Classes {
-    pub(crate) fn new() -> Self {
-        Classes {
-            classes_vec: vec![],
-            classes_by_name: HashMap::default(),
-            class_id_size: None,
-        }
-    }
-
     pub(crate) fn get_by_id_rc(&self, id: usize) -> Result<&Rc<Class>> {
         Ok(&self.classes_vec[id])
     }
