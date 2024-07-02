@@ -614,6 +614,37 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    fn dem_string_tables(&mut self, msg: &[u8]) -> Result<()> {
+        let cmd = CDemoStringTables::decode(msg)?;
+        for table in cmd.tables.iter() {
+            let mut x = self
+                .context
+                .string_tables
+                .name_to_table
+                .get_mut(table.table_name())
+                .unwrap()
+                .borrow_mut();
+            if table.items.len() < x.items.len() {
+                return Ok(());
+            }
+            x.items
+                .resize_with(table.items.len(), StringTableEntry::default);
+            for (i, item) in table.items.iter().enumerate() {
+                x.items[i].index = i as i32;
+                x.items[i].key = item.str().to_string();
+                x.items[i].value = Rc::new(item.data().to_vec()).into();
+                if table.table_name() == "instancebaseline" {
+                    self.context.baselines.add_baseline(
+                        item.str().parse()?,
+                        x.items[i].value.as_ref().unwrap().clone(),
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     fn packet_entities(&mut self, msg: &[u8]) -> Result<()> {
         let packet = CsvcMsgPacketEntities::decode(msg)?;
         let mut entities_reader = Reader::new(packet.entity_data());
@@ -774,37 +805,6 @@ impl<'a> Parser<'a> {
             .string_tables
             .name_to_table
             .insert(rc.borrow().name.clone().into(), rc.clone());
-
-        Ok(())
-    }
-
-    fn dem_string_tables(&mut self, msg: &[u8]) -> Result<()> {
-        let cmd = CDemoStringTables::decode(msg)?;
-        for table in cmd.tables.iter() {
-            let mut x = self
-                .context
-                .string_tables
-                .name_to_table
-                .get_mut(table.table_name())
-                .unwrap()
-                .borrow_mut();
-            if table.items.len() < x.items.len() {
-                return Ok(());
-            }
-            x.items
-                .resize_with(table.items.len(), StringTableEntry::default);
-            for (i, item) in table.items.iter().enumerate() {
-                x.items[i].index = i as i32;
-                x.items[i].key = item.str().to_string();
-                x.items[i].value = Rc::new(item.data().to_vec()).into();
-                if table.table_name() == "instancebaseline" {
-                    self.context.baselines.add_baseline(
-                        item.str().parse()?,
-                        x.items[i].value.as_ref().unwrap().clone(),
-                    );
-                }
-            }
-        }
 
         Ok(())
     }
