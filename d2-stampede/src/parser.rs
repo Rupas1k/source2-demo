@@ -1,5 +1,5 @@
 use crate::class::{Class, Classes};
-use crate::combat_log::CombatLog;
+use crate::combat_log::CombatLogEntry;
 use crate::decoder::Decoder;
 use crate::entity::{Entities, Entity, EntityEvents};
 use crate::field::{Encoder, Field, FieldModel, FieldProperties, FieldType, FieldVector};
@@ -398,7 +398,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn on_tick_end(&mut self) -> Result<()> {
         if let Ok(names) = self.context.string_tables.get_by_name("CombatLogNames") {
             while let Some(entry) = self.combat_log.pop_front() {
-                let log = CombatLog {
+                let log = CombatLogEntry {
                     names: &names,
                     log: entry,
                 };

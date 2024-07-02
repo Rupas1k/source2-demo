@@ -3,12 +3,12 @@ use crate::string_table::StringTable;
 use anyhow::{anyhow, Context, Result};
 
 #[derive(Clone)]
-pub struct CombatLog<'a> {
+pub struct CombatLogEntry<'a> {
     pub(crate) names: &'a StringTable,
     pub(crate) log: CMsgDotaCombatLogEntry,
 }
 
-impl<'a> CombatLog<'a> {
+impl<'a> CombatLogEntry<'a> {
     pub fn type_(&self) -> DotaCombatlogTypes {
         self.log.r#type()
     }
