@@ -203,7 +203,7 @@ impl<'a> Parser<'a> {
         while let Some(message) = Self::read_message(&mut self.reader)? {
             self.context.tick = message.tick;
             self.on_tick_start()?;
-            self.on_packet(message.msg_type, message.buf.as_slice())?;
+            self.on_demo_command(message.msg_type, message.buf.as_slice())?;
             self.on_tick_end()?;
 
             offset += message.size;
@@ -218,17 +218,18 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    /// Moves to end from current state.
     pub fn context(&self) -> &Context {
         &self.context
     }
+
+    /// Moves to the end of replay. Last packet is [`CDemoFileInfo`].
     pub fn run_to_end(&mut self) -> Result<()> {
         self.prologue()?;
 
         while let Some(message) = Self::read_message(&mut self.reader)? {
             self.context.tick = message.tick;
             self.on_tick_start()?;
-            self.on_packet(message.msg_type, message.buf.as_slice())?;
+            self.on_demo_command(message.msg_type, message.buf.as_slice())?;
             self.on_tick_end()?;
         }
 
@@ -267,11 +268,11 @@ impl<'a> Parser<'a> {
                         .encode_to_vec();
                 }
 
-                self.on_packet(message.msg_type, message.buf.as_slice())?;
+                self.on_demo_command(message.msg_type, message.buf.as_slice())?;
             }
 
             if last_fp_checked {
-                self.on_packet(message.msg_type, message.buf.as_slice())?;
+                self.on_demo_command(message.msg_type, message.buf.as_slice())?;
             }
 
             if message.msg_type == EDemoCommands::DemFullPacket && !first_fp_checked {
@@ -302,7 +303,7 @@ impl<'a> Parser<'a> {
         while let Some(message) = Self::read_message(&mut self.reader)? {
             self.context.tick = message.tick;
             self.on_tick_start()?;
-            self.on_packet(message.msg_type, message.buf.as_slice())?;
+            self.on_demo_command(message.msg_type, message.buf.as_slice())?;
             self.on_tick_end()?;
             if self.context.tick >= target_tick {
                 break;
@@ -344,7 +345,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn on_packet(&mut self, msg_type: EDemoCommands, msg: &[u8]) -> Result<()> {
+    fn on_demo_command(&mut self, msg_type: EDemoCommands, msg: &[u8]) -> Result<()> {
         match msg_type {
             EDemoCommands::DemSendTables => self.dem_send_tables(msg)?,
             EDemoCommands::DemClassInfo => self.dem_class_info(msg)?,
@@ -354,7 +355,7 @@ impl<'a> Parser<'a> {
             _ => {}
         };
 
-        try_observers!(self, on_packet(&self.context, msg_type, msg))
+        try_observers!(self, on_demo_command(&self.context, msg_type, msg))
     }
 
     fn on_net_message(&mut self, msg_type: NetMessages, msg: &[u8]) -> Result<()> {
@@ -590,13 +591,13 @@ impl<'a> Parser<'a> {
         let packet = CDemoFullPacket::decode(msg)?;
 
         if !self.processing_deltas {
-            self.on_packet(
+            self.on_demo_command(
                 EDemoCommands::DemStringTables,
                 &packet.string_table.unwrap().encode_to_vec(),
             )?;
         }
 
-        self.on_packet(
+        self.on_demo_command(
             EDemoCommands::DemPacket,
             &packet.packet.unwrap().encode_to_vec(),
         )?;
@@ -826,7 +827,12 @@ impl<'a> Parser<'a> {
 
 #[allow(unused_variables)]
 pub trait Observer {
-    fn on_packet(&mut self, ctx: &Context, msg_type: EDemoCommands, msg: &[u8]) -> Result<()> {
+    fn on_demo_command(
+        &mut self,
+        ctx: &Context,
+        msg_type: EDemoCommands,
+        msg: &[u8],
+    ) -> Result<()> {
         Ok(())
     }
 
