@@ -420,7 +420,7 @@ impl<'a> Parser<'a> {
         try_observers!(self, on_tick_end(&self.context))
     }
 
-    pub(crate) fn on_combat_log(&self, entry: &CombatLog) -> Result<()> {
+    pub(crate) fn on_combat_log(&self, entry: &CombatLogEntry) -> Result<()> {
         try_observers!(self, on_combat_log(&self.context, entry))
     }
 
@@ -888,7 +888,7 @@ pub trait Observer {
         Ok(())
     }
 
-    fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLog) -> Result<()> {
+    fn on_combat_log(&mut self, ctx: &Context, cle: &CombatLogEntry) -> Result<()> {
         Ok(())
     }
 
