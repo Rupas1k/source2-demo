@@ -90,21 +90,21 @@ impl PartialOrd for HTree {
 }
 
 impl HTree {
-    #[inline(always)]
+    #[inline]
     pub fn weight(&self) -> i32 {
         match self {
             HTree::Leaf { weight, .. } | HTree::Node { weight, .. } => *weight,
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn value(&self) -> i32 {
         match self {
             HTree::Leaf { value, .. } | HTree::Node { value, .. } => *value,
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn left(&self) -> &HTree {
         match self {
             HTree::Node { left, .. } => left,
@@ -112,7 +112,7 @@ impl HTree {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn right(&self) -> &HTree {
         match self {
             HTree::Node { right, .. } => right,

@@ -28,7 +28,7 @@ pub enum Decoder {
 }
 
 impl Decoder {
-    #[inline(always)]
+    #[inline]
     pub(crate) fn from_field(field_type: &FieldType, properties: FieldProperties) -> Self {
         match field_type.base.as_ref() {
             "bool" => Decoder::Boolean,
@@ -65,7 +65,7 @@ impl Decoder {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn decode(&self, reader: &mut Reader) -> FieldValue {
         match self {
             Decoder::VectorNormal => FieldValue::Vector3D(reader.read_3bit_normal()),

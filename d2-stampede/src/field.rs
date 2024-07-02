@@ -66,7 +66,7 @@ pub enum Encoder {
 }
 
 impl Encoder {
-    #[inline(always)]
+    #[inline]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "coord" => Some(Encoder::Coord),
@@ -104,7 +104,7 @@ pub enum StateType {
 }
 
 impl StateType {
-    #[inline(always)]
+    #[inline]
     pub fn as_field_vector(&self) -> Option<&FieldVector> {
         if let StateType::Vector(x) = self {
             Some(x)
@@ -113,6 +113,7 @@ impl StateType {
         }
     }
 
+    #[inline]
     pub fn as_value(&self) -> Option<&FieldValue> {
         if let StateType::Value(x) = self {
             Some(x)
@@ -128,12 +129,12 @@ pub struct FieldVector {
 }
 
 impl FieldVector {
-    #[inline(always)]
+    #[inline]
     pub fn new() -> Self {
         FieldVector { state: vec![] }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn get_value(&self, fp: &FieldPath) -> Option<&FieldValue> {
         let mut current_state = self;
         for i in 0..fp.last {
@@ -148,7 +149,7 @@ impl FieldVector {
             .as_value()
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn get_field_vector(&self, fp: &FieldPath) -> Option<&FieldVector> {
         let mut current_state = self;
         for i in 0..fp.last {
@@ -163,7 +164,7 @@ impl FieldVector {
             .as_field_vector()
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn set(&mut self, fp: &FieldPath, v: FieldValue) {
         let mut current_state = self;
         for i in 0..=fp.last {
@@ -215,7 +216,7 @@ impl Display for FieldPath {
 }
 
 impl FieldPath {
-    #[inline(always)]
+    #[inline]
     pub(crate) fn new() -> Self {
         FieldPath {
             path: [u8::MAX, 0, 0, 0, 0, 0, 0],
@@ -223,7 +224,7 @@ impl FieldPath {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn pop(&mut self, n: usize) {
         for _ in 0..n {
             self.path[self.last] = 0;
@@ -231,17 +232,17 @@ impl FieldPath {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn inc(&mut self, n: usize, val: u8) {
         self.path[n] = self.path[n].wrapping_add(val)
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn sub(&mut self, n: usize, val: u8) {
         self.path[n] = self.path[n].wrapping_sub(val)
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn inc_curr(&mut self, val: u8) {
         self.path[self.last] = self.path[self.last].wrapping_add(val)
     }

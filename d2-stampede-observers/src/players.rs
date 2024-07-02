@@ -3,9 +3,9 @@ use hashbrown::{HashMap, HashSet};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::try_observers;
 use d2_stampede::prelude::*;
 use d2_stampede::proto::*;
-use d2_stampede::try_observers;
 
 fn class_to_combat_log(class: &str) -> HashSet<Box<str>> {
     let name1 = "npc_dota_hero_".to_string() + &class["CDOTA_Unit_Hero_".len()..].to_lowercase();
