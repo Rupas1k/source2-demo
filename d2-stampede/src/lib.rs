@@ -42,42 +42,29 @@ macro_rules! try_property {
             })
     }};
 }
-
 pub mod prelude {
-    pub use crate::{property, try_property};
-
-    pub use crate::parser::{Context, Observer, Parser};
-
+    pub use crate::combat_log::CombatLogEntry;
     pub use crate::entity::{Entity, EntityEvents};
-
-    pub use crate::combat_log::CombatLog;
-
     pub use crate::field_value::FieldValue;
-
+    pub use crate::parser::{Context, Observer, Parser};
+    pub use crate::{property, try_property};
     pub use d2_stampede_protobufs::prost::Message;
 }
 
-pub use crate::parser::{Context, Observer, Parser};
-
-pub use crate::entity::{Entities, Entity, EntityEvents};
-
 pub use crate::class::{Class, Classes};
-
-pub use crate::string_table::{StringTable, StringTableEntry, StringTables};
-
-pub use crate::combat_log::CombatLog;
-
+pub use crate::combat_log::CombatLogEntry;
+pub use crate::entity::{Entities, Entity, EntityEvents};
 pub use crate::field_value::FieldValue;
-
-pub use anyhow::Error;
-
-pub use anyhow::Result;
+pub use crate::parser::{Context, Observer, Parser};
+pub use crate::string_table::{StringTable, StringTableEntry, StringTables};
 
 pub mod proto {
     pub use d2_stampede_protobufs::prost::Message;
-
     pub use d2_stampede_protobufs::*;
 }
+
+pub use anyhow::Error;
+pub use anyhow::Result;
 
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
