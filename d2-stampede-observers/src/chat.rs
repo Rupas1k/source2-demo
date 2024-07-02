@@ -2,9 +2,9 @@ use anyhow::Result;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::try_observers;
 use d2_stampede::prelude::*;
 use d2_stampede::proto::*;
-use d2_stampede::try_observers;
 
 #[derive(Default)]
 pub struct Chat {

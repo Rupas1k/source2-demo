@@ -8,7 +8,6 @@ use crate::proto::*;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTableEntry, StringTables};
-use crate::try_observers;
 use anyhow::{bail, Result};
 use hashbrown::{HashMap, HashSet};
 use prettytable::{row, Table};
@@ -18,6 +17,14 @@ use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::mem;
 use std::rc::Rc;
+
+macro_rules! try_observers {
+    ($self:ident, $method:ident ( $($arg:expr),* )) => {
+        $self.observers
+            .iter()
+            .try_for_each(|obs| obs.borrow_mut().$method($($arg),*))
+    };
+}
 
 pub struct Parser<'a> {
     reader: Reader<'a>,

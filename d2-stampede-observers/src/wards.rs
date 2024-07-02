@@ -1,11 +1,12 @@
 use anyhow::bail;
-use d2_stampede::prelude::*;
-use d2_stampede::proto::DotaCombatlogTypes;
-use d2_stampede::try_observers;
 use hashbrown::HashMap;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
+
+use crate::try_observers;
+use d2_stampede::prelude::*;
+use d2_stampede::proto::DotaCombatlogTypes;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum WardClass {

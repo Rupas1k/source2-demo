@@ -1,10 +1,10 @@
+use anyhow::Result;
 use d2_stampede::prelude::*;
 use d2_stampede::proto::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use anyhow::Result;
-use d2_stampede::try_observers;
+use crate::try_observers;
 
 #[derive(Default)]
 pub struct GameState {

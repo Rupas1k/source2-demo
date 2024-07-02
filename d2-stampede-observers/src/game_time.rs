@@ -1,8 +1,9 @@
 use anyhow::{anyhow, bail, Result};
-use d2_stampede::prelude::*;
-use d2_stampede::try_observers;
 use std::cell::RefCell;
 use std::rc::Rc;
+
+use crate::try_observers;
+use d2_stampede::prelude::*;
 
 #[derive(Default)]
 pub struct GameTime {
