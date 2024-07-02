@@ -161,9 +161,9 @@ impl<'a> Parser<'a> {
             processing_deltas: true,
 
             context: Context {
-                classes: Classes::new(),
-                entities: Entities::new(),
-                string_tables: StringTables::new(),
+                classes: Classes::default(),
+                entities: Entities::default(),
+                string_tables: StringTables::default(),
 
                 replay_info,
 

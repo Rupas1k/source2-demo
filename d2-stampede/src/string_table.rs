@@ -7,19 +7,13 @@ use std::cell::{Ref, RefCell};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
+#[derive(Default)]
 pub struct StringTables {
     pub(crate) tables: Vec<Rc<RefCell<StringTable>>>,
     pub(crate) name_to_table: HashMap<Box<str>, Rc<RefCell<StringTable>>>,
 }
 
 impl StringTables {
-    pub(crate) fn new() -> Self {
-        StringTables {
-            tables: vec![],
-            name_to_table: HashMap::default(),
-        }
-    }
-
     pub fn iter(&self) -> impl Iterator<Item = Ref<StringTable>> {
         self.tables.iter().map(|table| table.borrow())
     }

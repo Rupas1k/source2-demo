@@ -5,6 +5,9 @@ use prettytable::{row, Table};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
+/// [`Class`] container decoded from [`CDemoClassInfo`]
+///
+/// [`CDemoClassInfo`]: crate::proto::CDemoClassInfo
 #[derive(Default)]
 pub struct Classes {
     pub(crate) classes_vec: Vec<Rc<Class>>,

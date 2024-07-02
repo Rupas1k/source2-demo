@@ -15,17 +15,12 @@ pub enum EntityEvents {
     Left = 1 << 4,
 }
 
+#[derive(Default)]
 pub struct Entities {
     pub(crate) entities_vec: Vec<Option<Entity>>,
 }
 
 impl Entities {
-    pub(crate) fn new() -> Self {
-        Entities {
-            entities_vec: vec![],
-        }
-    }
-
     pub fn iter(&self) -> impl Iterator<Item = &Entity> {
         self.entities_vec.iter().flatten()
     }
