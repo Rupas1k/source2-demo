@@ -11,7 +11,6 @@ use crate::string_table::{StringTable, StringTableEntry, StringTables};
 use anyhow::{bail, Result};
 use hashbrown::{HashMap, HashSet};
 use prettytable::{row, Table};
-use regex::Regex;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
