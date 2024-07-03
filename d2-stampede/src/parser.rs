@@ -813,18 +813,18 @@ impl<'a> Parser<'a> {
         let info = CsvcMsgServerInfo::decode(msg)?;
         self.context.classes.class_id_size = (f64::log2(info.max_classes() as f64) + 1.0) as u32;
 
-        let game_build_regexp = Regex::new(r"/dota_v(\d+)/")?;
-
-        if let Some(captures) = game_build_regexp.captures(info.game_dir()) {
-            if let Some(build_match) = captures.get(1) {
-                let build_str = build_match.as_str();
+        let game_dir = info.game_dir();
+        if let Some(start) = game_dir.find("dota_v") {
+            let start = start + "dota_v".len();
+            if let Some(end) = game_dir[start..].find('/') {
+                let build_str = &game_dir[start..start + end];
                 let build = build_str.parse::<u32>()?;
                 self.context.game_build = build;
             } else {
-                // bail!("No build number found in regex capture");
+                // bail!("Failed to parse build number: '{}'", game_dir);
             }
         } else {
-            // bail!("Failed to parse build number: '{}'", info.game_dir());
+            // bail!("Failed to parse build number: '{}'", game_dir);
         }
         Ok(())
     }

@@ -1,10 +1,8 @@
 use crate::decoder::Decoder;
 use crate::field_value::FieldValue;
 use crate::serializer::Serializer;
-use regex::Regex;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
-use std::sync::OnceLock;
 
 pub(crate) struct Field {
     pub(crate) var_name: Box<str>,
@@ -256,26 +254,37 @@ pub struct FieldType {
     pub count: Option<i32>,
 }
 
-static RE: OnceLock<Regex> = OnceLock::new();
-
 impl FieldType {
     pub fn new(name: &str) -> Self {
-        let captures = RE
-            .get_or_init(|| Regex::new(r"([^<\[*]+)(<\s(.*)\s>)?(\*)?(\[(.*)])?").unwrap())
-            .captures(name)
-            .unwrap();
+        let mut base_end = name.len();
+        let mut pointer = false;
+        let mut count = None;
+        let mut generic = None;
 
-        let base = captures[1].to_string().into_boxed_str();
-        let pointer = captures.get(4).is_some();
-        let generic = captures
-            .get(3)
-            .map(|v| Box::new(FieldType::new(v.as_str())));
+        if name.ends_with('*') {
+            pointer = true;
+            base_end -= 1;
+        }
 
-        let count = captures.get(6).map(|x| match x.as_str() {
-            "MAX_ITEM_STOCKS" => 8,
-            "MAX_ABILITY_DRAFT_ABILITIES" => 48,
-            s => s.parse::<i32>().unwrap(),
-        });
+        if let Some(open_bracket_pos) = name.find('[') {
+            let close_bracket_pos = name.find(']').unwrap();
+            count = match &name[(open_bracket_pos + 1)..close_bracket_pos] {
+                "MAX_ITEM_STOCKS" => Some(8),
+                "MAX_ABILITY_DRAFT_ABILITIES" => Some(48),
+                s => Some(s.parse::<i32>().unwrap()),
+            };
+            base_end = open_bracket_pos;
+        }
+
+        if let Some(open_angle_pos) = name.find('<') {
+            let close_angle_pos = name.rfind('>').unwrap();
+            generic = Some(Box::new(FieldType::new(
+                name[(open_angle_pos + 1)..close_angle_pos].trim(),
+            )));
+            base_end = open_angle_pos;
+        }
+
+        let base = name[..base_end].trim().to_string().into_boxed_str();
 
         FieldType {
             base,
@@ -288,7 +297,7 @@ impl FieldType {
     pub fn as_string(&self) -> String {
         let mut x = self.base.to_string();
         if let Some(generic) = &self.generic {
-            x = x + "<" + &generic.as_string() + ">";
+            x = x + "< " + &generic.as_string() + " >";
         }
         if self.pointer {
             x += "*";

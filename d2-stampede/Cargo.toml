@@ -3,7 +3,6 @@ name = "d2-stampede"
 description = "Dota 2 replay parser written in Rust"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.70.0"
 repository = "https://github.com/Rupas1k/d2-stampede"
 authors = [
     "Artem Rupasov <artemrupasov125@gmail.com>"
@@ -18,7 +17,6 @@ path = "src/lib.rs"
 d2-stampede-protobufs = { git = "https://github.com/Rupas1k/d2-stampede" }
 
 snap = "1.1.1"
-regex = { version = "1.10.5", features = ["std", "unicode-perl"], default-features = false }
 bitter = "0.7.0"
 hashbrown = "0.14.5"
 anyhow = "1.0.86"
