@@ -48,15 +48,6 @@ impl Entities {
             .find(|&entity| entity.class().name() == name)
             .with_context(|| anyhow!("No entities for class with name {name}"))
     }
-
-    pub fn get_all_by_class_id(&self, id: i32) -> impl Iterator<Item = &Entity> {
-        self.iter().filter(move |&entity| entity.class().id() == id)
-    }
-
-    pub fn get_all_by_class_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &Entity> {
-        self.iter()
-            .filter(move |&entity| entity.class().name() == name)
-    }
 }
 
 #[derive(Clone)]
