@@ -126,14 +126,12 @@ fn main() -> std::io::Result<()> {
 
     parser.register_observer::<CombatLogObserver>();
 
-    #[cfg(feature = "bench")]
     let start = std::time::Instant::now();
 
     if let Err(e) = parser.run_to_end() {
         eprintln!("Parser error: {:?}", e);
     };
 
-    #[cfg(feature = "bench")]
     println!("Elapsed: {:?}", start.elapsed());
 
     Ok(())
