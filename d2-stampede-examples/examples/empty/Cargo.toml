@@ -7,5 +7,5 @@ edition = "2021"
 bench = []
 
 [dependencies]
-d2-stampede = { git = "https://github.com/Rupas1k/d2-stampede", features = ["mimalloc"] }
+d2-stampede = { git = "https://github.com/Rupas1k/d2-stampede" }
 memmap2 = "0.9.4"
