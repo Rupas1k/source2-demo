@@ -223,6 +223,12 @@ impl FieldPath {
     }
 
     #[inline]
+    pub fn push(&mut self, val: u8) {
+        self.last += 1;
+        self.path[self.last] = val;
+    }
+
+    #[inline]
     pub fn pop(&mut self, n: usize) {
         for _ in 0..n {
             self.path[self.last] = 0;
