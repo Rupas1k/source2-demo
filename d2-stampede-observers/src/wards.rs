@@ -150,7 +150,11 @@ impl Observer for Wards {
         Ok(())
     }
 
-    fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLog) -> d2_stampede::Result<()> {
+    fn on_combat_log(
+        &mut self,
+        ctx: &Context,
+        combat_log: &CombatLogEntry,
+    ) -> d2_stampede::Result<()> {
         if combat_log.type_() == DotaCombatlogTypes::DotaCombatlogDeath
             && combat_log.target_name().is_ok()
             && WardClass::from_target_name(combat_log.target_name()?).is_ok()

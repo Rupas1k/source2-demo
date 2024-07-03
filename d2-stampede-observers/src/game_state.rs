@@ -18,7 +18,7 @@ impl GameState {
 }
 
 impl Observer for GameState {
-    fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLog) -> Result<()> {
+    fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLogEntry) -> Result<()> {
         if combat_log.type_() == DotaCombatlogTypes::DotaCombatlogGameState {
             let state = DotaGameState::try_from(combat_log.value()? as i32)?;
             try_observers!(self, on_game_state_change(ctx, state))?;

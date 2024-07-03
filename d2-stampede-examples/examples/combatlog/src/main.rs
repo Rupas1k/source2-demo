@@ -5,7 +5,11 @@ use d2_stampede::proto::DotaCombatlogTypes;
 struct CombatLogObserver;
 
 impl Observer for CombatLogObserver {
-    fn on_combat_log(&mut self, _ctx: &Context, combat_log: &CombatLog) -> d2_stampede::Result<()> {
+    fn on_combat_log(
+        &mut self,
+        _ctx: &Context,
+        combat_log: &CombatLogEntry,
+    ) -> d2_stampede::Result<()> {
         let time = combat_log.timestamp()?;
         match combat_log.type_() {
             DotaCombatlogTypes::DotaCombatlogDamage => {
