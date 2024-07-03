@@ -1,3 +1,5 @@
 .idea
+replays
+target
 *.lock
 *.dem
