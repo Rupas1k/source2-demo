@@ -1,10 +1,10 @@
 use crate::decoder::Decoder;
 use crate::field_value::FieldValue;
 use crate::serializer::Serializer;
-use lazy_static::lazy_static;
 use regex::Regex;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
+use std::sync::OnceLock;
 
 pub(crate) struct Field {
     pub(crate) var_name: Box<str>,
@@ -248,10 +248,6 @@ impl FieldPath {
     }
 }
 
-lazy_static! {
-    static ref RE: Regex = Regex::new(r"([^<\[*]+)(<\s(.*)\s>)?(\*)?(\[(.*)])?").unwrap();
-}
-
 #[derive(Clone, Debug)]
 pub struct FieldType {
     pub base: Box<str>,
@@ -260,9 +256,14 @@ pub struct FieldType {
     pub count: Option<i32>,
 }
 
+static RE: OnceLock<Regex> = OnceLock::new();
+
 impl FieldType {
     pub fn new(name: &str) -> Self {
-        let captures = RE.captures(name).unwrap();
+        let captures = RE
+            .get_or_init(|| Regex::new(r"([^<\[*]+)(<\s(.*)\s>)?(\*)?(\[(.*)])?").unwrap())
+            .captures(name)
+            .unwrap();
 
         let base = captures[1].to_string().into_boxed_str();
         let pointer = captures.get(4).is_some();
