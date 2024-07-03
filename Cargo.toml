@@ -2,7 +2,14 @@
 members = [
     "d2-stampede",
     "d2-stampede-protobufs",
-    "d2-stampede-observers"
+    "d2-stampede-observers",
+    "d2-stampede-examples/*"
 ]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
 
 resolver = "2"

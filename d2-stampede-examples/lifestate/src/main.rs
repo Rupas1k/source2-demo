@@ -1,5 +1,5 @@
 use d2_stampede::prelude::*;
-use hashbrown::HashMap;
+use std::collections::HashMap;
 use std::io::Write;
 
 struct LifeStateObserver {
