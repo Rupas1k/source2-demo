@@ -33,7 +33,6 @@ impl Classes {
         self.classes_vec.iter().map(|class| class.as_ref())
     }
 
-    pub fn get_by_id(&self, id: usize) -> Result<&Class> {
     pub fn get_by_id(&self, id: usize) -> Result<&Class, ClassError> {
         self.classes_vec
             .get(id)
@@ -41,7 +40,6 @@ impl Classes {
             .map(|class| class.as_ref())
     }
 
-    pub fn get_by_name(&self, name: &str) -> Result<&Class> {
     pub fn get_by_name(&self, name: &str) -> Result<&Class, ClassError> {
         self.classes_by_name
             .get(name)
