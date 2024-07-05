@@ -104,7 +104,6 @@ impl Entity {
         &self.class
     }
 
-    pub fn get_property_by_name(&self, name: &str) -> Result<&FieldValue> {
     pub fn get_property_by_name(&self, name: &str) -> Result<&FieldValue, EntityError> {
         self.get_property_by_field_path(&self.class.serializer.get_field_path_for_name(name)?)
     }
