@@ -34,6 +34,7 @@ pub enum EntityError {
 
     #[error(transparent)]
     FieldPathNotFound(#[from] SerializerError),
+}
 #[derive(Default)]
 pub struct Entities {
     pub(crate) entities_vec: Vec<Option<Entity>>,
