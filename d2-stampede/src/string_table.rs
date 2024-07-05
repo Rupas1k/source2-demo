@@ -14,8 +14,8 @@ pub enum StringTableError {
     #[error("String table not found for the given name {0}")]
     TableNotFoundByName(String),
 
-    #[error("String table entry not found for the given index {0}")]
-    EntryNotFoundByIndex(i32),
+    #[error("String table entry not found for the given index {0} ({1})")]
+    EntryNotFoundByIndex(i32, String),
 }
 #[derive(Default)]
 pub struct StringTables {
@@ -96,7 +96,10 @@ impl StringTable {
     pub fn get_entry_by_index(&self, idx: usize) -> Result<&StringTableEntry, StringTableError> {
         self.items
             .get(idx)
-            .ok_or(StringTableError::EntryNotFoundByIndex(idx as i32))
+            .ok_or(StringTableError::EntryNotFoundByIndex(
+                idx as i32,
+                self.name.clone(),
+            ))
     }
 
     pub(crate) fn parse(

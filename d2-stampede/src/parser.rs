@@ -54,10 +54,10 @@ pub enum ParserError {
     CombatLog(#[from] CombatLogError),
 
     #[error(transparent)]
-    TryFromSlice(#[from] std::array::TryFromSliceError),
+    ParseInt(#[from] std::num::ParseIntError),
 
     #[error(transparent)]
-    ParseInt(#[from] std::num::ParseIntError),
+    ObserverError(#[from] anyhow::Error),
 
     #[error("Wrong CDemoFileInfo offset")]
     ReplayEncodingError,
@@ -227,7 +227,7 @@ impl<'a> Parser<'a> {
     }
 
     fn replay_info(reader: &mut Reader) -> Result<CDemoFileInfo, ParserError> {
-        let offset = u32::from_le_bytes(reader.buf[8..12].try_into()?) as usize;
+        let offset = u32::from_le_bytes(reader.buf[8..12].try_into().unwrap()) as usize;
 
         if reader.buf.len() < offset {
             return Err(ParserError::ReplayEncodingError);
@@ -377,9 +377,7 @@ impl<'a> Parser<'a> {
         let buf = if msg_compressed {
             let buf = reader.read_bytes(size);
             let mut decoder = snap::raw::Decoder::new();
-            decoder
-                .decompress_vec(&buf)
-                .expect("Failed to decompress message")
+            decoder.decompress_vec(&buf)?
         } else {
             reader.read_bytes(size)
         };

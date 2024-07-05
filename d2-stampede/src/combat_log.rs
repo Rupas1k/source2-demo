@@ -1,6 +1,5 @@
 use crate::proto::{CMsgDotaCombatLogEntry, DotaCombatlogTypes};
 use crate::string_table::StringTable;
-use anyhow::{anyhow, Context, Result};
 
 #[derive(Clone)]
 pub struct CombatLogEntry<'a> {

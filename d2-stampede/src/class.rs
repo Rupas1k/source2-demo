@@ -1,5 +1,4 @@
 use crate::serializer::Serializer;
-use anyhow::{anyhow, Context, Result};
 use hashbrown::HashMap;
 use prettytable::{row, Table};
 use std::fmt::{Display, Formatter};
