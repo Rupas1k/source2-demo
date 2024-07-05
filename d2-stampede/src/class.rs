@@ -15,9 +15,18 @@ pub struct Classes {
     pub(crate) class_id_size: u32,
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum ClassError {
+    #[error("Class not found for the given id {0}")]
+    ClassNotFoundById(i32),
+
+    #[error("Class not found for the given name {0}")]
+    ClassNotFoundByName(String),
+}
+
 impl Classes {
-    pub(crate) fn get_by_id_rc(&self, id: usize) -> Result<&Rc<Class>> {
-        Ok(&self.classes_vec[id])
+    pub(crate) fn get_by_id_rc(&self, id: usize) -> &Rc<Class> {
+        &self.classes_vec[id]
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Class> {
@@ -25,16 +34,18 @@ impl Classes {
     }
 
     pub fn get_by_id(&self, id: usize) -> Result<&Class> {
+    pub fn get_by_id(&self, id: usize) -> Result<&Class, ClassError> {
         self.classes_vec
             .get(id)
-            .with_context(|| anyhow!("No class for given id {}", id))
+            .ok_or(ClassError::ClassNotFoundById(id as i32))
             .map(|class| class.as_ref())
     }
 
     pub fn get_by_name(&self, name: &str) -> Result<&Class> {
+    pub fn get_by_name(&self, name: &str) -> Result<&Class, ClassError> {
         self.classes_by_name
             .get(name)
-            .with_context(|| anyhow!("No class for given name \"{}\"", name))
+            .ok_or_else(|| ClassError::ClassNotFoundByName(name.to_string()))
             .map(|class| class.as_ref())
     }
 }

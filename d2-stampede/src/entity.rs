@@ -1,7 +1,7 @@
 use crate::class::Class;
 use crate::field::{FieldPath, FieldVector};
 use crate::field_value::FieldValue;
-use anyhow::{anyhow, Context, Result};
+use crate::serializer::SerializerError;
 use prettytable::{row, Table};
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
@@ -15,6 +15,25 @@ pub enum EntityEvents {
     Left = 1 << 4,
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum EntityError {
+    #[error("No entities found at index {0}")]
+    IndexNotFound(usize),
+
+    #[error("No entities found for handle {0}")]
+    HandleNotFound(usize),
+
+    #[error("No entities found for class with id {0}")]
+    ClassIdNotFound(i32),
+
+    #[error("No entities found for class with name {0}")]
+    ClassNameNotFound(String),
+
+    #[error("No property found for name {0} ({1} {2})")]
+    PropertyNameNotFound(String, String, String),
+
+    #[error("No property found for field path {0}")]
+    FieldPathNotFound(#[from] SerializerError),
 #[derive(Default)]
 pub struct Entities {
     pub(crate) entities_vec: Vec<Option<Entity>>,
@@ -25,28 +44,28 @@ impl Entities {
         self.entities_vec.iter().flatten()
     }
 
-    pub fn get_by_index(&self, index: usize) -> Result<&Entity> {
+    pub fn get_by_index(&self, index: usize) -> Result<&Entity, EntityError> {
         self.entities_vec
             .get(index)
             .and_then(|x| x.as_ref())
-            .with_context(|| anyhow!("No entities for index \"{}\"", index))
+            .ok_or(EntityError::IndexNotFound(index))
     }
 
-    pub fn get_by_handle(&self, handle: usize) -> Result<&Entity> {
+    pub fn get_by_handle(&self, handle: usize) -> Result<&Entity, EntityError> {
         self.get_by_index(handle & 0x3fff)
-            .with_context(|| anyhow!("No entities for handle \"{handle}\""))
+            .map_err(|_| EntityError::HandleNotFound(handle))
     }
 
-    pub fn get_by_class_id(&self, id: i32) -> Result<&Entity> {
+    pub fn get_by_class_id(&self, id: i32) -> Result<&Entity, EntityError> {
         self.iter()
             .find(|&entity| entity.class().id() == id)
-            .with_context(|| anyhow!("No entities for class with id {id}"))
+            .ok_or(EntityError::ClassIdNotFound(id))
     }
 
-    pub fn get_by_class_name(&self, name: &str) -> Result<&Entity> {
+    pub fn get_by_class_name(&self, name: &str) -> Result<&Entity, EntityError> {
         self.iter()
             .find(|&entity| entity.class().name() == name)
-            .with_context(|| anyhow!("No entities for class with name {name}"))
+            .ok_or(EntityError::ClassNameNotFound(name.to_string()))
     }
 }
 
@@ -85,16 +104,19 @@ impl Entity {
     }
 
     pub fn get_property_by_name(&self, name: &str) -> Result<&FieldValue> {
+    pub fn get_property_by_name(&self, name: &str) -> Result<&FieldValue, EntityError> {
         self.get_property_by_field_path(&self.class.serializer.get_field_path_for_name(name)?)
     }
 
-    pub(crate) fn get_property_by_field_path(&self, fp: &FieldPath) -> Result<&FieldValue> {
-        self.state.get_value(fp).with_context(|| {
-            anyhow!(
-                "No property for given name \"{}\" ({}, {:?})",
-                self.class.serializer.get_name_for_field_path(fp),
-                self.class().name(),
-                fp
+    pub(crate) fn get_property_by_field_path(
+        &self,
+        fp: &FieldPath,
+    ) -> Result<&FieldValue, EntityError> {
+        self.state.get_value(fp).ok_or_else(|| {
+            EntityError::PropertyNameNotFound(
+                fp.to_string(),
+                self.class.name().to_string(),
+                self.class.id().to_string(),
             )
         })
     }

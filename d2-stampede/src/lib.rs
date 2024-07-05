@@ -78,6 +78,7 @@ macro_rules! try_property {
             })
     }};
 }
+
 pub mod prelude {
     pub use crate::combat_log::CombatLogEntry;
     pub use crate::entity::{Entity, EntityEvents};
@@ -99,11 +100,12 @@ pub mod proto {
     pub use d2_stampede_protobufs::*;
 }
 
-pub use anyhow::Error;
-pub use anyhow::Result;
+pub type Result = std::result::Result<(), ParserError>;
 
+use crate::parser::ParserError;
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
+
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;

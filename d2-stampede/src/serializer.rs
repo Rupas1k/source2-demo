@@ -1,6 +1,5 @@
 use crate::decoder::Decoder;
 use crate::field::{Field, FieldModel, FieldPath, FieldType, FieldVector};
-use anyhow::{bail, Result};
 use hashbrown::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -9,6 +8,15 @@ use std::rc::Rc;
 pub(crate) struct Serializer {
     pub(crate) fields: Vec<Rc<Field>>,
     pub(crate) fp_cache: RefCell<HashMap<Box<str>, FieldPath>>,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum SerializerError {
+    #[error("No field path for given name {0}")]
+    NoFieldPath(String),
+
+    #[error("Failed to parse u8 from string slice")]
+    ParseU8Error(#[from] std::num::ParseIntError),
 }
 
 impl Serializer {
@@ -119,7 +127,7 @@ impl Serializer {
     }
 
     #[inline]
-    pub(crate) fn get_field_path_for_name(&self, name: &str) -> Result<FieldPath> {
+    pub(crate) fn get_field_path_for_name(&self, name: &str) -> Result<FieldPath, SerializerError> {
         if !self.fp_cache.borrow().contains_key(name) {
             let mut current_serializer = self;
             let mut fp = FieldPath::new();
@@ -156,7 +164,7 @@ impl Serializer {
                         }
                     }
                 }
-                bail!("No field path for given name \"{}\"", name)
+                return Err(SerializerError::NoFieldPath(name.to_string()));
             }
             self.fp_cache.borrow_mut().insert(name.into(), fp);
         }

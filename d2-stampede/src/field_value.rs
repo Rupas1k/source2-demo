@@ -1,4 +1,3 @@
-use anyhow::{anyhow, bail};
 use std::fmt::{Display, Formatter};
 
 /// Special type for [`Entity`] field value that can be converted into Rust type
@@ -26,6 +25,12 @@ pub enum FieldValue {
     Unsigned64(u64),
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum FieldValueError {
+    #[error("Cannot convert {0} into {1}")]
+    ConversionError(String, String),
+}
+
 impl Display for FieldValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -50,243 +55,303 @@ impl Display for FieldValue {
 }
 
 impl TryInto<String> for FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<String, anyhow::Error> {
+    fn try_into(self) -> Result<String, FieldValueError> {
         if let FieldValue::String(x) = self {
             Ok(x)
         } else {
-            bail!("Cannot convert \"{}\" into String", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "String".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<String> for &FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<String, anyhow::Error> {
+    fn try_into(self) -> Result<String, FieldValueError> {
         if let FieldValue::String(x) = self {
             Ok(x.to_owned())
         } else {
-            bail!("Cannot convert \"{}\" into String", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "String".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<[f32; 2]> for FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<[f32; 2], anyhow::Error> {
+    fn try_into(self) -> Result<[f32; 2], FieldValueError> {
         if let FieldValue::Vector2D(x) = self {
             Ok(x)
         } else {
-            bail!("Cannot convert \"{}\" into [f32; 2]", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "[f32; 2]".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<[f32; 2]> for &FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<[f32; 2], anyhow::Error> {
+    fn try_into(self) -> Result<[f32; 2], FieldValueError> {
         if let FieldValue::Vector2D(x) = self {
             Ok(*x)
         } else {
-            bail!("Cannot convert \"{}\" into [f32; 2]", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "[f32; 2]".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<(f32, f32)> for FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<(f32, f32), anyhow::Error> {
+    fn try_into(self) -> Result<(f32, f32), FieldValueError> {
         if let FieldValue::Vector2D(x) = self {
             Ok(x.into())
         } else {
-            bail!("Cannot convert \"{}\" into (f32, f32))", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "(f32, f32)".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<(f32, f32)> for &FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<(f32, f32), anyhow::Error> {
+    fn try_into(self) -> Result<(f32, f32), FieldValueError> {
         if let FieldValue::Vector2D(x) = self {
             Ok((*x).into())
         } else {
-            bail!("Cannot convert \"{}\" into (f32, f32))", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "(f32, f32)".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<[f32; 3]> for FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<[f32; 3], anyhow::Error> {
+    fn try_into(self) -> Result<[f32; 3], FieldValueError> {
         if let FieldValue::Vector3D(x) = self {
             Ok(x)
         } else {
-            bail!("Cannot convert \"{}\" into [f32; 3]", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "[f32; 3]".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<[f32; 3]> for &FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<[f32; 3], anyhow::Error> {
+    fn try_into(self) -> Result<[f32; 3], FieldValueError> {
         if let FieldValue::Vector3D(x) = self {
             Ok(*x)
         } else {
-            bail!("Cannot convert \"{}\" into [f32; 3]", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "[f32; 3]".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<(f32, f32, f32)> for FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<(f32, f32, f32), anyhow::Error> {
+    fn try_into(self) -> Result<(f32, f32, f32), FieldValueError> {
         if let FieldValue::Vector3D(x) = self {
             Ok(x.into())
         } else {
-            bail!("Cannot convert \"{}\" into (f32, f32, f32)", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "(f32, f32, f32)".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<(f32, f32, f32)> for &FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<(f32, f32, f32), anyhow::Error> {
+    fn try_into(self) -> Result<(f32, f32, f32), FieldValueError> {
         if let FieldValue::Vector3D(x) = self {
             Ok((*x).into())
         } else {
-            bail!("Cannot convert \"{}\" into (f32, f32, f32)", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "(f32, f32, f32)".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<[f32; 4]> for FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<[f32; 4], anyhow::Error> {
+    fn try_into(self) -> Result<[f32; 4], FieldValueError> {
         if let FieldValue::Vector4D(x) = self {
             Ok(x)
         } else {
-            bail!("Cannot convert \"{}\" into [f32; 4]", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "[f32; 4]".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<[f32; 4]> for &FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<[f32; 4], anyhow::Error> {
+    fn try_into(self) -> Result<[f32; 4], FieldValueError> {
         if let FieldValue::Vector4D(x) = self {
             Ok(*x)
         } else {
-            bail!("Cannot convert \"{}\" into [f32; 4]", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "[f32; 4]".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<(f32, f32, f32, f32)> for FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<(f32, f32, f32, f32), anyhow::Error> {
+    fn try_into(self) -> Result<(f32, f32, f32, f32), FieldValueError> {
         if let FieldValue::Vector4D(x) = self {
             Ok(x.into())
         } else {
-            bail!("Cannot convert \"{}\" into (f32, f32, f32, f32)", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "(f32, f32, f32, f32)".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<(f32, f32, f32, f32)> for &FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<(f32, f32, f32, f32), anyhow::Error> {
+    fn try_into(self) -> Result<(f32, f32, f32, f32), FieldValueError> {
         if let FieldValue::Vector4D(x) = self {
             Ok((*x).into())
         } else {
-            bail!("Cannot convert \"{}\" into (f32, f32, f32, f32)", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "(f32, f32, f32, f32)".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<Vec<f32>> for FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<Vec<f32>, anyhow::Error> {
+    fn try_into(self) -> Result<Vec<f32>, FieldValueError> {
         match self {
             FieldValue::Vector2D(x) => Ok(x.to_vec()),
             FieldValue::Vector3D(x) => Ok(x.to_vec()),
             FieldValue::Vector4D(x) => Ok(x.to_vec()),
-            _ => bail!("Cannot convert \"{}\" into Vec<f32>", self),
+            _ => Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "Vec<f32>".to_string(),
+            )),
         }
     }
 }
 
 impl TryInto<Vec<f32>> for &FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<Vec<f32>, anyhow::Error> {
+    fn try_into(self) -> Result<Vec<f32>, FieldValueError> {
         match self {
             FieldValue::Vector2D(x) => Ok(x.to_vec()),
             FieldValue::Vector3D(x) => Ok(x.to_vec()),
             FieldValue::Vector4D(x) => Ok(x.to_vec()),
-            _ => bail!("Cannot convert \"{}\" into Vec<f32>", self),
+            _ => Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "Vec<f32>".to_string(),
+            )),
         }
     }
 }
 
 impl TryInto<f32> for FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<f32, anyhow::Error> {
+    fn try_into(self) -> Result<f32, FieldValueError> {
         if let FieldValue::Float(x) = self {
             Ok(x)
         } else {
-            bail!("Cannot convert \"{}\" into f32", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "f32".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<f32> for &FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<f32, anyhow::Error> {
+    fn try_into(self) -> Result<f32, FieldValueError> {
         if let FieldValue::Float(x) = self {
             Ok(*x)
         } else {
-            bail!("Cannot convert \"{}\" into f32", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "f32".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<bool> for FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<bool, anyhow::Error> {
+    fn try_into(self) -> Result<bool, FieldValueError> {
         if let FieldValue::Boolean(x) = self {
             Ok(x)
         } else {
-            bail!("Cannot convert \"{}\" into bool", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "bool".to_string(),
+            ))
         }
     }
 }
 
 impl TryInto<bool> for &FieldValue {
-    type Error = anyhow::Error;
+    type Error = FieldValueError;
 
-    fn try_into(self) -> anyhow::Result<bool, anyhow::Error> {
+    fn try_into(self) -> Result<bool, FieldValueError> {
         if let FieldValue::Boolean(x) = self {
             Ok(*x)
         } else {
-            bail!("Cannot convert \"{}\" into bool", self)
+            Err(FieldValueError::ConversionError(
+                format!("{:?}", self),
+                "bool".to_string(),
+            ))
         }
     }
 }
@@ -294,109 +359,159 @@ impl TryInto<bool> for &FieldValue {
 macro_rules! impl_try_into_for_integers {
     ($target:ty) => {
         impl TryInto<$target> for FieldValue {
-            type Error = anyhow::Error;
+            type Error = FieldValueError;
 
-            fn try_into(self) -> Result<$target, anyhow::Error> {
+            fn try_into(self) -> Result<$target, FieldValueError> {
                 match self {
                     // EntityFieldType::Boolean(x) => Ok((x == 1) as $target),
                     FieldValue::Signed8(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Signed16(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Signed32(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Signed64(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Unsigned8(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Unsigned16(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Unsigned32(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Unsigned64(x) => {
                         Ok(TryInto::<$target>::try_into(x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Float(x) => Ok(x as $target),
-                    _ => Err(anyhow!(
-                        "Cannot convert \"{}\" into {}",
-                        self,
-                        stringify!($target)
+                    _ => Err(FieldValueError::ConversionError(
+                        format!("{:?}", self),
+                        stringify!($target).to_string(),
                     )),
                 }
             }
         }
 
         impl TryInto<$target> for &FieldValue {
-            type Error = anyhow::Error;
+            type Error = FieldValueError;
 
-            fn try_into(self) -> Result<$target, anyhow::Error> {
+            fn try_into(self) -> Result<$target, FieldValueError> {
                 match self {
                     // EntityFieldType::Boolean(x) => Ok(x == 1 as $target),
                     FieldValue::Signed8(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Signed16(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Signed32(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Signed64(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Unsigned8(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Unsigned16(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Unsigned32(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Unsigned64(x) => {
                         Ok(TryInto::<$target>::try_into(*x).map_err(|_| {
-                            anyhow!("Cannot convert \"{x}\" into {}", stringify!($target))
+                            FieldValueError::ConversionError(
+                                format!("{:?}", x),
+                                stringify!($target).to_string(),
+                            )
                         })?)
                     }
                     FieldValue::Float(x) => Ok(*x as $target),
-                    _ => bail!("Cannot convert \"{}\" into {}", self, stringify!($target)),
+                    _ => Err(FieldValueError::ConversionError(
+                        format!("{:?}", self),
+                        stringify!($target).to_string(),
+                    )),
                 }
             }
         }

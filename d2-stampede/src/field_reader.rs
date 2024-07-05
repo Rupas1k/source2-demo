@@ -10,8 +10,8 @@ pub(crate) struct FieldReader {
     paths_buf: RefCell<[FieldPath; 4096]>,
 }
 
-impl FieldReader {
-    pub(crate) fn new() -> Self {
+impl Default for FieldReader {
+    fn default() -> Self {
         let tree = build_huffman_tree(OPERATIONS.map(|(_, weight)| weight).into());
         let paths = RefCell::new([FieldPath::new(); 4096]);
         FieldReader {
@@ -19,7 +19,9 @@ impl FieldReader {
             paths_buf: paths,
         }
     }
+}
 
+impl FieldReader {
     pub(crate) fn read_fields(
         &self,
         reader: &mut Reader,

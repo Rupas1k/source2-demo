@@ -1,14 +1,14 @@
-use crate::class::{Class, Classes};
-use crate::combat_log::CombatLogEntry;
+use crate::class::{Class, ClassError, Classes};
+use crate::combat_log::{CombatLogEntry, CombatLogError};
 use crate::decoder::Decoder;
-use crate::entity::{Entities, Entity, EntityEvents};
+use crate::entity::{Entities, Entity, EntityError, EntityEvents};
 use crate::field::{Encoder, Field, FieldModel, FieldProperties, FieldType, FieldVector};
 use crate::field_reader::FieldReader;
+use crate::field_value::FieldValueError;
 use crate::proto::*;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
-use crate::string_table::{StringTable, StringTableEntry, StringTables};
-use anyhow::{bail, Result};
+use crate::string_table::{StringTable, StringTableEntry, StringTableError, StringTables};
 use hashbrown::{HashMap, HashSet};
 use prettytable::{row, Table};
 use std::cell::RefCell;
@@ -25,6 +25,45 @@ macro_rules! try_observers {
     };
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum ParserError {
+    #[error(transparent)]
+    ProtobufDecode(#[from] prost::DecodeError),
+
+    #[error(transparent)]
+    SnapDecode(#[from] snap::Error),
+
+    #[error(transparent)]
+    StringTable(#[from] StringTableError),
+
+    #[error(transparent)]
+    Class(#[from] ClassError),
+
+    #[error(transparent)]
+    Entity(#[from] EntityError),
+
+    #[error(transparent)]
+    FieldValue(#[from] FieldValueError),
+
+    #[error(transparent)]
+    CombatLog(#[from] CombatLogError),
+
+    #[error(transparent)]
+    TryFromSlice(#[from] std::array::TryFromSliceError),
+
+    #[error(transparent)]
+    ParseInt(#[from] std::num::ParseIntError),
+
+    #[error("Wrong CDemoFileInfo offset")]
+    ReplayEncodingError,
+
+    #[error("End of file")]
+    Eof,
+
+    #[error("Supports only Source 2 replays")]
+    WrongMagic,
+}
+
 pub struct Parser<'a> {
     reader: Reader<'a>,
     field_reader: FieldReader,
@@ -39,6 +78,7 @@ pub struct Parser<'a> {
     context: Context,
 }
 
+#[derive(Default)]
 pub(crate) struct Baselines {
     field_reader: FieldReader,
     baselines: HashMap<i32, Rc<Vec<u8>>>,
@@ -129,17 +169,13 @@ struct OuterMessage {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(replay: &'a [u8]) -> Result<Self> {
-        let baselines = Baselines {
-            field_reader: FieldReader::new(),
-            baselines: HashMap::default(),
-            states: HashMap::default(),
-        };
+    pub fn new(replay: &'a [u8]) -> Result<Self, ParserError> {
+        let baselines = Baselines::default();
 
         let mut reader = Reader::new(replay);
 
         if replay.len() < 16 || reader.read_bytes(8) != b"PBDEMS2\0" {
-            bail!("Supports only Source 2 replays")
+            return Err(ParserError::WrongMagic);
         };
 
         reader.read_bytes(8);
@@ -148,9 +184,9 @@ impl<'a> Parser<'a> {
 
         Ok(Parser {
             reader,
-            field_reader: FieldReader::new(),
-            observers: Vec::new(),
-            combat_log: VecDeque::new(),
+            field_reader: FieldReader::default(),
+            observers: Vec::default(),
+            combat_log: VecDeque::default(),
             prologue_completed: false,
             start_offset: 0,
             processing_deltas: true,
@@ -185,28 +221,26 @@ impl<'a> Parser<'a> {
         rc.clone()
     }
 
-    fn replay_info(reader: &mut Reader) -> Result<CDemoFileInfo> {
+    fn replay_info(reader: &mut Reader) -> Result<CDemoFileInfo, ParserError> {
         let offset = u32::from_le_bytes(reader.buf[8..12].try_into()?) as usize;
+
         if reader.buf.len() < offset {
-            bail!(
-                "CDemoFileInfo offset is {}, but buf len is {}",
-                offset,
-                reader.buf.len()
-            )
+            return Err(ParserError::ReplayEncodingError);
         }
+
         let mut reader = Reader::new(&reader.buf[offset..]);
         Ok(CDemoFileInfo::decode(
-            Self::read_message(&mut reader)?.unwrap().buf.as_slice(),
+            Self::read_message(&mut reader)?.buf.as_slice(),
         )?)
     }
 
-    fn prologue(&mut self) -> Result<()> {
+    fn prologue(&mut self) -> Result<(), ParserError> {
         if self.prologue_completed {
             return Ok(());
         }
 
         let mut offset: usize = 16;
-        while let Some(message) = Self::read_message(&mut self.reader)? {
+        while let Ok(message) = Self::read_message(&mut self.reader) {
             self.context.tick = message.tick;
             self.on_tick_start()?;
             self.on_demo_command(message.msg_type, message.buf.as_slice())?;
@@ -229,10 +263,10 @@ impl<'a> Parser<'a> {
     }
 
     /// Moves to the end of replay. Last packet is [`CDemoFileInfo`].
-    pub fn run_to_end(&mut self) -> Result<()> {
+    pub fn run_to_end(&mut self) -> Result<(), ParserError> {
         self.prologue()?;
 
-        while let Some(message) = Self::read_message(&mut self.reader)? {
+        while let Ok(message) = Self::read_message(&mut self.reader) {
             self.context.tick = message.tick;
             self.on_tick_start()?;
             self.on_demo_command(message.msg_type, message.buf.as_slice())?;
@@ -244,7 +278,7 @@ impl<'a> Parser<'a> {
 
     /// Moves to target tick without calling observers and processing delta
     /// packets.
-    pub fn jump_to_tick(&mut self, target_tick: u32) -> Result<()> {
+    pub fn jump_to_tick(&mut self, target_tick: u32) -> Result<(), ParserError> {
         self.prologue()?;
 
         if target_tick < self.context.tick {
@@ -261,7 +295,7 @@ impl<'a> Parser<'a> {
         let mut first_fp_checked = false;
         let mut last_fp_checked = false;
 
-        while let Some(mut message) = Self::read_message(&mut self.reader)? {
+        while let Ok(mut message) = Self::read_message(&mut self.reader) {
             let next_fp = self.context.last_full_packet_tick == u32::MAX
                 || (target_tick - self.context.last_full_packet_tick) > 1800;
             self.context.tick = message.tick;
@@ -301,12 +335,12 @@ impl<'a> Parser<'a> {
     }
 
     /// Moves to target tick.
-    pub fn run_to_tick(&mut self, target_tick: u32) -> Result<()> {
+    pub fn run_to_tick(&mut self, target_tick: u32) -> Result<(), ParserError> {
         assert!(target_tick > self.context.tick);
 
         self.prologue()?;
 
-        while let Some(message) = Self::read_message(&mut self.reader)? {
+        while let Ok(message) = Self::read_message(&mut self.reader) {
             self.context.tick = message.tick;
             self.on_tick_start()?;
             self.on_demo_command(message.msg_type, message.buf.as_slice())?;
@@ -319,9 +353,9 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn read_message(reader: &mut Reader) -> Result<Option<OuterMessage>> {
+    fn read_message(reader: &mut Reader) -> Result<OuterMessage, ParserError> {
         if reader.bytes_remaining() == 0 {
-            return Ok(None);
+            return Err(ParserError::Eof);
         }
 
         let start = reader.bytes_remaining();
@@ -338,20 +372,22 @@ impl<'a> Parser<'a> {
         let buf = if msg_compressed {
             let buf = reader.read_bytes(size);
             let mut decoder = snap::raw::Decoder::new();
-            decoder.decompress_vec(&buf)?
+            decoder
+                .decompress_vec(&buf)
+                .expect("Failed to decompress message")
         } else {
             reader.read_bytes(size)
         };
 
-        Ok(Some(OuterMessage {
+        Ok(OuterMessage {
             size: end + size as usize,
             msg_type,
             tick,
             buf,
-        }))
+        })
     }
 
-    fn on_demo_command(&mut self, msg_type: EDemoCommands, msg: &[u8]) -> Result<()> {
+    fn on_demo_command(&mut self, msg_type: EDemoCommands, msg: &[u8]) -> Result<(), ParserError> {
         match msg_type {
             EDemoCommands::DemSendTables => self.dem_send_tables(msg)?,
             EDemoCommands::DemClassInfo => self.dem_class_info(msg)?,
@@ -364,7 +400,7 @@ impl<'a> Parser<'a> {
         try_observers!(self, on_demo_command(&self.context, msg_type, msg))
     }
 
-    fn on_net_message(&mut self, msg_type: NetMessages, msg: &[u8]) -> Result<()> {
+    fn on_net_message(&mut self, msg_type: NetMessages, msg: &[u8]) -> Result<(), ParserError> {
         if msg_type == NetMessages::NetTick {
             self.context.net_tick = CnetMsgTick::decode(msg)?.tick();
         }
@@ -372,7 +408,7 @@ impl<'a> Parser<'a> {
         try_observers!(self, on_net_message(&self.context, msg_type, msg))
     }
 
-    fn on_svc_message(&mut self, msg_type: SvcMessages, msg: &[u8]) -> Result<()> {
+    fn on_svc_message(&mut self, msg_type: SvcMessages, msg: &[u8]) -> Result<(), ParserError> {
         match msg_type {
             SvcMessages::SvcServerInfo => self.server_info(msg)?,
             SvcMessages::SvcCreateStringTable => self.create_string_table(msg)?,
@@ -384,15 +420,27 @@ impl<'a> Parser<'a> {
         try_observers!(self, on_svc_message(&self.context, msg_type, msg))
     }
 
-    fn on_base_user_message(&mut self, msg_type: EBaseUserMessages, msg: &[u8]) -> Result<()> {
+    fn on_base_user_message(
+        &mut self,
+        msg_type: EBaseUserMessages,
+        msg: &[u8],
+    ) -> Result<(), ParserError> {
         try_observers!(self, on_base_user_message(&self.context, msg_type, msg))
     }
 
-    fn on_base_game_event(&mut self, msg_type: EBaseGameEvents, msg: &[u8]) -> Result<()> {
+    fn on_base_game_event(
+        &mut self,
+        msg_type: EBaseGameEvents,
+        msg: &[u8],
+    ) -> Result<(), ParserError> {
         try_observers!(self, on_base_game_event(&self.context, msg_type, msg))
     }
 
-    fn on_dota_user_message(&mut self, msg_type: EDotaUserMessages, msg: &[u8]) -> Result<()> {
+    fn on_dota_user_message(
+        &mut self,
+        msg_type: EDotaUserMessages,
+        msg: &[u8],
+    ) -> Result<(), ParserError> {
         if msg_type == EDotaUserMessages::DotaUmCombatLogDataHltv {
             let entry = CMsgDotaCombatLogEntry::decode(msg)?;
             self.combat_log.push_back(entry);
@@ -401,11 +449,11 @@ impl<'a> Parser<'a> {
         try_observers!(self, on_dota_user_message(&self.context, msg_type, msg))
     }
 
-    pub(crate) fn on_tick_start(&mut self) -> Result<()> {
+    pub(crate) fn on_tick_start(&mut self) -> Result<(), ParserError> {
         try_observers!(self, on_tick_start(&self.context))
     }
 
-    pub(crate) fn on_tick_end(&mut self) -> Result<()> {
+    pub(crate) fn on_tick_end(&mut self) -> Result<(), ParserError> {
         if let Ok(names) = self.context.string_tables.get_by_name("CombatLogNames") {
             while let Some(entry) = self.combat_log.pop_front() {
                 let log = CombatLogEntry {
@@ -419,11 +467,11 @@ impl<'a> Parser<'a> {
         try_observers!(self, on_tick_end(&self.context))
     }
 
-    pub(crate) fn on_combat_log(&self, entry: &CombatLogEntry) -> Result<()> {
+    pub(crate) fn on_combat_log(&self, entry: &CombatLogEntry) -> Result<(), ParserError> {
         try_observers!(self, on_combat_log(&self.context, entry))
     }
 
-    fn dem_send_tables(&mut self, msg: &[u8]) -> Result<()> {
+    fn dem_send_tables(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let send_tables = CDemoSendTables::decode(msg)?;
         let mut reader = Reader::new(send_tables.data());
         let amount = reader.read_var_u32();
@@ -550,7 +598,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn dem_class_info(&mut self, msg: &[u8]) -> Result<()> {
+    fn dem_class_info(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let info = CDemoClassInfo::decode(msg)?;
         for class in info.classes {
             let class_id = class.class_id();
@@ -569,7 +617,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn dem_packet(&mut self, msg: &[u8]) -> Result<()> {
+    fn dem_packet(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let packet = CDemoPacket::decode(msg)?;
         let mut packet_reader = Reader::new(packet.data());
         while packet_reader.bytes_remaining() != 0 {
@@ -593,7 +641,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn dem_full_packet(&mut self, msg: &[u8]) -> Result<()> {
+    fn dem_full_packet(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let packet = CDemoFullPacket::decode(msg)?;
 
         if !self.processing_deltas {
@@ -613,7 +661,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn dem_string_tables(&mut self, msg: &[u8]) -> Result<()> {
+    fn dem_string_tables(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let cmd = CDemoStringTables::decode(msg)?;
         for table in cmd.tables.iter() {
             let mut x = self
@@ -644,7 +692,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn packet_entities(&mut self, msg: &[u8]) -> Result<()> {
+    fn packet_entities(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let packet = CsvcMsgPacketEntities::decode(msg)?;
         let mut entities_reader = Reader::new(packet.entity_data());
 
@@ -667,16 +715,17 @@ impl<'a> Parser<'a> {
             return Ok(());
         }
 
-        let throw_event = |ctx: &Context, index: u32, event: EntityEvents| -> Result<()> {
-            try_observers!(
-                self,
-                on_entity(
-                    ctx,
-                    event,
-                    ctx.entities.entities_vec[index as usize].as_ref().unwrap()
+        let throw_event =
+            |ctx: &Context, index: u32, event: EntityEvents| -> Result<(), ParserError> {
+                try_observers!(
+                    self,
+                    on_entity(
+                        ctx,
+                        event,
+                        ctx.entities.entities_vec[index as usize].as_ref().unwrap()
+                    )
                 )
-            )
-        };
+            };
 
         for _ in 0..updates {
             index = index.wrapping_add(entities_reader.read_ubit_var() + 1);
@@ -691,11 +740,7 @@ impl<'a> Parser<'a> {
 
                     entities_reader.read_var_u32();
 
-                    let class = self
-                        .context
-                        .classes
-                        .get_by_id_rc(class_id as usize)?
-                        .clone();
+                    let class = self.context.classes.get_by_id_rc(class_id as usize).clone();
 
                     if !self.context.baselines.states.contains_key(&class_id) {
                         self.context.baselines.read_baseline(&class)
@@ -757,7 +802,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn update_string_table(&mut self, msg: &[u8]) -> Result<()> {
+    fn update_string_table(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let table_msg = CsvcMsgUpdateStringTable::decode(msg)?;
         let mut table =
             self.context.string_tables.tables[table_msg.table_id() as usize].borrow_mut();
@@ -766,10 +811,12 @@ impl<'a> Parser<'a> {
             &mut self.context.baselines,
             table_msg.string_data(),
             table_msg.num_changed_entries(),
-        )
+        )?;
+
+        Ok(())
     }
 
-    fn create_string_table(&mut self, msg: &[u8]) -> Result<()> {
+    fn create_string_table(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let table_msg = CsvcMsgCreateStringTable::decode(msg)?;
 
         let mut table = StringTable {
@@ -808,7 +855,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn server_info(&mut self, msg: &[u8]) -> Result<()> {
+    fn server_info(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let info = CsvcMsgServerInfo::decode(msg)?;
         self.context.classes.class_id_size = (f64::log2(info.max_classes() as f64) + 1.0) as u32;
 
@@ -836,15 +883,25 @@ pub trait Observer {
         ctx: &Context,
         msg_type: EDemoCommands,
         msg: &[u8],
-    ) -> Result<()> {
+    ) -> crate::Result {
         Ok(())
     }
 
-    fn on_net_message(&mut self, ctx: &Context, msg_type: NetMessages, msg: &[u8]) -> Result<()> {
+    fn on_net_message(
+        &mut self,
+        ctx: &Context,
+        msg_type: NetMessages,
+        msg: &[u8],
+    ) -> crate::Result {
         Ok(())
     }
 
-    fn on_svc_message(&mut self, ctx: &Context, msg_type: SvcMessages, msg: &[u8]) -> Result<()> {
+    fn on_svc_message(
+        &mut self,
+        ctx: &Context,
+        msg_type: SvcMessages,
+        msg: &[u8],
+    ) -> crate::Result {
         Ok(())
     }
 
@@ -853,7 +910,7 @@ pub trait Observer {
         ctx: &Context,
         msg_type: EBaseUserMessages,
         msg: &[u8],
-    ) -> Result<()> {
+    ) -> crate::Result {
         Ok(())
     }
 
@@ -862,7 +919,7 @@ pub trait Observer {
         ctx: &Context,
         msg_type: EBaseGameEvents,
         msg: &[u8],
-    ) -> Result<()> {
+    ) -> crate::Result {
         Ok(())
     }
 
@@ -871,27 +928,27 @@ pub trait Observer {
         ctx: &Context,
         msg_type: EDotaUserMessages,
         msg: &[u8],
-    ) -> Result<()> {
+    ) -> crate::Result {
         Ok(())
     }
 
-    fn on_tick_start(&mut self, ctx: &Context) -> Result<()> {
+    fn on_tick_start(&mut self, ctx: &Context) -> crate::Result {
         Ok(())
     }
 
-    fn on_tick_end(&mut self, ctx: &Context) -> Result<()> {
+    fn on_tick_end(&mut self, ctx: &Context) -> crate::Result {
         Ok(())
     }
 
-    fn on_entity(&mut self, ctx: &Context, event: EntityEvents, entity: &Entity) -> Result<()> {
+    fn on_entity(&mut self, ctx: &Context, event: EntityEvents, entity: &Entity) -> crate::Result {
         Ok(())
     }
 
-    fn on_combat_log(&mut self, ctx: &Context, cle: &CombatLogEntry) -> Result<()> {
+    fn on_combat_log(&mut self, ctx: &Context, cle: &CombatLogEntry) -> crate::Result {
         Ok(())
     }
 
-    fn epilogue(&mut self, ctx: &Context) -> Result<()> {
+    fn epilogue(&mut self, ctx: &Context) -> crate::Result {
         Ok(())
     }
 }

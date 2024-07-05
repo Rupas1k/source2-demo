@@ -1,12 +1,22 @@
 use crate::parser::Baselines;
 use crate::reader::Reader;
-use anyhow::{anyhow, Context, Result};
 use hashbrown::HashMap;
 use prettytable::{row, Table};
 use std::cell::{Ref, RefCell};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
+#[derive(thiserror::Error, Debug)]
+pub enum StringTableError {
+    #[error("String table not found for the given id {0}")]
+    TableNotFoundById(i32),
+
+    #[error("String table not found for the given name {0}")]
+    TableNotFoundByName(String),
+
+    #[error("String table entry not found for the given index {0}")]
+    EntryNotFoundByIndex(i32),
+}
 #[derive(Default)]
 pub struct StringTables {
     pub(crate) tables: Vec<Rc<RefCell<StringTable>>>,
@@ -18,17 +28,17 @@ impl StringTables {
         self.tables.iter().map(|table| table.borrow())
     }
 
-    pub fn get_by_id(&self, id: usize) -> Result<Ref<StringTable>> {
+    pub fn get_by_id(&self, id: usize) -> Result<Ref<StringTable>, StringTableError> {
         self.tables
             .get(id)
-            .with_context(|| anyhow!("No string table for given id"))
+            .ok_or(StringTableError::TableNotFoundById(id as i32))
             .map(|table| table.borrow())
     }
 
-    pub fn get_by_name(&self, name: &str) -> Result<Ref<StringTable>> {
+    pub fn get_by_name(&self, name: &str) -> Result<Ref<StringTable>, StringTableError> {
         self.name_to_table
             .get(name)
-            .with_context(|| anyhow!("No string table for given name"))
+            .ok_or_else(|| StringTableError::TableNotFoundByName(name.to_string()))
             .map(|table| table.borrow())
     }
 }
@@ -83,10 +93,10 @@ impl StringTable {
         self.items.iter()
     }
 
-    pub fn get_entry_by_index(&self, idx: usize) -> Result<&StringTableEntry> {
+    pub fn get_entry_by_index(&self, idx: usize) -> Result<&StringTableEntry, StringTableError> {
         self.items
             .get(idx)
-            .with_context(|| anyhow!("No string table entry for given index {idx}"))
+            .ok_or(StringTableError::EntryNotFoundByIndex(idx as i32))
     }
 
     pub(crate) fn parse(
@@ -94,7 +104,7 @@ impl StringTable {
         baselines: &mut Baselines,
         buf: &[u8],
         num_updates: i32,
-    ) -> Result<()> {
+    ) -> Result<(), StringTableError> {
         let items = &mut self.items;
         let mut r = Reader::new(buf);
         let mut index = -1;
