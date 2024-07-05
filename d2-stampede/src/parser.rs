@@ -462,11 +462,11 @@ impl<'a> Parser<'a> {
             let serializer_name = fs.symbols[s.serializer_name_sym() as usize].clone();
             let mut serializer = Serializer::default();
 
-            for i in s.fields_index.iter() {
-                let current_field = &fs.fields[*i as usize];
+            for i in s.fields_index.iter().map(|x| *x as usize) {
+                let current_field = &fs.fields[i];
                 let field_serializer_name = resolve(current_field.field_serializer_name_sym);
 
-                if *i as usize >= fields.len() {
+                if i >= fields.len() {
                     let var_type_str = resolve(current_field.var_type_sym);
                     let current_field_serializer = self
                         .context
@@ -491,15 +491,11 @@ impl<'a> Parser<'a> {
                         high_value: current_field.high_value(),
                     };
 
-                    match var_name.as_ref() {
-                        "m_flSimulationTime" | "m_flAnimTime" => {
-                            properties.encoder = Some(Encoder::SimTime);
-                        }
-                        "m_flRuneTime" => {
-                            properties.encoder = Some(Encoder::RuneTime);
-                        }
-                        _ => {}
-                    }
+                    properties.encoder = match var_name.as_ref() {
+                        "m_flSimulationTime" | "m_flAnimTime" => Some(Encoder::SimTime),
+                        "m_flRuneTime" => Some(Encoder::RuneTime),
+                        _ => None,
+                    };
 
                     let model = if let Some(serializer) = current_field_serializer {
                         if field_type.pointer || pointer_types.contains(field_type.base.as_ref()) {
@@ -507,22 +503,26 @@ impl<'a> Parser<'a> {
                         } else {
                             FieldModel::VariableTable(serializer)
                         }
-                    } else if field_type.count.is_some()
-                        && field_type.count.unwrap() > 0
-                        && field_type.base.as_ref() != "char"
-                    {
-                        FieldModel::FixedArray
-                    } else if field_type.base.as_ref() == "CUtlVector"
-                        || field_type.base.as_ref() == "CNetworkUtlVectorBase"
-                    {
-                        FieldModel::VariableArray(Decoder::from_field(
-                            field_type.generic.as_ref().unwrap(),
-                            properties,
-                        ))
                     } else {
-                        FieldModel::Simple
-                    };
+                        let field_type_count = field_type.count.unwrap_or(0);
+                        let field_base = field_type.base.as_ref();
 
+                        if field_type_count > 0 && field_base != "char" {
+                            FieldModel::FixedArray
+                        } else if ["CUtlVector", "CNetworkUtlVectorBase"].contains(&field_base) {
+                            field_type
+                                .generic
+                                .as_ref()
+                                .map(|generic| {
+                                    FieldModel::VariableArray(Decoder::from_field(
+                                        generic, properties,
+                                    ))
+                                })
+                                .unwrap()
+                        } else {
+                            FieldModel::Simple
+                        }
+                    };
                     let decoder = match model {
                         FieldModel::Simple | FieldModel::FixedArray => {
                             Decoder::from_field(&field_type, properties)
@@ -541,7 +541,7 @@ impl<'a> Parser<'a> {
                     };
                     fields.push(Rc::new(field));
                 }
-                serializer.fields.push(fields[*i as usize].clone());
+                serializer.fields.push(fields[i].clone());
             }
             self.context
                 .serializers
