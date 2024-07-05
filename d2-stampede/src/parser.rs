@@ -9,6 +9,7 @@ use crate::proto::*;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTableEntry, StringTableError, StringTables};
+use crate::ObserverResult;
 use hashbrown::{HashMap, HashSet};
 use prettytable::{row, Table};
 use std::cell::RefCell;
@@ -19,9 +20,13 @@ use std::rc::Rc;
 
 macro_rules! try_observers {
     ($self:ident, $method:ident ( $($arg:expr),* )) => {
-        $self.observers
-            .iter()
-            .try_for_each(|obs| obs.borrow_mut().$method($($arg),*))
+        {
+            $self.observers
+                .iter()
+                .try_for_each(|obs| obs.borrow_mut().$method($($arg),*))?;
+
+            Ok(())
+        }
     };
 }
 
@@ -883,7 +888,7 @@ pub trait Observer {
         ctx: &Context,
         msg_type: EDemoCommands,
         msg: &[u8],
-    ) -> crate::Result {
+    ) -> ObserverResult {
         Ok(())
     }
 
@@ -892,7 +897,7 @@ pub trait Observer {
         ctx: &Context,
         msg_type: NetMessages,
         msg: &[u8],
-    ) -> crate::Result {
+    ) -> ObserverResult {
         Ok(())
     }
 
@@ -901,7 +906,7 @@ pub trait Observer {
         ctx: &Context,
         msg_type: SvcMessages,
         msg: &[u8],
-    ) -> crate::Result {
+    ) -> ObserverResult {
         Ok(())
     }
 
@@ -910,7 +915,7 @@ pub trait Observer {
         ctx: &Context,
         msg_type: EBaseUserMessages,
         msg: &[u8],
-    ) -> crate::Result {
+    ) -> ObserverResult {
         Ok(())
     }
 
@@ -919,7 +924,7 @@ pub trait Observer {
         ctx: &Context,
         msg_type: EBaseGameEvents,
         msg: &[u8],
-    ) -> crate::Result {
+    ) -> ObserverResult {
         Ok(())
     }
 
@@ -928,27 +933,27 @@ pub trait Observer {
         ctx: &Context,
         msg_type: EDotaUserMessages,
         msg: &[u8],
-    ) -> crate::Result {
+    ) -> ObserverResult {
         Ok(())
     }
 
-    fn on_tick_start(&mut self, ctx: &Context) -> crate::Result {
+    fn on_tick_start(&mut self, ctx: &Context) -> ObserverResult {
         Ok(())
     }
 
-    fn on_tick_end(&mut self, ctx: &Context) -> crate::Result {
+    fn on_tick_end(&mut self, ctx: &Context) -> ObserverResult {
         Ok(())
     }
 
-    fn on_entity(&mut self, ctx: &Context, event: EntityEvents, entity: &Entity) -> crate::Result {
+    fn on_entity(&mut self, ctx: &Context, event: EntityEvents, entity: &Entity) -> ObserverResult {
         Ok(())
     }
 
-    fn on_combat_log(&mut self, ctx: &Context, cle: &CombatLogEntry) -> crate::Result {
+    fn on_combat_log(&mut self, ctx: &Context, cle: &CombatLogEntry) -> ObserverResult {
         Ok(())
     }
 
-    fn epilogue(&mut self, ctx: &Context) -> crate::Result {
+    fn epilogue(&mut self, ctx: &Context) -> ObserverResult {
         Ok(())
     }
 }

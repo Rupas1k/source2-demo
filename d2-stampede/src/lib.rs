@@ -84,6 +84,7 @@ pub mod prelude {
     pub use crate::entity::{Entity, EntityEvents};
     pub use crate::field_value::FieldValue;
     pub use crate::parser::{Context, Observer, Parser};
+    pub use crate::ObserverResult;
     pub use crate::{property, try_property};
     pub use d2_stampede_protobufs::prost::Message;
 }
@@ -95,14 +96,26 @@ pub use crate::field_value::FieldValue;
 pub use crate::parser::{Context, Observer, Parser};
 pub use crate::string_table::{StringTable, StringTableEntry, StringTables};
 
+pub mod error {
+    pub use crate::class::ClassError;
+    pub use crate::combat_log::CombatLogError;
+    pub use crate::entity::EntityError;
+    pub use crate::field_value::FieldValueError;
+    pub use crate::parser::ParserError;
+    pub use crate::serializer::SerializerError;
+    pub use crate::string_table::StringTableError;
+}
+
 pub mod proto {
     pub use d2_stampede_protobufs::prost::Message;
     pub use d2_stampede_protobufs::*;
 }
 
-pub type Result = std::result::Result<(), ParserError>;
+pub use crate::parser::ParserError;
 
-use crate::parser::ParserError;
+pub type Result = std::result::Result<(), ParserError>;
+pub type ObserverResult = anyhow::Result<()>;
+
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
 

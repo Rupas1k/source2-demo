@@ -32,7 +32,7 @@ pub enum EntityError {
     #[error("No property found for name {0} ({1} {2})")]
     PropertyNameNotFound(String, String, String),
 
-    #[error("No property found for field path {0}")]
+    #[error(transparent)]
     FieldPathNotFound(#[from] SerializerError),
 #[derive(Default)]
 pub struct Entities {
