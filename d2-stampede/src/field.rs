@@ -54,7 +54,7 @@ impl Field {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
-pub enum Encoder {
+pub(crate) enum Encoder {
     Coord,
     SimTime,
     RuneTime,
@@ -79,7 +79,7 @@ impl Encoder {
 }
 
 #[derive(Clone, Copy)]
-pub struct FieldProperties {
+pub(crate) struct FieldProperties {
     pub encoder: Option<Encoder>,
     pub encoder_flags: i32,
     pub bit_count: i32,
@@ -87,7 +87,7 @@ pub struct FieldProperties {
     pub high_value: f32,
 }
 
-pub enum FieldModel {
+pub(crate) enum FieldModel {
     Simple,
     FixedArray,
     VariableArray(Decoder),
@@ -96,7 +96,7 @@ pub enum FieldModel {
 }
 
 #[derive(Clone, Debug)]
-pub enum StateType {
+pub(crate) enum StateType {
     Value(FieldValue),
     Vector(FieldVector),
 }
@@ -122,18 +122,18 @@ impl StateType {
 }
 
 #[derive(Clone, Debug)]
-pub struct FieldVector {
+pub(crate) struct FieldVector {
     pub(crate) state: Vec<StateType>,
 }
 
 impl FieldVector {
     #[inline]
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         FieldVector { state: vec![] }
     }
 
     #[inline]
-    pub fn get_value(&self, fp: &FieldPath) -> Option<&FieldValue> {
+    pub(crate) fn get_value(&self, fp: &FieldPath) -> Option<&FieldValue> {
         let mut current_state = self;
         for i in 0..fp.last {
             current_state = current_state
@@ -148,7 +148,7 @@ impl FieldVector {
     }
 
     #[inline]
-    pub fn get_field_vector(&self, fp: &FieldPath) -> Option<&FieldVector> {
+    pub(crate) fn get_field_vector(&self, fp: &FieldPath) -> Option<&FieldVector> {
         let mut current_state = self;
         for i in 0..fp.last {
             current_state = current_state
@@ -163,7 +163,7 @@ impl FieldVector {
     }
 
     #[inline]
-    pub fn set(&mut self, fp: &FieldPath, v: FieldValue) {
+    pub(crate) fn set(&mut self, fp: &FieldPath, v: FieldValue) {
         let mut current_state = self;
         for i in 0..=fp.last {
             let index = fp.path[i] as usize;
@@ -196,7 +196,7 @@ impl FieldVector {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct FieldPath {
+pub(crate) struct FieldPath {
     pub(crate) path: [u8; 7],
     pub(crate) last: usize,
 }
@@ -223,13 +223,13 @@ impl FieldPath {
     }
 
     #[inline]
-    pub fn push(&mut self, val: u8) {
+    pub(crate) fn push(&mut self, val: u8) {
         self.last += 1;
         self.path[self.last] = val;
     }
 
     #[inline]
-    pub fn pop(&mut self, n: usize) {
+    pub(crate) fn pop(&mut self, n: usize) {
         for _ in 0..n {
             self.path[self.last] = 0;
             self.last -= 1;
@@ -237,23 +237,23 @@ impl FieldPath {
     }
 
     #[inline]
-    pub fn inc(&mut self, n: usize, val: u8) {
+    pub(crate) fn inc(&mut self, n: usize, val: u8) {
         self.path[n] = self.path[n].wrapping_add(val)
     }
 
     #[inline]
-    pub fn sub(&mut self, n: usize, val: u8) {
+    pub(crate) fn sub(&mut self, n: usize, val: u8) {
         self.path[n] = self.path[n].wrapping_sub(val)
     }
 
     #[inline]
-    pub fn inc_curr(&mut self, val: u8) {
+    pub(crate) fn inc_curr(&mut self, val: u8) {
         self.path[self.last] = self.path[self.last].wrapping_add(val)
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct FieldType {
+pub(crate) struct FieldType {
     pub base: Box<str>,
     pub generic: Option<Box<FieldType>>,
     pub pointer: bool,
@@ -261,7 +261,7 @@ pub struct FieldType {
 }
 
 impl FieldType {
-    pub fn new(name: &str) -> Self {
+    pub(crate) fn new(name: &str) -> Self {
         let mut base_end = name.len();
         let mut pointer = false;
         let mut count = None;
