@@ -80,6 +80,7 @@ pub struct Parser<'a> {
     prologue_completed: bool,
     processing_deltas: bool,
 
+    initial_st: StringTables,
     context: Context,
 }
 
@@ -195,6 +196,7 @@ impl<'a> Parser<'a> {
             prologue_completed: false,
             start_offset: 0,
             processing_deltas: true,
+            initial_st: StringTables::default(),
 
             context: Context {
                 classes: Classes::default(),
@@ -255,6 +257,7 @@ impl<'a> Parser<'a> {
 
             if message.msg_type == EDemoCommands::DemSyncTick {
                 self.prologue_completed = true;
+                self.initial_st = self.context.string_tables.clone();
                 self.start_offset = offset;
                 break;
             }
@@ -291,6 +294,9 @@ impl<'a> Parser<'a> {
             self.context.tick = u32::MAX;
             self.context.net_tick = u32::MAX;
             self.reader.reset_to(self.start_offset);
+
+            self.context.entities.entities_vec.clear();
+            self.context.string_tables = self.initial_st.clone();
         }
 
         self.processing_deltas = false;
@@ -301,9 +307,14 @@ impl<'a> Parser<'a> {
         let mut last_fp_checked = false;
 
         while let Ok(mut message) = Self::read_message(&mut self.reader) {
-            let next_fp = self.context.last_full_packet_tick == u32::MAX
-                || (target_tick - self.context.last_full_packet_tick) > 1800;
             self.context.tick = message.tick;
+
+            if message.msg_type == EDemoCommands::DemFullPacket {
+                self.context.last_full_packet_tick = self.context.tick;
+            }
+
+            let next_fp = (target_tick - self.context.last_full_packet_tick) > 1800;
+
             if message.msg_type == EDemoCommands::DemFullPacket {
                 if next_fp && first_fp_checked {
                     message.msg_type = EDemoCommands::DemStringTables;
