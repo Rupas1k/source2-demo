@@ -313,7 +313,8 @@ impl<'a> Parser<'a> {
                 self.context.last_full_packet_tick = self.context.tick;
             }
 
-            let next_fp = (target_tick - self.context.last_full_packet_tick) > 1800;
+            let next_fp = self.context.last_full_packet_tick == u32::MAX
+                || (target_tick - self.context.last_full_packet_tick) > 1800;
 
             if message.msg_type == EDemoCommands::DemFullPacket {
                 if next_fp && first_fp_checked {
@@ -340,7 +341,7 @@ impl<'a> Parser<'a> {
                 self.processing_deltas = true;
             }
 
-            if self.context.tick >= target_tick {
+            if self.context.tick >= target_tick && first_fp_checked {
                 break;
             }
         }
