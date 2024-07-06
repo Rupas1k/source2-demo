@@ -2,7 +2,7 @@ use crate::parser::Baselines;
 use crate::reader::Reader;
 use hashbrown::HashMap;
 use prettytable::{row, Table};
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
@@ -17,29 +17,39 @@ pub enum StringTableError {
     #[error("String table entry not found for the given index {0} ({1})")]
     EntryNotFoundByIndex(i32, String),
 }
-#[derive(Default)]
+
+#[derive(Default, Clone)]
 pub struct StringTables {
-    pub(crate) tables: Vec<Rc<RefCell<StringTable>>>,
-    pub(crate) name_to_table: HashMap<Box<str>, Rc<RefCell<StringTable>>>,
+    pub(crate) tables: Vec<StringTable>,
+    pub(crate) name_to_table: HashMap<String, usize>,
 }
 
 impl StringTables {
-    pub fn iter(&self) -> impl Iterator<Item = Ref<StringTable>> {
-        self.tables.iter().map(|table| table.borrow())
+    pub fn iter(&self) -> impl Iterator<Item = &StringTable> {
+        self.tables.iter()
     }
 
-    pub fn get_by_id(&self, id: usize) -> Result<Ref<StringTable>, StringTableError> {
+    pub fn get_by_id(&self, id: usize) -> Result<&StringTable, StringTableError> {
         self.tables
             .get(id)
             .ok_or(StringTableError::TableNotFoundById(id as i32))
-            .map(|table| table.borrow())
     }
 
-    pub fn get_by_name(&self, name: &str) -> Result<Ref<StringTable>, StringTableError> {
+    pub fn get_by_name(&self, name: &str) -> Result<&StringTable, StringTableError> {
         self.name_to_table
             .get(name)
             .ok_or_else(|| StringTableError::TableNotFoundByName(name.to_string()))
-            .map(|table| table.borrow())
+            .map(|&idx| &self.tables[idx])
+    }
+
+    pub(crate) fn get_by_name_mut(
+        &mut self,
+        name: &str,
+    ) -> Result<&mut StringTable, StringTableError> {
+        self.name_to_table
+            .get(name)
+            .ok_or_else(|| StringTableError::TableNotFoundByName(name.to_string()))
+            .map(|&idx| self.tables.get_mut(idx).unwrap())
     }
 }
 

@@ -667,13 +667,10 @@ impl<'a> Parser<'a> {
     fn dem_string_tables(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let cmd = CDemoStringTables::decode(msg)?;
         for table in cmd.tables.iter() {
-            let mut x = self
+            let x = self
                 .context
                 .string_tables
-                .name_to_table
-                .get_mut(table.table_name())
-                .unwrap()
-                .borrow_mut();
+                .get_by_name_mut(table.table_name())?;
             if table.items.len() < x.items.len() {
                 return Ok(());
             }
@@ -807,8 +804,12 @@ impl<'a> Parser<'a> {
 
     fn update_string_table(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let table_msg = CsvcMsgUpdateStringTable::decode(msg)?;
-        let mut table =
-            self.context.string_tables.tables[table_msg.table_id() as usize].borrow_mut();
+        let table = self
+            .context
+            .string_tables
+            .tables
+            .get_mut(table_msg.table_id() as usize)
+            .unwrap();
 
         table.parse(
             &mut self.context.baselines,
@@ -848,12 +849,11 @@ impl<'a> Parser<'a> {
             )?;
         }
 
-        let rc = Rc::new(RefCell::new(table));
-        self.context.string_tables.tables.push(rc.clone());
         self.context
             .string_tables
             .name_to_table
-            .insert(rc.borrow().name.clone().into(), rc.clone());
+            .insert(table.name().into(), table.index as usize);
+        self.context.string_tables.tables.push(table);
 
         Ok(())
     }
