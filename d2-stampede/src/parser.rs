@@ -2,7 +2,7 @@ use crate::class::{Class, ClassError, Classes};
 use crate::combat_log::{CombatLogEntry, CombatLogError};
 use crate::decoder::Decoder;
 use crate::entity::{Entities, Entity, EntityError, EntityEvents};
-use crate::field::{Encoder, Field, FieldModel, FieldProperties, FieldType, FieldVector};
+use crate::field::{Encoder, Field, FieldModel, FieldProperties, FieldState, FieldType};
 use crate::field_reader::FieldReader;
 use crate::field_value::FieldValueError;
 use crate::proto::*;
@@ -88,7 +88,7 @@ pub struct Parser<'a> {
 pub(crate) struct Baselines {
     field_reader: FieldReader,
     baselines: HashMap<i32, Rc<Vec<u8>>>,
-    states: HashMap<i32, FieldVector>,
+    states: HashMap<i32, FieldState>,
 }
 
 impl Baselines {
@@ -97,7 +97,7 @@ impl Baselines {
     }
 
     pub(crate) fn read_baseline(&mut self, class: &Class) {
-        let mut state = FieldVector::new();
+        let mut state = FieldState::default();
         self.field_reader.read_fields(
             &mut Reader::new(&self.baselines[&class.id]),
             &class.serializer,

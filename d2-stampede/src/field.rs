@@ -13,16 +13,16 @@ pub(crate) struct Field {
 }
 
 impl Field {
-    pub fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldVector) -> Vec<FieldPath> {
+    pub fn get_field_paths(&self, fp: &mut FieldPath, st: &FieldState) -> Vec<FieldPath> {
         let mut vec: Vec<FieldPath> = vec![];
         match &self.model {
             FieldModel::Simple => {
                 vec.push(*fp);
             }
             FieldModel::FixedArray | FieldModel::VariableArray(_) => {
-                if let Some(s) = st.get_field_vector(fp) {
+                if let Some(s) = st.get_field_state(fp) {
                     fp.last += 1;
-                    for (i, _) in s.state.iter().enumerate() {
+                    for (i, _) in s.vec.iter().enumerate() {
                         fp.path[fp.last] = i as u8;
                         vec.push(*fp);
                     }
@@ -30,20 +30,18 @@ impl Field {
                 }
             }
             FieldModel::FixedTable(serializer) => {
-                if st.get_field_vector(fp).is_some() {
+                if st.get_field_state(fp).is_some() {
                     fp.last += 1;
                     vec.extend(serializer.get_field_paths(fp, st));
                     fp.last -= 1;
                 }
             }
             FieldModel::VariableTable(serializer) => {
-                if let Some(x) = st.get_field_vector(fp) {
+                if let Some(x) = st.get_field_state(fp) {
                     fp.last += 2;
-                    for (i, v) in x.state.iter().enumerate() {
-                        if let StateType::Vector(_) = v {
-                            fp.path[fp.last - 1] = i as u8;
-                            vec.extend(serializer.get_field_paths(fp, st));
-                        }
+                    for (i, v) in x.vec.iter().enumerate() {
+                        fp.path[fp.last - 1] = i as u8;
+                        vec.extend(serializer.get_field_paths(fp, st));
                     }
                     fp.last -= 2;
                 }
@@ -95,71 +93,33 @@ pub(crate) enum FieldModel {
     VariableTable(Rc<Serializer>),
 }
 
-#[derive(Clone, Debug)]
-pub(crate) enum StateType {
-    Value(FieldValue),
-    Vector(FieldVector),
+#[derive(Clone, Debug, Default)]
+pub(crate) struct FieldState {
+    pub(crate) vec: Vec<FieldState>,
+    pub(crate) value: Option<FieldValue>,
 }
 
-impl StateType {
-    #[inline]
-    pub fn as_field_vector(&self) -> Option<&FieldVector> {
-        if let StateType::Vector(x) = self {
-            Some(x)
-        } else {
-            None
-        }
-    }
-
-    #[inline]
-    pub fn as_value(&self) -> Option<&FieldValue> {
-        if let StateType::Value(x) = self {
-            Some(x)
-        } else {
-            None
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct FieldVector {
-    pub(crate) state: Vec<StateType>,
-}
-
-impl FieldVector {
-    #[inline]
-    pub(crate) fn new() -> Self {
-        FieldVector { state: vec![] }
-    }
-
+impl FieldState {
     #[inline]
     pub(crate) fn get_value(&self, fp: &FieldPath) -> Option<&FieldValue> {
         let mut current_state = self;
         for i in 0..fp.last {
-            current_state = current_state
-                .state
-                .get(fp.path[i] as usize)?
-                .as_field_vector()?;
+            current_state = current_state.vec.get(fp.path[i] as usize)?
         }
         current_state
-            .state
+            .vec
             .get(fp.path[fp.last] as usize)?
-            .as_value()
+            .value
+            .as_ref()
     }
 
     #[inline]
-    pub(crate) fn get_field_vector(&self, fp: &FieldPath) -> Option<&FieldVector> {
+    pub(crate) fn get_field_state(&self, fp: &FieldPath) -> Option<&FieldState> {
         let mut current_state = self;
         for i in 0..fp.last {
-            current_state = current_state
-                .state
-                .get(fp.path[i] as usize)?
-                .as_field_vector()?;
+            current_state = current_state.vec.get(fp.path[i] as usize)?;
         }
-        current_state
-            .state
-            .get(fp.path[fp.last] as usize)?
-            .as_field_vector()
+        current_state.vec.get(fp.path[fp.last] as usize)
     }
 
     #[inline]
@@ -167,31 +127,14 @@ impl FieldVector {
         let mut current_state = self;
         for i in 0..=fp.last {
             let index = fp.path[i] as usize;
-            if current_state.state.len() <= index {
+            if current_state.vec.len() <= index {
                 current_state
-                    .state
-                    .resize_with(index + 1, || StateType::Vector(FieldVector::new()))
+                    .vec
+                    .resize_with(index + 1, FieldState::default)
             }
-
-            if i == fp.last {
-                current_state.state[index] = StateType::Value(v);
-                return;
-            }
-
-            match &mut current_state.state[index] {
-                StateType::Value(_) => {
-                    current_state.state[index] = StateType::Vector(FieldVector::new());
-                }
-                StateType::Vector(_) => {}
-            }
-
-            match &mut current_state.state[index] {
-                StateType::Vector(x) => {
-                    current_state = x;
-                }
-                _ => unreachable!(),
-            }
+            current_state = &mut current_state.vec[index];
         }
+        current_state.value = Some(v);
     }
 }
 

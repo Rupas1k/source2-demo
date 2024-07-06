@@ -1,5 +1,5 @@
 use crate::decoder::Decoder;
-use crate::field::{Field, FieldModel, FieldPath, FieldType, FieldVector};
+use crate::field::{Field, FieldModel, FieldPath, FieldState, FieldType};
 use hashbrown::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -174,7 +174,7 @@ impl Serializer {
     pub(crate) fn get_field_paths<'a>(
         &'a self,
         fp: &'a mut FieldPath,
-        st: &'a FieldVector,
+        st: &'a FieldState,
     ) -> Vec<FieldPath> {
         self.fields
             .iter()

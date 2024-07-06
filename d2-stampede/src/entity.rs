@@ -75,11 +75,11 @@ pub struct Entity {
     index: u32,
     serial: u32,
     pub(crate) class: Rc<Class>,
-    pub(crate) state: FieldVector,
+    pub(crate) state: FieldState,
 }
 
 impl Entity {
-    pub(crate) fn new(index: u32, serial: u32, class: Rc<Class>, state: FieldVector) -> Self {
+    pub(crate) fn new(index: u32, serial: u32, class: Rc<Class>, state: FieldState) -> Self {
         Entity {
             index,
             serial,
