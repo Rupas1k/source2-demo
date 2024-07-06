@@ -114,9 +114,9 @@ impl Entity {
     ) -> Result<&FieldValue, EntityError> {
         self.state.get_value(fp).ok_or_else(|| {
             EntityError::PropertyNameNotFound(
-                fp.to_string(),
+                self.class.serializer.get_name_for_field_path(fp),
                 self.class.name().to_string(),
-                self.class.id().to_string(),
+                format!("{}", fp),
             )
         })
     }
