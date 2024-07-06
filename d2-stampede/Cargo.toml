@@ -6,6 +6,7 @@ repository = "https://github.com/Rupas1k/d2-stampede"
 authors = ["Artem Rupasov <artemrupasov125@gmail.com>"]
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
+categories = ["parsing"]
 edition = "2021"
 
 [lib]
