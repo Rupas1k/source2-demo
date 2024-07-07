@@ -470,12 +470,8 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn on_tick_end(&mut self) -> Result<(), ParserError> {
         if let Ok(names) = self.context.string_tables.get_by_name("CombatLogNames") {
-            while let Some(entry) = self.combat_log.pop_front() {
-                let log = CombatLogEntry {
-                    names: &names,
-                    log: entry,
-                };
-                self.on_combat_log(&log)?;
+            while let Some(log) = self.combat_log.pop_front() {
+                self.on_combat_log(&CombatLogEntry { names, log })?;
             }
         }
 
