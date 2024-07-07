@@ -1,3 +1,4 @@
+#![doc = include_str!("../../README.md")]
 mod class;
 mod combat_log;
 mod decoder;
