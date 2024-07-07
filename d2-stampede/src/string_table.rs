@@ -15,7 +15,7 @@ pub enum StringTableError {
     TableNotFoundByName(String),
 
     #[error("String table entry not found for the given index {0} ({1})")]
-    EntryNotFoundByIndex(i32, String),
+    RowNotFoundByIndex(i32, String),
 }
 
 #[derive(Default, Clone)]
@@ -54,15 +54,15 @@ impl StringTables {
 }
 
 #[derive(Clone, Default)]
-pub struct StringTableEntry {
+pub struct StringTableRow {
     pub(crate) index: i32,
     pub(crate) key: String,
     pub(crate) value: Option<Rc<Vec<u8>>>,
 }
 
-impl StringTableEntry {
+impl StringTableRow {
     pub(crate) fn new(index: i32, key: String, value: Option<Rc<Vec<u8>>>) -> Self {
-        StringTableEntry { index, key, value }
+        StringTableRow { index, key, value }
     }
 
     pub fn index(&self) -> i32 {
@@ -82,7 +82,7 @@ impl StringTableEntry {
 pub struct StringTable {
     pub(crate) index: i32,
     pub(crate) name: String,
-    pub(crate) items: Vec<StringTableEntry>,
+    pub(crate) items: Vec<StringTableRow>,
     pub(crate) user_data_fixed_size: bool,
     pub(crate) user_data_size: i32,
     pub(crate) flags: u32,
@@ -99,14 +99,14 @@ impl StringTable {
         &self.name
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &StringTableEntry> {
+    pub fn iter(&self) -> impl Iterator<Item = &StringTableRow> {
         self.items.iter()
     }
 
-    pub fn get_entry_by_index(&self, idx: usize) -> Result<&StringTableEntry, StringTableError> {
+    pub fn get_row_by_index(&self, idx: usize) -> Result<&StringTableRow, StringTableError> {
         self.items
             .get(idx)
-            .ok_or(StringTableError::EntryNotFoundByIndex(
+            .ok_or(StringTableError::RowNotFoundByIndex(
                 idx as i32,
                 self.name.clone(),
             ))
@@ -189,7 +189,7 @@ impl StringTable {
                 }
                 x.value = value;
             } else {
-                items.push(StringTableEntry::new(index, key.unwrap(), value));
+                items.push(StringTableRow::new(index, key.unwrap(), value));
             }
         }
 

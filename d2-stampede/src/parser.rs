@@ -8,7 +8,7 @@ use crate::field_value::FieldValueError;
 use crate::proto::*;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
-use crate::string_table::{StringTable, StringTableEntry, StringTableError, StringTables};
+use crate::string_table::{StringTable, StringTableError, StringTableRow, StringTables};
 use crate::ObserverResult;
 use hashbrown::{HashMap, HashSet};
 use prettytable::{row, Table};
@@ -683,7 +683,7 @@ impl<'a> Parser<'a> {
                 return Ok(());
             }
             x.items
-                .resize_with(table.items.len(), StringTableEntry::default);
+                .resize_with(table.items.len(), StringTableRow::default);
             for (i, item) in table.items.iter().enumerate() {
                 x.items[i].index = i as i32;
                 x.items[i].key = item.str().to_string();
