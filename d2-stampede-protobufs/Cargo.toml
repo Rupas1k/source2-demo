@@ -3,9 +3,8 @@ name = "d2-stampede-protobufs"
 description = "Dota 2 Protobufs"
 version = "0.1.0"
 edition = "2021"
-authors = [
-    "Artem Rupasov <artemrupasov125@gmail.com>"
-]
+repository = "https://github.com/Rupas1k/d2-stampede"
+authors = ["Artem Rupasov <artemrupasov125@gmail.com>"]
 license = "MIT OR Apache-2.0"
 build = "build.rs"
 exclude = ["protos/*"]
@@ -14,8 +13,8 @@ exclude = ["protos/*"]
 path = "./lib.rs"
 
 [build-dependencies]
-prost-build = "0.12.6"
+prost-build = "0.12"
 
 [dependencies]
-serde = { version = "1.0.203", features = ["derive"] }
-prost = { version = "0.12.6" }
+serde = { version = "1", features = ["derive"] }
+prost = { version = "0.12" }

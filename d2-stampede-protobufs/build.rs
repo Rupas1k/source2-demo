@@ -5,8 +5,8 @@ fn main() -> std::io::Result<()> {
         .unwrap_or(false);
     if update {
         let mut config = prost_build::Config::new();
-        config.out_dir("./generated");
-        config.default_package_filename("proto");
+        config.out_dir(".");
+        config.default_package_filename("generated");
         config.type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]");
         config.compile_protos(
             &[

@@ -1,5 +1,5 @@
 mod generated;
 
-pub use generated::proto::*;
+pub use generated::*;
 
 pub use prost;
