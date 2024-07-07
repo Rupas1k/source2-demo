@@ -45,7 +45,7 @@ impl GameTime {
 }
 
 impl Observer for GameTime {
-    fn on_tick_start(&mut self, ctx: &Context) -> Result<()> {
+    fn on_tick_start(&mut self, ctx: &Context) -> ObserverResult {
         if self.start_time.is_none() {
             if let Ok(game_rules) = ctx.entities().get_by_class_name("CDOTAGamerulesProxy") {
                 let start_time: f32 = game_rules
@@ -63,7 +63,7 @@ impl Observer for GameTime {
 
 #[allow(unused_variables)]
 pub trait GameTimeObserver {
-    fn on_game_started(&mut self, ctx: &Context, start_time: f32) -> Result<()> {
+    fn on_game_started(&mut self, ctx: &Context, start_time: f32) -> ObserverResult {
         Ok(())
     }
 }

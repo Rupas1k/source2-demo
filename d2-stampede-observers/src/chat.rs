@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -23,18 +22,18 @@ impl Observer for Chat {
         ctx: &Context,
         msg_type: EDotaUserMessages,
         msg: &[u8],
-    ) -> Result<()> {
+    ) -> ObserverResult {
         match msg_type {
             EDotaUserMessages::DotaUmChatEvent => {
-                let chat_event = CdotaUserMsgChatEvent::decode(msg)?;
+                let chat_event = CDotaUserMsgChatEvent::decode(msg)?;
                 try_observers!(self, on_chat_event(ctx, &chat_event))
             }
             EDotaUserMessages::DotaUmChatMessage => {
-                let chat_msg = CdotaUserMsgChatMessage::decode(msg)?;
+                let chat_msg = CDotaUserMsgChatMessage::decode(msg)?;
                 try_observers!(self, on_all_chat_message(ctx, &chat_msg))
             }
             EDotaUserMessages::DotaUmChatWheel => {
-                let chat_wheel = CdotaUserMsgChatWheel::decode(msg)?;
+                let chat_wheel = CDotaUserMsgChatWheel::decode(msg)?;
                 try_observers!(self, on_chat_wheel(ctx, &chat_wheel))
             }
             _ => Ok(()),
@@ -44,19 +43,19 @@ impl Observer for Chat {
 
 #[allow(unused_variables)]
 pub trait ChatObserver {
-    fn on_chat_event(&mut self, ctx: &Context, event: &CdotaUserMsgChatEvent) -> Result<()> {
+    fn on_chat_event(&mut self, ctx: &Context, event: &CDotaUserMsgChatEvent) -> ObserverResult {
         Ok(())
     }
 
     fn on_all_chat_message(
         &mut self,
         ctx: &Context,
-        event: &CdotaUserMsgChatMessage,
-    ) -> Result<()> {
+        event: &CDotaUserMsgChatMessage,
+    ) -> ObserverResult {
         Ok(())
     }
 
-    fn on_chat_wheel(&mut self, ctx: &Context, event: &CdotaUserMsgChatWheel) -> Result<()> {
+    fn on_chat_wheel(&mut self, ctx: &Context, event: &CDotaUserMsgChatWheel) -> ObserverResult {
         Ok(())
     }
 }

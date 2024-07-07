@@ -1,4 +1,3 @@
-use anyhow::Result;
 use d2_stampede::prelude::*;
 use d2_stampede::proto::*;
 use std::cell::RefCell;
@@ -18,7 +17,7 @@ impl GameState {
 }
 
 impl Observer for GameState {
-    fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLogEntry) -> Result<()> {
+    fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLogEntry) -> ObserverResult {
         if combat_log.type_() == DotaCombatlogTypes::DotaCombatlogGameState {
             let state = DotaGameState::try_from(combat_log.value()? as i32)?;
             try_observers!(self, on_game_state_change(ctx, state))?;
@@ -39,19 +38,23 @@ impl Observer for GameState {
 
 #[allow(unused_variables)]
 pub trait GameStateObserver {
-    fn on_game_state_change(&mut self, ctx: &Context, new_state: DotaGameState) -> Result<()> {
+    fn on_game_state_change(
+        &mut self,
+        ctx: &Context,
+        new_state: DotaGameState,
+    ) -> d2_stampede::Result {
         Ok(())
     }
 
-    fn on_pregame(&mut self, ctx: &Context) -> Result<()> {
+    fn on_pregame(&mut self, ctx: &Context) -> d2_stampede::Result {
         Ok(())
     }
 
-    fn on_game_start(&mut self, ctx: &Context) -> Result<()> {
+    fn on_game_start(&mut self, ctx: &Context) -> d2_stampede::Result {
         Ok(())
     }
 
-    fn on_postgame(&mut self, ctx: &Context) -> Result<()> {
+    fn on_postgame(&mut self, ctx: &Context) -> d2_stampede::Result {
         Ok(())
     }
 }

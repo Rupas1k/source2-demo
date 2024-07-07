@@ -1,4 +1,3 @@
-use anyhow::Result;
 use hashbrown::{HashMap, HashSet};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -53,7 +52,7 @@ pub struct Players {
 }
 
 impl Players {
-    fn init(&mut self, ctx: &Context) -> Result<()> {
+    fn init(&mut self, ctx: &Context) -> ObserverResult {
         if let Ok(pr) = ctx.entities().get_by_class_name("CDOTA_PlayerResource") {
             self.players = vec![];
             self.steam_id_to_player = HashMap::default();
@@ -90,14 +89,14 @@ impl Players {
 
             self.init = true;
 
-            try_observers!(self, on_players_init(ctx))?;
+            return try_observers!(self, on_players_init(ctx));
         }
         Ok(())
     }
 }
 
 impl Observer for Players {
-    fn on_tick_start(&mut self, ctx: &Context) -> Result<()> {
+    fn on_tick_start(&mut self, ctx: &Context) -> ObserverResult {
         if !self.init
             && self.pre_game_tick.is_some()
             && (self.pre_game_tick.unwrap() + 30) < ctx.tick()
@@ -107,7 +106,7 @@ impl Observer for Players {
         Ok(())
     }
 
-    fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLogEntry) -> Result<()> {
+    fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLogEntry) -> ObserverResult {
         if self.pre_game_tick.is_none()
             && combat_log.type_() == DotaCombatlogTypes::DotaCombatlogGameState
             && combat_log.value()? == DotaGameState::DotaGamerulesStatePreGame as u32
@@ -120,7 +119,7 @@ impl Observer for Players {
 
 #[allow(unused_variables)]
 pub trait PlayersObserver {
-    fn on_players_init(&self, ctx: &Context) -> Result<()> {
+    fn on_players_init(&self, ctx: &Context) -> ObserverResult {
         Ok(())
     }
 }

@@ -1,4 +1,3 @@
-use anyhow::bail;
 use hashbrown::HashMap;
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -22,19 +21,19 @@ pub enum WardEvent {
 }
 
 impl WardClass {
-    fn from_target_name(value: &str) -> d2_stampede::Result<Self> {
+    fn from_target_name(value: &str) -> Option<Self> {
         match value {
-            "npc_dota_observer_wards" => Ok(WardClass::Observer),
-            "npc_dota_sentry_wards" => Ok(WardClass::Sentry),
-            _ => bail!(""),
+            "npc_dota_observer_wards" => Some(WardClass::Observer),
+            "npc_dota_sentry_wards" => Some(WardClass::Sentry),
+            _ => None,
         }
     }
 
-    fn from_class_name(value: &str) -> d2_stampede::Result<Self> {
+    fn from_class_name(value: &str) -> Option<Self> {
         match value {
-            "CDOTA_NPC_Observer_Ward" => Ok(WardClass::Observer),
-            "CDOTA_NPC_Observer_Ward_TrueSight" => Ok(WardClass::Sentry),
-            _ => bail!(""),
+            "CDOTA_NPC_Observer_Ward" => Some(WardClass::Observer),
+            "CDOTA_NPC_Observer_Ward_TrueSight" => Some(WardClass::Sentry),
+            _ => None,
         }
     }
 }
@@ -76,7 +75,7 @@ impl Default for Wards {
 
 #[allow(unused_variables)]
 impl Observer for Wards {
-    fn on_tick_end(&mut self, ctx: &Context) -> d2_stampede::Result<()> {
+    fn on_tick_end(&mut self, ctx: &Context) -> ObserverResult {
         while let Some(ev) = self.pending_events.pop_front() {
             let old_state = *self.current_life_state.get(&ev.entity_idx).unwrap_or(&2);
             let new_state = ev.life_state;
@@ -86,9 +85,10 @@ impl Observer for Wards {
                     .get_by_index(ev.entity_idx as usize)?
                     .class()
                     .name(),
-            )?;
+            )
+            .unwrap();
 
-            let event = |event: WardEvent| -> d2_stampede::Result<()> {
+            let event = |event: WardEvent| -> ObserverResult {
                 try_observers!(
                     self,
                     on_ward(
@@ -119,14 +119,9 @@ impl Observer for Wards {
         Ok(())
     }
 
-    fn on_entity(
-        &mut self,
-        ctx: &Context,
-        event: EntityEvents,
-        entity: &Entity,
-    ) -> d2_stampede::Result<()> {
+    fn on_entity(&mut self, ctx: &Context, event: EntityEvents, entity: &Entity) -> ObserverResult {
         if event == EntityEvents::Created
-            && WardClass::from_class_name(entity.class().name()).is_ok()
+            && WardClass::from_class_name(entity.class().name()).is_some()
         {
             if let Ok(life_state) = entity.get_property_by_name("m_lifeState") {
                 self.current_life_state.remove(&entity.index());
@@ -150,27 +145,23 @@ impl Observer for Wards {
         Ok(())
     }
 
-    fn on_combat_log(
-        &mut self,
-        ctx: &Context,
-        combat_log: &CombatLogEntry,
-    ) -> d2_stampede::Result<()> {
+    fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLogEntry) -> ObserverResult {
         if combat_log.type_() == DotaCombatlogTypes::DotaCombatlogDeath
             && combat_log.target_name().is_ok()
-            && WardClass::from_target_name(combat_log.target_name()?).is_ok()
+            && WardClass::from_target_name(combat_log.target_name()?).is_some()
         {
             if let (Ok(killer), Ok(attacker)) =
                 (combat_log.damage_source_name(), combat_log.attacker_name())
             {
-                if WardClass::from_target_name(attacker).is_err() {
+                if WardClass::from_target_name(attacker).is_some() {
                     self.killers
-                        .get_mut(&WardClass::from_target_name(combat_log.target_name()?)?)
+                        .get_mut(&WardClass::from_target_name(combat_log.target_name()?).unwrap())
                         .unwrap()
                         .push_back(killer.into());
                 }
             } else {
                 self.killers
-                    .get_mut(&WardClass::from_target_name(combat_log.target_name()?)?)
+                    .get_mut(&WardClass::from_target_name(combat_log.target_name()?).unwrap())
                     .unwrap()
                     .push_back(combat_log.damage_source_name()?.into());
             }
@@ -178,7 +169,7 @@ impl Observer for Wards {
         Ok(())
     }
 
-    fn epilogue(&mut self, ctx: &Context) -> d2_stampede::Result<()> {
+    fn epilogue(&mut self, ctx: &Context) -> ObserverResult {
         self.current_life_state.iter().for_each(|state| {
             self.pending_events.push_back(PendingEvent {
                 entity_idx: *state.0,
@@ -197,7 +188,7 @@ pub trait WardsObserver {
         ward_class: WardClass,
         event: WardEvent,
         ward: &Entity,
-    ) -> d2_stampede::Result<()> {
+    ) -> ObserverResult {
         Ok(())
     }
 }
