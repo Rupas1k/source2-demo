@@ -1,5 +1,5 @@
 use crate::class::Class;
-use crate::field::{FieldPath, FieldVector};
+use crate::field::{FieldPath, FieldState};
 use crate::field_value::FieldValue;
 use crate::serializer::SerializerError;
 use prettytable::{row, Table};
@@ -35,16 +35,50 @@ pub enum EntityError {
     #[error(transparent)]
     FieldPathNotFound(#[from] SerializerError),
 }
+
+/// Container for entities. [`get_by_index`], [`get_by_handle`] can be used to
+/// find one or [`iter`] for advanced search over all existing entities.
+///
+/// # Examples
+///
+/// ```
+/// use d2_stampede::prelude::*;
+/// use d2_stampede::proto::*;
+///
+/// #[derive(Default)]
+/// struct MyObs;
+///
+/// impl Observer for MyObs {
+///     fn on_tick_start(&mut self, ctx: &Context) -> ObserverResult {
+///         let dire_heroes = ctx
+///             .entities()
+///             .iter()
+///             .filter(|&e| {
+///                 e.class().name().starts_with("CDOTA_Hero_Unit")
+///                     && try_property!(e, u32, "m_iTeamNum") == Some(3)
+///                     && try_property!(e, u32, "m_hReplicatingOtherHeroModel") == Some(u32::MAX)
+///             })
+///             .collect::<Vec<_>>();
+///         Ok(())
+///     }
+/// }
+/// ```
+///
+/// [`get_by_index`]: Entities::get_by_index
+/// [`get_by_handle`]: Entities::get_by_handle
+/// [`iter`]: Entities::iter
 #[derive(Default)]
 pub struct Entities {
     pub(crate) entities_vec: Vec<Option<Entity>>,
 }
 
 impl Entities {
+    /// Iterator over all entities.
     pub fn iter(&self) -> impl Iterator<Item = &Entity> {
         self.entities_vec.iter().flatten()
     }
 
+    /// Returns [`Entity`] for given index.
     pub fn get_by_index(&self, index: usize) -> Result<&Entity, EntityError> {
         self.entities_vec
             .get(index)
@@ -52,17 +86,20 @@ impl Entities {
             .ok_or(EntityError::IndexNotFound(index))
     }
 
+    /// Returns [`Entity`] for given handle.
     pub fn get_by_handle(&self, handle: usize) -> Result<&Entity, EntityError> {
         self.get_by_index(handle & 0x3fff)
             .map_err(|_| EntityError::HandleNotFound(handle))
     }
 
+    /// Returns [`Entity`] for given class id.
     pub fn get_by_class_id(&self, id: i32) -> Result<&Entity, EntityError> {
         self.iter()
             .find(|&entity| entity.class().id() == id)
             .ok_or(EntityError::ClassIdNotFound(id))
     }
 
+    /// Returns [`Entity`] for given class name.
     pub fn get_by_class_name(&self, name: &str) -> Result<&Entity, EntityError> {
         self.iter()
             .find(|&entity| entity.class().name() == name)
@@ -70,6 +107,7 @@ impl Entities {
     }
 }
 
+/// Representation of in-game entity.
 #[derive(Clone)]
 pub struct Entity {
     index: u32,
@@ -104,6 +142,39 @@ impl Entity {
         &self.class
     }
 
+    /// Returns [`FieldValue`] for given property name. You can also use
+    /// [`property!`] and [`try_property!`] macros.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use d2_stampede::prelude::*;
+    ///
+    /// #[derive(Default)]
+    /// struct MyObs;
+    ///
+    /// impl Observer for MyObs {
+    ///     fn on_entity(
+    ///         &mut self,
+    ///         ctx: &Context,
+    ///         event: EntityEvents,
+    ///         entity: &Entity,
+    ///     ) -> ObserverResult {
+    ///         let x: u8 = entity
+    ///             .get_property_by_name("CBodyComponent.m_cellX")?
+    ///             .try_into()?;
+    ///
+    ///         let y: u8 = property!(entity, "CBodyComponent.m_cellY");
+    ///
+    ///         let z = property!(entity, u8, "CBodyComponent.m_cellY");
+    ///
+    ///         Ok(())
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// [`property!`]: crate::property
+    /// [`try_property!`]: crate::try_property
     pub fn get_property_by_name(&self, name: &str) -> Result<&FieldValue, EntityError> {
         self.get_property_by_field_path(&self.class.serializer.get_field_path_for_name(name)?)
     }

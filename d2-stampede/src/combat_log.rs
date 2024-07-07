@@ -1,6 +1,7 @@
 use crate::proto::{CMsgDotaCombatLogEntry, DotaCombatlogTypes};
 use crate::string_table::StringTable;
 
+/// Wrapper for [`CMsgDotaCombatLogEntry`]
 #[derive(Clone)]
 pub struct CombatLogEntry<'a> {
     pub(crate) names: &'a StringTable,

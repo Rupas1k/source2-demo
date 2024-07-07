@@ -30,6 +30,7 @@ macro_rules! try_observers {
     };
 }
 
+/// Main error type in library
 #[derive(thiserror::Error, Debug)]
 pub enum ParserError {
     #[error(transparent)]
@@ -69,6 +70,7 @@ pub enum ParserError {
     WrongMagic,
 }
 
+/// Parser instance.
 pub struct Parser<'a> {
     reader: Reader<'a>,
     field_reader: FieldReader,
@@ -108,6 +110,8 @@ impl Baselines {
     }
 }
 
+/// Current replay state.
+#[derive(Default)]
 pub struct Context {
     pub(crate) classes: Classes,
     pub(crate) entities: Entities,
@@ -175,6 +179,7 @@ struct OuterMessage {
 }
 
 impl<'a> Parser<'a> {
+    /// Creates new instance of parser and performs validation of replay file.
     pub fn new(replay: &'a [u8]) -> Result<Self, ParserError> {
         let baselines = Baselines::default();
 
@@ -217,7 +222,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// Registers new observers and returns shared reference if you need it.
+    /// Registers new observers and returns shared reference of it.
     /// Observer struct must implement Observer and Default traits.
     pub fn register_observer<T>(&mut self) -> Rc<RefCell<T>>
     where
@@ -887,6 +892,9 @@ impl<'a> Parser<'a> {
     }
 }
 
+/// A trait defining methods for handling game events and protobuf messages. Can
+/// be attached to [`Parser`] instance with [`Parser::register_observer`]
+/// method.
 #[allow(unused_variables)]
 pub trait Observer {
     fn on_demo_command(

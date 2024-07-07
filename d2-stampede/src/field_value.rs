@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 /// Special type for [`Entity`] field value that can be converted into Rust type
-/// using `try_into` method.
+/// using `try_into`.
 ///
 /// [`Entity`]: crate::Entity
 #[derive(Debug, Clone, PartialEq)]

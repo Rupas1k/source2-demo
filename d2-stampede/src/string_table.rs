@@ -18,6 +18,7 @@ pub enum StringTableError {
     RowNotFoundByIndex(i32, String),
 }
 
+/// String tables container.
 #[derive(Default, Clone)]
 pub struct StringTables {
     pub(crate) tables: Vec<StringTable>,
@@ -25,16 +26,19 @@ pub struct StringTables {
 }
 
 impl StringTables {
+    /// Iterator over all string tables.
     pub fn iter(&self) -> impl Iterator<Item = &StringTable> {
         self.tables.iter()
     }
 
+    /// Returns [`StringTable`] for given id.
     pub fn get_by_id(&self, id: usize) -> Result<&StringTable, StringTableError> {
         self.tables
             .get(id)
             .ok_or(StringTableError::TableNotFoundById(id as i32))
     }
 
+    /// Returns [`StringTable`] for given name.
     pub fn get_by_name(&self, name: &str) -> Result<&StringTable, StringTableError> {
         self.name_to_table
             .get(name)
@@ -53,6 +57,7 @@ impl StringTables {
     }
 }
 
+/// String table row.
 #[derive(Clone, Default)]
 pub struct StringTableRow {
     pub(crate) index: i32,
@@ -99,10 +104,12 @@ impl StringTable {
         &self.name
     }
 
+    /// Iterator over string table rows.
     pub fn iter(&self) -> impl Iterator<Item = &StringTableRow> {
         self.items.iter()
     }
 
+    /// Returns [`StringTableRow`] for given index.
     pub fn get_row_by_index(&self, idx: usize) -> Result<&StringTableRow, StringTableError> {
         self.items
             .get(idx)

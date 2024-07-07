@@ -11,8 +11,13 @@ mod reader;
 mod serializer;
 mod string_table;
 
-/// Shortcut for getting property from [`core::Entity`]. Supports
-/// formatting. [`try_property`]
+/// Macro for getting property from [`Entity`].
+///
+/// # Examples
+/// ```no_compile
+/// let x: i32 = property!(entity, "property_name");
+/// let y = property!(entity, i32, "property_name");
+/// ```
 #[macro_export]
 macro_rules! property {
     ($ent:expr, $ty:ty, $fmt:literal, $($arg:tt)*) => {
@@ -35,6 +40,14 @@ macro_rules! property {
     }};
 }
 
+/// Same as [`property`] but returns `None` if property doesn't exist for given
+/// [`Entity`] or cannot be converted into given type.
+///
+/// # Examples
+/// ```no_compile
+/// let x: i32 = try_property!(entity, "property_name").unwrap_or_default();
+/// let y = try_property!(entity, i32, "property_name").unwrap_or_default();
+/// ```
 #[macro_export]
 macro_rules! try_property {
     ($ent:expr, $ty:ty, $fmt:expr, $($arg:tt)*) => {
@@ -95,7 +108,7 @@ pub use crate::combat_log::CombatLogEntry;
 pub use crate::entity::{Entities, Entity, EntityEvents};
 pub use crate::field_value::FieldValue;
 pub use crate::parser::{Context, Observer, Parser};
-pub use crate::string_table::{StringTable, StringTableEntry, StringTables};
+pub use crate::string_table::{StringTable, StringTableRow, StringTables};
 
 pub mod error {
     pub use crate::class::ClassError;
@@ -114,12 +127,11 @@ pub mod proto {
 
 pub use crate::parser::ParserError;
 
-pub type Result = std::result::Result<(), ParserError>;
+/// Result type for observers ([`anyhow::Result`])
 pub type ObserverResult = anyhow::Result<()>;
 
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
-
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;

@@ -4,9 +4,7 @@ use prettytable::{row, Table};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-/// [`Class`] container decoded from [`CDemoClassInfo`]
-///
-/// [`CDemoClassInfo`]: crate::proto::CDemoClassInfo
+/// Container for all classes.
 #[derive(Default)]
 pub struct Classes {
     pub(crate) classes_vec: Vec<Rc<Class>>,
@@ -28,10 +26,12 @@ impl Classes {
         &self.classes_vec[id]
     }
 
+    /// Iterator over all classes.
     pub fn iter(&self) -> impl Iterator<Item = &Class> {
         self.classes_vec.iter().map(|class| class.as_ref())
     }
 
+    /// Returns [`Class`] for given id
     pub fn get_by_id(&self, id: usize) -> Result<&Class, ClassError> {
         self.classes_vec
             .get(id)
@@ -39,6 +39,7 @@ impl Classes {
             .map(|class| class.as_ref())
     }
 
+    /// Returns [`Class`] for given name
     pub fn get_by_name(&self, name: &str) -> Result<&Class, ClassError> {
         self.classes_by_name
             .get(name)
@@ -47,6 +48,7 @@ impl Classes {
     }
 }
 
+/// Entity class
 #[derive(Clone)]
 pub struct Class {
     pub(crate) id: i32,
@@ -63,10 +65,14 @@ impl Class {
         }
     }
 
+    /// Returns name of entity class \
+    /// `entity.class().name()`
     pub fn name(&self) -> &str {
         self.name.as_ref()
     }
 
+    /// Returns id of entity class \
+    /// `entity.class().id()`
     pub fn id(&self) -> i32 {
         self.id
     }
