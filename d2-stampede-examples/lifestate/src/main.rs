@@ -2,27 +2,22 @@ use d2_stampede::prelude::*;
 use std::collections::HashMap;
 use std::io::Write;
 
-struct LifeStateObserver {
+struct LifeState {
     current_life_state: HashMap<u32, i32>,
     output: Box<dyn Write>,
 }
 
-impl Default for LifeStateObserver {
+impl Default for LifeState {
     fn default() -> Self {
-        LifeStateObserver {
+        LifeState {
             current_life_state: HashMap::default(),
             output: Box::new(std::io::stdout()),
         }
     }
 }
 
-impl Observer for LifeStateObserver {
-    fn on_entity(
-        &mut self,
-        ctx: &Context,
-        event: EntityEvents,
-        entity: &Entity,
-    ) -> d2_stampede::Result<()> {
+impl Observer for LifeState {
+    fn on_entity(&mut self, ctx: &Context, event: EntityEvents, entity: &Entity) -> ObserverResult {
         if EntityEvents::Created == event || EntityEvents::Updated == event {
             if let Ok(life_state) = entity.get_property_by_name("m_lifeState") {
                 let new_state: i32 = life_state.try_into()?;
@@ -82,7 +77,7 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     };
 
-    parser.register_observer::<LifeStateObserver>();
+    parser.register_observer::<LifeState>();
 
     let start = std::time::Instant::now();
 

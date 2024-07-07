@@ -2,14 +2,10 @@ use d2_stampede::prelude::*;
 use d2_stampede::proto::DotaCombatlogTypes;
 
 #[derive(Default)]
-struct CombatLogObserver;
+struct CombatLog;
 
-impl Observer for CombatLogObserver {
-    fn on_combat_log(
-        &mut self,
-        _ctx: &Context,
-        combat_log: &CombatLogEntry,
-    ) -> d2_stampede::Result<()> {
+impl Observer for CombatLog {
+    fn on_combat_log(&mut self, _ctx: &Context, combat_log: &CombatLogEntry) -> ObserverResult {
         let time = combat_log.timestamp()?;
         match combat_log.type_() {
             DotaCombatlogTypes::DotaCombatlogDamage => {
@@ -124,7 +120,7 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     };
 
-    parser.register_observer::<CombatLogObserver>();
+    parser.register_observer::<CombatLog>();
 
     let start = std::time::Instant::now();
 

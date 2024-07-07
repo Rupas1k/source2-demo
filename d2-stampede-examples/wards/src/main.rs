@@ -2,18 +2,16 @@ use d2_stampede::prelude::*;
 use d2_stampede_observers::wards::*;
 
 #[derive(Default)]
-struct MyObs;
+struct WardEvents;
 
-impl Observer for MyObs {}
-
-impl WardsObserver for MyObs {
+impl WardsObserver for WardEvents {
     fn on_ward(
         &mut self,
         ctx: &Context,
         ward_class: WardClass,
         event: WardEvent,
         ward: &Entity,
-    ) -> d2_stampede::Result<()> {
+    ) -> ObserverResult {
         println!(
             "{:06} Ward event: {:?} {:?} {:?}",
             ctx.tick(),
@@ -24,6 +22,8 @@ impl WardsObserver for MyObs {
         Ok(())
     }
 }
+
+impl Observer for WardEvents {}
 
 fn main() -> std::io::Result<()> {
     let args = std::env::args().collect::<Vec<_>>();
@@ -44,7 +44,7 @@ fn main() -> std::io::Result<()> {
     };
 
     let wards = parser.register_observer::<Wards>();
-    let app = parser.register_observer::<MyObs>();
+    let app = parser.register_observer::<WardEvents>();
     wards.borrow_mut().register_observer(app);
 
     let start = std::time::Instant::now();
