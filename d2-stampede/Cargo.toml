@@ -7,6 +7,7 @@ authors = ["Artem Rupasov <artemrupasov125@gmail.com>"]
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
 categories = ["parsing"]
+keywords = ["dota", "dota2", "replay", "parser"]
 edition = "2021"
 
 [lib]
