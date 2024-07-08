@@ -37,7 +37,7 @@ pub enum ParserError {
     ProtobufDecode(#[from] prost::DecodeError),
 
     #[error(transparent)]
-    SnapDecode(#[from] snap::Error),
+    SnapDecompress(#[from] snap::Error),
 
     #[error(transparent)]
     StringTable(#[from] StringTableError),
@@ -55,22 +55,15 @@ pub enum ParserError {
     CombatLog(#[from] CombatLogError),
 
     #[error(transparent)]
-    ParseInt(#[from] std::num::ParseIntError),
-
-    #[error(transparent)]
     ObserverError(#[from] anyhow::Error),
 
     #[error("Wrong CDemoFileInfo offset")]
     ReplayEncodingError,
 
-    #[error("End of file")]
-    Eof,
-
     #[error("Supports only Source 2 replays")]
     WrongMagic,
 }
 
-/// Parser instance.
 pub struct Parser<'a> {
     reader: Reader<'a>,
     field_reader: FieldReader,
@@ -242,7 +235,7 @@ impl<'a> Parser<'a> {
 
         let mut reader = Reader::new(&reader.buf[offset..]);
         Ok(CDemoFileInfo::decode(
-            Self::read_message(&mut reader)?.buf.as_slice(),
+            Self::read_message(&mut reader)?.unwrap().buf.as_slice(),
         )?)
     }
 
@@ -252,7 +245,7 @@ impl<'a> Parser<'a> {
         }
 
         let mut offset: usize = 16;
-        while let Ok(message) = Self::read_message(&mut self.reader) {
+        while let Some(message) = Self::read_message(&mut self.reader)? {
             self.context.tick = message.tick;
             self.on_tick_start()?;
             self.on_demo_command(message.msg_type, message.buf.as_slice())?;
@@ -279,7 +272,7 @@ impl<'a> Parser<'a> {
     pub fn run_to_end(&mut self) -> Result<(), ParserError> {
         self.prologue()?;
 
-        while let Ok(message) = Self::read_message(&mut self.reader) {
+        while let Some(message) = Self::read_message(&mut self.reader)? {
             self.context.tick = message.tick;
             self.on_tick_start()?;
             self.on_demo_command(message.msg_type, message.buf.as_slice())?;
@@ -311,7 +304,7 @@ impl<'a> Parser<'a> {
         let mut first_fp_checked = false;
         let mut last_fp_checked = false;
 
-        while let Ok(mut message) = Self::read_message(&mut self.reader) {
+        while let Some(mut message) = Self::read_message(&mut self.reader)? {
             self.context.tick = message.tick;
 
             if message.msg_type == EDemoCommands::DemFullPacket {
@@ -362,7 +355,7 @@ impl<'a> Parser<'a> {
 
         self.prologue()?;
 
-        while let Ok(message) = Self::read_message(&mut self.reader) {
+        while let Some(message) = Self::read_message(&mut self.reader)? {
             self.context.tick = message.tick;
             self.on_tick_start()?;
             self.on_demo_command(message.msg_type, message.buf.as_slice())?;
@@ -375,9 +368,9 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn read_message(reader: &mut Reader) -> Result<OuterMessage, ParserError> {
+    fn read_message(reader: &mut Reader) -> Result<Option<OuterMessage>, ParserError> {
         if reader.bytes_remaining() == 0 {
-            return Err(ParserError::Eof);
+            return Ok(None);
         }
 
         let start = reader.bytes_remaining();
@@ -399,12 +392,12 @@ impl<'a> Parser<'a> {
             reader.read_bytes(size)
         };
 
-        Ok(OuterMessage {
+        Ok(Some(OuterMessage {
             size: end + size as usize,
             msg_type,
             tick,
             buf,
-        })
+        }))
     }
 
     fn on_demo_command(&mut self, msg_type: EDemoCommands, msg: &[u8]) -> Result<(), ParserError> {
@@ -695,7 +688,7 @@ impl<'a> Parser<'a> {
                 x.items[i].value = Rc::new(item.data().to_vec()).into();
                 if table.table_name() == "instancebaseline" {
                     self.context.baselines.add_baseline(
-                        item.str().parse()?,
+                        item.str().parse().unwrap(),
                         x.items[i].value.as_ref().unwrap().clone(),
                     );
                 }
@@ -880,7 +873,7 @@ impl<'a> Parser<'a> {
             let start = start + "dota_v".len();
             if let Some(end) = game_dir[start..].find('/') {
                 let build_str = &game_dir[start..start + end];
-                let build = build_str.parse::<u32>()?;
+                let build = build_str.parse::<u32>().unwrap();
                 self.context.game_build = build;
             } else {
                 // bail!("Failed to parse build number: '{}'", game_dir);

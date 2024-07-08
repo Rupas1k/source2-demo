@@ -29,7 +29,7 @@ pub enum EntityError {
     #[error("No entities found for class with name {0}")]
     ClassNameNotFound(String),
 
-    #[error("No property found for name {0} ({1} {2})")]
+    #[error("No property found for name {0} (Class: {1}, FieldPath: {2})")]
     PropertyNameNotFound(String, String, String),
 
     #[error(transparent)]

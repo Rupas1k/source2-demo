@@ -14,9 +14,6 @@ pub(crate) struct Serializer {
 pub enum SerializerError {
     #[error("No field path for given name {0}")]
     NoFieldPath(String),
-
-    #[error("Failed to parse u8 from string slice")]
-    ParseU8Error(#[from] std::num::ParseIntError),
 }
 
 impl Serializer {
@@ -146,7 +143,7 @@ impl Serializer {
                         offset += f.var_name.len() + 1;
                         match &f.model {
                             FieldModel::FixedArray | FieldModel::VariableArray(_) => {
-                                fp.path[fp.last] = name[offset..].parse::<u8>()?;
+                                fp.path[fp.last] = name[offset..].parse::<u8>().unwrap();
                                 break 'outer;
                             }
                             FieldModel::FixedTable(serializer) => {
@@ -154,7 +151,8 @@ impl Serializer {
                                 continue 'outer;
                             }
                             FieldModel::VariableTable(serializer) => {
-                                fp.path[fp.last] = name[offset..(offset + 4)].parse::<u8>()?;
+                                fp.path[fp.last] =
+                                    name[offset..(offset + 4)].parse::<u8>().unwrap();
                                 fp.last += 1;
                                 offset += 5;
                                 current_serializer = serializer;
