@@ -11,7 +11,7 @@ keywords = ["dota", "dota2", "replay", "demo", "parser"]
 edition = "2021"
 
 [dependencies]
-d2-stampede-protobufs = "0.1"
+d2-stampede-protobufs = { version = "0.1", path = "../d2-stampede-protobufs" }
 snap = "1.1"
 bitter = "0.7"
 hashbrown = "0.14"
