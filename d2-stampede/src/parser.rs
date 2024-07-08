@@ -30,7 +30,7 @@ macro_rules! try_observers {
     };
 }
 
-/// Main error type in library
+/// Main error type
 #[derive(thiserror::Error, Debug)]
 pub enum ParserError {
     #[error(transparent)]
@@ -76,6 +76,8 @@ pub struct Parser<'a> {
     processing_deltas: bool,
 
     initial_st: StringTables,
+
+    replay_info: CDemoFileInfo,
     context: Context,
 }
 
@@ -109,7 +111,6 @@ pub struct Context {
     pub(crate) classes: Classes,
     pub(crate) entities: Entities,
     pub(crate) string_tables: StringTables,
-    pub(crate) replay_info: CDemoFileInfo,
 
     pub(crate) tick: u32,
 
@@ -132,10 +133,6 @@ impl Context {
 
     pub fn string_tables(&self) -> &StringTables {
         &self.string_tables
-    }
-
-    pub fn replay_info(&self) -> &CDemoFileInfo {
-        &self.replay_info
     }
 
     pub fn tick(&self) -> u32 {
@@ -184,7 +181,7 @@ impl<'a> Parser<'a> {
 
         reader.read_bytes(8);
 
-        let replay_info = Self::replay_info(&mut reader)?;
+        let replay_info = Self::parse_replay_info(&mut reader)?;
 
         Ok(Parser {
             reader,
@@ -195,13 +192,12 @@ impl<'a> Parser<'a> {
             start_offset: 0,
             processing_deltas: true,
             initial_st: StringTables::default(),
+            replay_info,
 
             context: Context {
                 classes: Classes::default(),
                 entities: Entities::default(),
                 string_tables: StringTables::default(),
-
-                replay_info,
 
                 tick: u32::MAX,
                 net_tick: u32::MAX,
@@ -226,7 +222,7 @@ impl<'a> Parser<'a> {
         rc.clone()
     }
 
-    fn replay_info(reader: &mut Reader) -> Result<CDemoFileInfo, ParserError> {
+    fn parse_replay_info(reader: &mut Reader) -> Result<CDemoFileInfo, ParserError> {
         let offset = u32::from_le_bytes(reader.buf[8..12].try_into().unwrap()) as usize;
 
         if reader.buf.len() < offset {
@@ -266,6 +262,10 @@ impl<'a> Parser<'a> {
 
     pub fn context(&self) -> &Context {
         &self.context
+    }
+
+    pub fn replay_info(&self) -> &CDemoFileInfo {
+        &self.replay_info
     }
 
     /// Moves to the end of replay. Last packet is [`CDemoFileInfo`].
