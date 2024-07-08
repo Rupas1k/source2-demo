@@ -7,7 +7,7 @@ authors = ["Artem Rupasov <artemrupasov125@gmail.com>"]
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
 categories = ["parsing"]
-keywords = ["dota", "dota2", "replay", "parser"]
+keywords = ["dota", "dota2", "replay", "demo", "parser"]
 edition = "2021"
 
 [lib]
@@ -19,8 +19,8 @@ d2-stampede-protobufs = { git = "https://github.com/Rupas1k/d2-stampede" }
 snap = "1.1"
 bitter = "0.7"
 hashbrown = "0.14"
-thiserror = "1"
-anyhow = "1"
+thiserror = "1.0"
+anyhow = "1.0"
 prettytable-rs = { version = "0.10", default-features = false }
 mimalloc = { version = "0.1", default-features = false, optional = true }
 
