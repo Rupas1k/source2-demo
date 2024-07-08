@@ -10,19 +10,15 @@ categories = ["parsing"]
 keywords = ["dota", "dota2", "replay", "demo", "parser"]
 edition = "2021"
 
-[lib]
-path = "src/lib.rs"
-
 [dependencies]
 d2-stampede-protobufs = "0.1"
-
 snap = "1.1"
 bitter = "0.7"
 hashbrown = "0.14"
 thiserror = "1.0"
 anyhow = "1.0"
 prettytable-rs = { version = "0.10", default-features = false }
-mimalloc = { version = "0.1", default-features = false, optional = true }
+mimalloc = { version = "0.1", optional = true }
 
 [features]
 default = ["mimalloc"]
