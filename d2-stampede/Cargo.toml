@@ -14,7 +14,7 @@ edition = "2021"
 path = "src/lib.rs"
 
 [dependencies]
-d2-stampede-protobufs = { git = "https://github.com/Rupas1k/d2-stampede" }
+d2-stampede-protobufs = "0.1"
 
 snap = "1.1"
 bitter = "0.7"
