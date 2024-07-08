@@ -7,6 +7,6 @@ edition = "2021"
 
 [dependencies]
 d2-stampede = { version = "0.1", path = "../../d2-stampede" }
-d2-stampede-observers = { git = "https://github.com/Rupas1k/d2-stampede" }
+d2-stampede-observers = { version = "0.1" }
 memmap2 = "0.9.4"
 anyhow = "1.0"
