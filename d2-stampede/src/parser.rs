@@ -381,7 +381,8 @@ impl<'a> Parser<'a> {
 
         let end = start - reader.bytes_remaining();
 
-        let msg_type = EDemoCommands::try_from(cmd & !(EDemoCommands::DemIsCompressed as i32))?;
+        let msg_type =
+            EDemoCommands::try_from(cmd & !(EDemoCommands::DemIsCompressed as i32)).unwrap();
         let msg_compressed = cmd & EDemoCommands::DemIsCompressed as i32 != 0;
 
         let buf = if msg_compressed {
@@ -415,7 +416,7 @@ impl<'a> Parser<'a> {
 
     fn on_net_message(&mut self, msg_type: NetMessages, msg: &[u8]) -> Result<(), ParserError> {
         if msg_type == NetMessages::NetTick {
-            self.context.net_tick = CnetMsgTick::decode(msg)?.tick();
+            self.context.net_tick = CNetMsgTick::decode(msg)?.tick();
         }
 
         try_observers!(self, on_net_message(&self.context, msg_type, msg))
@@ -486,7 +487,7 @@ impl<'a> Parser<'a> {
         let amount = reader.read_var_u32();
         let buf = reader.read_bytes(amount);
 
-        let fs = CsvcMsgFlattenedSerializer::decode(buf.as_slice())?;
+        let fs = CSvcMsgFlattenedSerializer::decode(buf.as_slice())?;
 
         let resolve = |p: Option<i32>| -> Box<str> {
             if let Some(i) = p {
@@ -699,7 +700,7 @@ impl<'a> Parser<'a> {
     }
 
     fn packet_entities(&mut self, msg: &[u8]) -> Result<(), ParserError> {
-        let packet = CsvcMsgPacketEntities::decode(msg)?;
+        let packet = CSvcMsgPacketEntities::decode(msg)?;
         let mut entities_reader = Reader::new(packet.entity_data());
 
         let updates = packet.updated_entries();
@@ -809,7 +810,7 @@ impl<'a> Parser<'a> {
     }
 
     fn update_string_table(&mut self, msg: &[u8]) -> Result<(), ParserError> {
-        let table_msg = CsvcMsgUpdateStringTable::decode(msg)?;
+        let table_msg = CSvcMsgUpdateStringTable::decode(msg)?;
         let table = self
             .context
             .string_tables
@@ -827,7 +828,7 @@ impl<'a> Parser<'a> {
     }
 
     fn create_string_table(&mut self, msg: &[u8]) -> Result<(), ParserError> {
-        let table_msg = CsvcMsgCreateStringTable::decode(msg)?;
+        let table_msg = CSvcMsgCreateStringTable::decode(msg)?;
 
         let mut table = StringTable {
             index: self.context.string_tables.tables.len() as i32,
@@ -865,7 +866,7 @@ impl<'a> Parser<'a> {
     }
 
     fn server_info(&mut self, msg: &[u8]) -> Result<(), ParserError> {
-        let info = CsvcMsgServerInfo::decode(msg)?;
+        let info = CSvcMsgServerInfo::decode(msg)?;
         self.context.classes.class_id_size = (f64::log2(info.max_classes() as f64) + 1.0) as u32;
 
         let game_dir = info.game_dir();
