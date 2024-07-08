@@ -1,8 +1,11 @@
 [package]
 name = "d2-stampede-observers"
-description = ""
+description = "Collection of observers for d2-stampede"
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/Rupas1k/d2-stampede"
+authors = ["Artem Rupasov <artemrupasov125@gmail.com>"]
+license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
