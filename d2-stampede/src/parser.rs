@@ -215,7 +215,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// Registers new observers and returns shared reference of it.
+    /// Registers new observer and returns `Rc<RefCell<T>>` of it.
     /// Observer struct must implement Observer and Default traits.
     pub fn register_observer<T>(&mut self) -> Rc<RefCell<T>>
     where

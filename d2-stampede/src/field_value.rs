@@ -1,9 +1,7 @@
 use std::fmt::{Display, Formatter};
 
-/// Special type for [`Entity`] field value that can be converted into Rust type
-/// using `try_into`.
-///
-/// [`Entity`]: crate::Entity
+/// Special type for [`Entity`](crate::Entity) field value that can be converted
+/// into Rust type using `try_into`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FieldValue {
     Boolean(bool),

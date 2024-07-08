@@ -57,7 +57,6 @@ impl StringTables {
     }
 }
 
-/// String table row.
 #[derive(Clone, Default)]
 pub struct StringTableRow {
     pub(crate) index: i32,

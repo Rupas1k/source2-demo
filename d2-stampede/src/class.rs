@@ -4,7 +4,7 @@ use prettytable::{row, Table};
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-/// Container for all classes.
+/// Container for classes.
 #[derive(Default)]
 pub struct Classes {
     pub(crate) classes_vec: Vec<Rc<Class>>,

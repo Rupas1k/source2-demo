@@ -36,37 +36,7 @@ pub enum EntityError {
     FieldPathNotFound(#[from] SerializerError),
 }
 
-/// Container for entities. [`get_by_index`], [`get_by_handle`] can be used to
-/// find one or [`iter`] for advanced search over all existing entities.
-///
-/// # Examples
-///
-/// ```
-/// use d2_stampede::prelude::*;
-/// use d2_stampede::proto::*;
-///
-/// #[derive(Default)]
-/// struct MyObs;
-///
-/// impl Observer for MyObs {
-///     fn on_tick_start(&mut self, ctx: &Context) -> ObserverResult {
-///         let dire_heroes = ctx
-///             .entities()
-///             .iter()
-///             .filter(|&e| {
-///                 e.class().name().starts_with("CDOTA_Hero_Unit")
-///                     && try_property!(e, u32, "m_iTeamNum") == Some(3)
-///                     && try_property!(e, u32, "m_hReplicatingOtherHeroModel") == Some(u32::MAX)
-///             })
-///             .collect::<Vec<_>>();
-///         Ok(())
-///     }
-/// }
-/// ```
-///
-/// [`get_by_index`]: Entities::get_by_index
-/// [`get_by_handle`]: Entities::get_by_handle
-/// [`iter`]: Entities::iter
+/// Container for entities.
 #[derive(Default)]
 pub struct Entities {
     pub(crate) entities_vec: Vec<Option<Entity>>,
@@ -74,6 +44,30 @@ pub struct Entities {
 
 impl Entities {
     /// Iterator over all entities.
+    /// # Examples
+    ///
+    /// ```
+    /// use d2_stampede::prelude::*;
+    /// use d2_stampede::proto::*;
+    ///
+    /// #[derive(Default)]
+    /// struct MyObs;
+    ///
+    /// impl Observer for MyObs {
+    ///     fn on_tick_start(&mut self, ctx: &Context) -> ObserverResult {
+    ///         let dire_heroes = ctx
+    ///             .entities()
+    ///             .iter()
+    ///             .filter(|&e| {
+    ///                 e.class().name().starts_with("CDOTA_Hero_Unit")
+    ///                     && try_property!(e, u32, "m_iTeamNum") == Some(3)
+    ///                     && try_property!(e, u32, "m_hReplicatingOtherHeroModel") == Some(u32::MAX)
+    ///             })
+    ///             .collect::<Vec<_>>();
+    ///         Ok(())
+    ///     }
+    /// }
+    /// ```
     pub fn iter(&self) -> impl Iterator<Item = &Entity> {
         self.entities_vec.iter().flatten()
     }
@@ -107,7 +101,6 @@ impl Entities {
     }
 }
 
-/// Representation of in-game entity.
 #[derive(Clone)]
 pub struct Entity {
     index: u32,
