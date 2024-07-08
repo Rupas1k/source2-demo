@@ -10,6 +10,6 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-d2-stampede = { version = "0.1", path = "../d2-stampede" }
+d2-stampede = { version = "0.1", path = "../d2-stampede", default-features = false }
 hashbrown = "0.14"
 anyhow = "1.0"
