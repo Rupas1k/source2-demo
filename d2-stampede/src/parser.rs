@@ -13,6 +13,7 @@ use crate::ObserverResult;
 use hashbrown::{HashMap, HashSet};
 use prettytable::{row, Table};
 use std::cell::RefCell;
+use std::cmp::min;
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::mem;
@@ -114,6 +115,7 @@ pub struct Context {
 
     pub(crate) tick: u32,
     pub(crate) previous_tick: u32,
+    pub(crate) last_tick: u32,
 
     pub(crate) net_tick: u32,
     pub(crate) game_build: u32,
@@ -183,6 +185,7 @@ impl<'a> Parser<'a> {
         reader.read_bytes(8);
 
         let replay_info = Self::parse_replay_info(&mut reader)?;
+        let last_tick = replay_info.playback_ticks() as u32;
 
         Ok(Parser {
             reader,
@@ -202,6 +205,7 @@ impl<'a> Parser<'a> {
 
                 tick: u32::MAX,
                 previous_tick: u32::MAX,
+                last_tick,
                 net_tick: u32::MAX,
                 last_full_packet_tick: u32::MAX,
 
@@ -284,8 +288,10 @@ impl<'a> Parser<'a> {
 
     /// Moves to target tick without calling observers and processing delta
     /// packets.
-    pub fn jump_to_tick(&mut self, target_tick: u32) -> Result<(), ParserError> {
+    pub fn jump_to_tick(&mut self, mut target_tick: u32) -> Result<(), ParserError> {
         self.prologue()?;
+
+        target_tick = min(target_tick, self.context.last_tick);
 
         if target_tick < self.context.tick {
             self.context.last_full_packet_tick = u32::MAX;
@@ -350,10 +356,12 @@ impl<'a> Parser<'a> {
     }
 
     /// Moves to target tick.
-    pub fn run_to_tick(&mut self, target_tick: u32) -> Result<(), ParserError> {
+    pub fn run_to_tick(&mut self, mut target_tick: u32) -> Result<(), ParserError> {
         assert!(target_tick > self.context.tick);
 
         self.prologue()?;
+
+        target_tick = min(target_tick, self.context.last_tick);
 
         while let Some(message) = Self::read_message(&mut self.reader)? {
             self.on_tick_start(message.tick)?;
@@ -725,13 +733,6 @@ impl<'a> Parser<'a> {
                 .entities
                 .entities_vec
                 .resize_with(packet.max_entries() as usize, || None);
-        }
-
-        if self.processing_deltas
-            && !packet.legacy_is_delta()
-            && self.context.last_full_packet_tick != u32::MAX
-        {
-            return Ok(());
         }
 
         let throw_event =
