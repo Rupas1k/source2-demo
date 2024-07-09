@@ -861,13 +861,11 @@ impl<'a> Parser<'a> {
             table_msg.string_data().into()
         };
 
-        if table.name != "decalprecache" {
-            table.parse(
-                &mut self.context.baselines,
-                buf.as_slice(),
-                table_msg.num_entries(),
-            )?;
-        }
+        table.parse(
+            &mut self.context.baselines,
+            buf.as_slice(),
+            table_msg.num_entries(),
+        )?;
 
         self.context
             .string_tables

@@ -195,7 +195,7 @@ impl StringTable {
                 }
                 x.value = value;
             } else {
-                items.push(StringTableRow::new(index, key.unwrap(), value));
+                items.push(StringTableRow::new(index, key.unwrap_or_default(), value));
             }
         }
 
