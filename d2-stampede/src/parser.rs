@@ -73,7 +73,7 @@ pub struct Parser<'a> {
     combat_log: VecDeque<CMsgDotaCombatLogEntry>,
 
     prologue_completed: bool,
-    processing_deltas: bool,
+    skip_deltas: bool,
 
     replay_info: CDemoFileInfo,
     last_tick: u32,
@@ -119,6 +119,23 @@ pub struct Context {
     baselines: Baselines,
     serializers: HashMap<Box<str>, Rc<Serializer>>,
     last_full_packet_tick: u32,
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Context {
+            classes: Classes::default(),
+            entities: Entities::default(),
+            string_tables: StringTables::default(),
+            tick: u32::MAX,
+            previous_tick: u32::MAX,
+            net_tick: u32::MAX,
+            game_build: 0,
+            baselines: Baselines::default(),
+            serializers: HashMap::default(),
+            last_full_packet_tick: u32::MAX,
+        }
+    }
 }
 
 impl Context {
@@ -169,8 +186,6 @@ struct OuterMessage {
 impl<'a> Parser<'a> {
     /// Creates new instance of parser and performs validation of replay file.
     pub fn new(replay: &'a [u8]) -> Result<Self, ParserError> {
-        let baselines = Baselines::default();
-
         let mut reader = Reader::new(replay);
 
         if replay.len() < 16 || reader.read_bytes(8) != b"PBDEMS2\0" {
@@ -188,25 +203,12 @@ impl<'a> Parser<'a> {
             observers: Vec::default(),
             combat_log: VecDeque::default(),
             prologue_completed: false,
-            processing_deltas: true,
+            skip_deltas: false,
+
             replay_info,
             last_tick,
 
-            context: Context {
-                classes: Classes::default(),
-                entities: Entities::default(),
-                string_tables: StringTables::default(),
-
-                tick: u32::MAX,
-                previous_tick: u32::MAX,
-                net_tick: u32::MAX,
-                last_full_packet_tick: u32::MAX,
-
-                game_build: 0,
-
-                baselines,
-                serializers: HashMap::default(),
-            },
+            context: Context::default(),
         })
     }
 
@@ -297,7 +299,7 @@ impl<'a> Parser<'a> {
 
         self.prologue()?;
 
-        self.processing_deltas = false;
+        self.skip_deltas = true;
         let observers = mem::take(&mut self.observers);
 
         let mut first_fp_checked = false;
@@ -336,7 +338,7 @@ impl<'a> Parser<'a> {
 
             if message.msg_type == EDemoCommands::DemFullPacket && !next_fp {
                 last_fp_checked = true;
-                self.processing_deltas = true;
+                self.skip_deltas = false;
             }
 
             if self.context.tick >= target_tick && first_fp_checked {
@@ -344,7 +346,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.processing_deltas = true;
+        self.skip_deltas = false;
         self.observers = observers;
 
         Ok(())
@@ -662,7 +664,7 @@ impl<'a> Parser<'a> {
     fn dem_full_packet(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let packet = CDemoFullPacket::decode(msg)?;
 
-        if self.context.last_full_packet_tick == u32::MAX || !self.processing_deltas {
+        if self.context.last_full_packet_tick == u32::MAX || self.skip_deltas {
             self.on_demo_command(
                 EDemoCommands::DemStringTables,
                 &packet.string_table.unwrap().encode_to_vec(),
