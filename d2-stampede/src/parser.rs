@@ -889,11 +889,7 @@ impl<'a> Parser<'a> {
                 let build_str = &game_dir[start..start + end];
                 let build = build_str.parse::<u32>().unwrap();
                 self.context.game_build = build;
-            } else {
-                // bail!("Failed to parse build number: '{}'", game_dir);
             }
-        } else {
-            // bail!("Failed to parse build number: '{}'", game_dir);
         }
         Ok(())
     }
