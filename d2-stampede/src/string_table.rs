@@ -206,9 +206,13 @@ impl StringTable {
 impl Display for StringTables {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut table = Table::new();
-        table.add_row(row!["id", "name"]);
+        table.add_row(row!["id", "name", "rows"]);
         for string_table in self.iter() {
-            table.add_row(row![string_table.index.to_string(), string_table.name]);
+            table.add_row(row![
+                string_table.index.to_string(),
+                string_table.name,
+                string_table.items.len()
+            ]);
         }
         write!(f, "{}", table)
     }
