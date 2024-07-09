@@ -76,6 +76,7 @@ pub struct Parser<'a> {
     processing_deltas: bool,
 
     replay_info: CDemoFileInfo,
+    last_tick: u32,
     context: Context,
 }
 
@@ -104,7 +105,6 @@ impl Baselines {
 }
 
 /// Current replay state.
-#[derive(Default)]
 pub struct Context {
     pub(crate) classes: Classes,
     pub(crate) entities: Entities,
@@ -112,7 +112,6 @@ pub struct Context {
 
     pub(crate) tick: u32,
     pub(crate) previous_tick: u32,
-    pub(crate) last_tick: u32,
 
     pub(crate) net_tick: u32,
     pub(crate) game_build: u32,
@@ -191,6 +190,7 @@ impl<'a> Parser<'a> {
             prologue_completed: false,
             processing_deltas: true,
             replay_info,
+            last_tick,
 
             context: Context {
                 classes: Classes::default(),
@@ -199,7 +199,6 @@ impl<'a> Parser<'a> {
 
                 tick: u32::MAX,
                 previous_tick: u32::MAX,
-                last_tick,
                 net_tick: u32::MAX,
                 last_full_packet_tick: u32::MAX,
 
@@ -282,7 +281,7 @@ impl<'a> Parser<'a> {
     /// Moves to target tick without calling observers and processing delta
     /// packets.
     pub fn jump_to_tick(&mut self, mut target_tick: u32) -> Result<(), ParserError> {
-        target_tick = min(target_tick, self.context.last_tick);
+        target_tick = min(target_tick, self.last_tick);
 
         if target_tick < self.context.tick {
             self.context.last_full_packet_tick = u32::MAX;
@@ -357,7 +356,7 @@ impl<'a> Parser<'a> {
 
         self.prologue()?;
 
-        target_tick = min(target_tick, self.context.last_tick);
+        target_tick = min(target_tick, self.last_tick);
 
         while let Some(message) = Self::read_message(&mut self.reader)? {
             self.on_tick_start(message.tick)?;
