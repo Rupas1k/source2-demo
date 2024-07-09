@@ -153,7 +153,7 @@ impl Observer for Wards {
             if let (Ok(killer), Ok(attacker)) =
                 (combat_log.damage_source_name(), combat_log.attacker_name())
             {
-                if WardClass::from_target_name(attacker).is_some() {
+                if WardClass::from_target_name(attacker).is_none() {
                     self.killers
                         .get_mut(&WardClass::from_target_name(combat_log.target_name()?).unwrap())
                         .unwrap()
