@@ -357,7 +357,7 @@ impl<'a> Parser<'a> {
 
     /// Moves to target tick.
     pub fn run_to_tick(&mut self, mut target_tick: u32) -> Result<(), ParserError> {
-        assert!(target_tick > self.context.tick);
+        assert!(target_tick > self.context.tick || self.context.tick == u32::MAX);
 
         self.prologue()?;
 
