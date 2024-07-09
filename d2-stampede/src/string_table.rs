@@ -223,7 +223,17 @@ impl Display for StringTable {
         let mut table = Table::new();
         table.add_row(row!["idx", "key", "value"]);
         for entry in self.items.iter() {
-            table.add_row(row![entry.index, entry.key, format!("{:?}", entry.value)]);
+            table.add_row(row![
+                entry.index,
+                entry.key,
+                format!(
+                    "{:?}...",
+                    entry
+                        .value
+                        .as_ref()
+                        .map(|x| if x.len() > 10 { &x[..10] } else { &x[..] })
+                )
+            ]);
         }
         write!(f, "{}", table)
     }
