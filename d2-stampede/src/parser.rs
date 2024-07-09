@@ -113,6 +113,7 @@ pub struct Context {
     pub(crate) string_tables: StringTables,
 
     pub(crate) tick: u32,
+    pub(crate) previous_tick: u32,
 
     pub(crate) net_tick: u32,
     pub(crate) game_build: u32,
@@ -200,6 +201,7 @@ impl<'a> Parser<'a> {
                 string_tables: StringTables::default(),
 
                 tick: u32::MAX,
+                previous_tick: u32::MAX,
                 net_tick: u32::MAX,
                 last_full_packet_tick: u32::MAX,
 
@@ -242,10 +244,9 @@ impl<'a> Parser<'a> {
 
         let mut offset: usize = 16;
         while let Some(message) = Self::read_message(&mut self.reader)? {
-            self.context.tick = message.tick;
-            self.on_tick_start()?;
+            self.on_tick_start(message.tick)?;
             self.on_demo_command(message.msg_type, message.buf.as_slice())?;
-            self.on_tick_end()?;
+            self.on_tick_end(message.tick)?;
 
             offset += message.size;
 
@@ -273,10 +274,9 @@ impl<'a> Parser<'a> {
         self.prologue()?;
 
         while let Some(message) = Self::read_message(&mut self.reader)? {
-            self.context.tick = message.tick;
-            self.on_tick_start()?;
+            self.on_tick_start(message.tick)?;
             self.on_demo_command(message.msg_type, message.buf.as_slice())?;
-            self.on_tick_end()?;
+            self.on_tick_end(message.tick)?;
         }
 
         try_observers!(self, epilogue(&self.context))
@@ -356,10 +356,9 @@ impl<'a> Parser<'a> {
         self.prologue()?;
 
         while let Some(message) = Self::read_message(&mut self.reader)? {
-            self.context.tick = message.tick;
-            self.on_tick_start()?;
+            self.on_tick_start(message.tick)?;
             self.on_demo_command(message.msg_type, message.buf.as_slice())?;
-            self.on_tick_end()?;
+            self.on_tick_end(message.tick)?;
             if self.context.tick >= target_tick {
                 break;
             }
@@ -463,11 +462,22 @@ impl<'a> Parser<'a> {
         try_observers!(self, on_dota_user_message(&self.context, msg_type, msg))
     }
 
-    pub(crate) fn on_tick_start(&mut self) -> Result<(), ParserError> {
+    pub(crate) fn on_tick_start(&mut self, msg_tick: u32) -> Result<(), ParserError> {
+        self.context.previous_tick = self.context.tick;
+        self.context.tick = msg_tick;
+
+        if self.context.previous_tick == msg_tick {
+            return Ok(());
+        }
+
         try_observers!(self, on_tick_start(&self.context))
     }
 
-    pub(crate) fn on_tick_end(&mut self) -> Result<(), ParserError> {
+    pub(crate) fn on_tick_end(&mut self, msg_tick: u32) -> Result<(), ParserError> {
+        if self.context.previous_tick == msg_tick {
+            return Ok(());
+        }
+
         if let Ok(names) = self.context.string_tables.get_by_name("CombatLogNames") {
             while let Some(log) = self.combat_log.pop_front() {
                 self.on_combat_log(&CombatLogEntry { names, log })?;
@@ -661,10 +671,12 @@ impl<'a> Parser<'a> {
             )?;
         }
 
-        self.on_demo_command(
-            EDemoCommands::DemPacket,
-            &packet.packet.unwrap().encode_to_vec(),
-        )?;
+        if self.context.last_full_packet_tick == u32::MAX || !self.processing_deltas {
+            self.on_demo_command(
+                EDemoCommands::DemPacket,
+                &packet.packet.unwrap().encode_to_vec(),
+            )?;
+        }
 
         self.context.last_full_packet_tick = self.context.tick;
 
