@@ -69,14 +69,11 @@ pub struct Parser<'a> {
     reader: Reader<'a>,
     field_reader: FieldReader,
     observers: Vec<Rc<RefCell<dyn Observer + 'a>>>,
-    start_offset: usize,
 
     combat_log: VecDeque<CMsgDotaCombatLogEntry>,
 
     prologue_completed: bool,
     processing_deltas: bool,
-
-    initial_st: StringTables,
 
     replay_info: CDemoFileInfo,
     context: Context,
@@ -166,7 +163,6 @@ impl Display for Context {
 
 struct OuterMessage {
     msg_type: EDemoCommands,
-    size: usize,
     tick: u32,
     buf: Vec<u8>,
 }
@@ -193,9 +189,7 @@ impl<'a> Parser<'a> {
             observers: Vec::default(),
             combat_log: VecDeque::default(),
             prologue_completed: false,
-            start_offset: 0,
             processing_deltas: true,
-            initial_st: StringTables::default(),
             replay_info,
 
             context: Context {
@@ -242,26 +236,25 @@ impl<'a> Parser<'a> {
     }
 
     fn prologue(&mut self) -> Result<(), ParserError> {
-        if self.prologue_completed {
+        if self.prologue_completed && self.context.tick != u32::MAX {
             return Ok(());
         }
 
-        let mut offset: usize = 16;
         while let Some(message) = Self::read_message(&mut self.reader)? {
-            self.on_tick_start(message.tick)?;
-            self.on_demo_command(message.msg_type, message.buf.as_slice())?;
-            self.on_tick_end(message.tick)?;
+            if self.prologue_completed
+                && (message.msg_type == EDemoCommands::DemSendTables
+                    || message.msg_type == EDemoCommands::DemClassInfo)
+            {
+                continue;
+            }
 
-            offset += message.size;
+            self.on_demo_command(message.msg_type, message.buf.as_slice())?;
 
             if message.msg_type == EDemoCommands::DemSyncTick {
                 self.prologue_completed = true;
-                self.initial_st = self.context.string_tables.clone();
-                self.start_offset = offset;
                 break;
             }
         }
-
         Ok(())
     }
 
@@ -289,28 +282,30 @@ impl<'a> Parser<'a> {
     /// Moves to target tick without calling observers and processing delta
     /// packets.
     pub fn jump_to_tick(&mut self, mut target_tick: u32) -> Result<(), ParserError> {
-        self.prologue()?;
-
         target_tick = min(target_tick, self.context.last_tick);
 
         if target_tick < self.context.tick {
             self.context.last_full_packet_tick = u32::MAX;
             self.context.tick = u32::MAX;
             self.context.net_tick = u32::MAX;
-            self.reader.reset_to(self.start_offset);
+            self.reader.reset_to(16);
 
             self.context.entities.entities_vec.clear();
-            self.context.string_tables = self.initial_st.clone();
+
+            self.context.string_tables.tables.clear();
+            self.context.string_tables.name_to_table.clear();
         }
 
-        self.processing_deltas = false;
+        self.prologue()?;
 
+        self.processing_deltas = false;
         let observers = mem::take(&mut self.observers);
 
         let mut first_fp_checked = false;
         let mut last_fp_checked = false;
 
         while let Some(mut message) = Self::read_message(&mut self.reader)? {
+            self.context.previous_tick = self.context.tick;
             self.context.tick = message.tick;
 
             if message.msg_type == EDemoCommands::DemFullPacket {
@@ -350,6 +345,7 @@ impl<'a> Parser<'a> {
             }
         }
 
+        self.processing_deltas = true;
         self.observers = observers;
 
         Ok(())
@@ -380,13 +376,9 @@ impl<'a> Parser<'a> {
             return Ok(None);
         }
 
-        let start = reader.bytes_remaining();
-
         let cmd = reader.read_var_u32() as i32;
         let tick = reader.read_var_u32();
         let size = reader.read_var_u32();
-
-        let end = start - reader.bytes_remaining();
 
         let msg_type =
             EDemoCommands::try_from(cmd & !(EDemoCommands::DemIsCompressed as i32)).unwrap();
@@ -401,7 +393,6 @@ impl<'a> Parser<'a> {
         };
 
         Ok(Some(OuterMessage {
-            size: end + size as usize,
             msg_type,
             tick,
             buf,
@@ -672,14 +663,12 @@ impl<'a> Parser<'a> {
     fn dem_full_packet(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let packet = CDemoFullPacket::decode(msg)?;
 
-        if !self.processing_deltas {
+        if self.context.last_full_packet_tick == u32::MAX || !self.processing_deltas {
             self.on_demo_command(
                 EDemoCommands::DemStringTables,
                 &packet.string_table.unwrap().encode_to_vec(),
             )?;
-        }
 
-        if self.context.last_full_packet_tick == u32::MAX || !self.processing_deltas {
             self.on_demo_command(
                 EDemoCommands::DemPacket,
                 &packet.packet.unwrap().encode_to_vec(),
