@@ -7,7 +7,7 @@ struct CombatLog;
 impl Observer for CombatLog {
     fn on_combat_log(&mut self, _ctx: &Context, combat_log: &CombatLogEntry) -> ObserverResult {
         let time = combat_log.timestamp()?;
-        match combat_log.type_() {
+        match combat_log.r#type() {
             DotaCombatlogTypes::DotaCombatlogDamage => {
                 println!(
                     "{} {} hits {}{} for {} damage ({}->{})",
@@ -65,8 +65,8 @@ impl Observer for CombatLog {
                     "{} {} {} ability {} (lvl {}){}{}",
                     time,
                     combat_log.attacker_name()?,
-                    if combat_log.ability_toggle_on().is_ok()
-                        || combat_log.ability_toggle_off().is_ok()
+                    if combat_log.is_ability_toggle_on().is_ok()
+                        || combat_log.is_ability_toggle_off().is_ok()
                     {
                         "toggles"
                     } else {
@@ -74,9 +74,9 @@ impl Observer for CombatLog {
                     },
                     combat_log.inflictor_name()?,
                     combat_log.ability_level()?,
-                    if combat_log.ability_toggle_on().is_ok() {
+                    if combat_log.is_ability_toggle_on().is_ok() {
                         " on"
-                    } else if combat_log.ability_toggle_off().is_ok() {
+                    } else if combat_log.is_ability_toggle_off().is_ok() {
                         " off"
                     } else {
                         ""

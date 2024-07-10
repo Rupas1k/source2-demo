@@ -146,7 +146,7 @@ impl Observer for Wards {
     }
 
     fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLogEntry) -> ObserverResult {
-        if combat_log.type_() == DotaCombatlogTypes::DotaCombatlogDeath
+        if combat_log.r#type() == DotaCombatlogTypes::DotaCombatlogDeath
             && combat_log.target_name().is_ok()
             && WardClass::from_target_name(combat_log.target_name()?).is_some()
         {

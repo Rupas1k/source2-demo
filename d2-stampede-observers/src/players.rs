@@ -108,7 +108,7 @@ impl Observer for Players {
 
     fn on_combat_log(&mut self, ctx: &Context, combat_log: &CombatLogEntry) -> ObserverResult {
         if self.pre_game_tick.is_none()
-            && combat_log.type_() == DotaCombatlogTypes::DotaCombatlogGameState
+            && combat_log.r#type() == DotaCombatlogTypes::DotaCombatlogGameState
             && combat_log.value()? == DotaGameState::DotaGamerulesStatePreGame as u32
         {
             self.pre_game_tick = Some(ctx.tick());
