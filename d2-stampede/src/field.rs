@@ -102,24 +102,16 @@ pub(crate) struct FieldState {
 impl FieldState {
     #[inline]
     pub(crate) fn get_value(&self, fp: &FieldPath) -> Option<&FieldValue> {
-        let mut current_state = self;
-        for i in 0..fp.last {
-            current_state = current_state.vec.get(fp.path[i] as usize)?
-        }
-        current_state
-            .vec
-            .get(fp.path[fp.last] as usize)?
-            .value
-            .as_ref()
+        self.get_field_state(fp).and_then(|x| x.value.as_ref())
     }
 
     #[inline]
     pub(crate) fn get_field_state(&self, fp: &FieldPath) -> Option<&FieldState> {
         let mut current_state = self;
-        for i in 0..fp.last {
+        for i in 0..=fp.last {
             current_state = current_state.vec.get(fp.path[i] as usize)?;
         }
-        current_state.vec.get(fp.path[fp.last] as usize)
+        Some(current_state)
     }
 
     #[inline]
@@ -127,10 +119,8 @@ impl FieldState {
         let mut current_state = self;
         for i in 0..=fp.last {
             let index = fp.path[i] as usize;
-            if current_state.vec.len() <= index {
-                current_state
-                    .vec
-                    .resize_with(index + 1, FieldState::default)
+            while current_state.vec.len() <= index {
+                current_state.vec.push(FieldState::default());
             }
             current_state = &mut current_state.vec[index];
         }
