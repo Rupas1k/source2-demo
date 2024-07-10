@@ -21,13 +21,9 @@ use std::rc::Rc;
 
 macro_rules! try_observers {
     ($self:ident, $method:ident ( $($arg:expr),* )) => {
-        {
-            $self.observers
-                .iter()
-                .try_for_each(|obs| obs.borrow_mut().$method($($arg),*))?;
-
-            Ok(())
-        }
+        $self.observers
+            .iter()
+            .try_for_each(|obs| obs.borrow_mut().$method($($arg),*))
     };
 }
 
@@ -82,7 +78,6 @@ pub struct Parser<'a> {
 
 #[derive(Default)]
 pub(crate) struct Baselines {
-    field_reader: FieldReader,
     baselines: HashMap<i32, Rc<Vec<u8>>>,
     states: HashMap<i32, FieldState>,
 }
@@ -90,17 +85,6 @@ pub(crate) struct Baselines {
 impl Baselines {
     pub(crate) fn add_baseline(&mut self, id: i32, baseline: Rc<Vec<u8>>) {
         self.baselines.insert(id, baseline);
-    }
-
-    pub(crate) fn read_baseline(&mut self, class: &Class) {
-        let mut state = FieldState::default();
-        self.field_reader.read_fields(
-            &mut Reader::new(&self.baselines[&class.id]),
-            &class.serializer,
-            &mut state,
-        );
-
-        self.states.insert(class.id, state);
     }
 }
 
@@ -277,7 +261,8 @@ impl<'a> Parser<'a> {
             self.on_tick_end(message.tick)?;
         }
 
-        try_observers!(self, epilogue(&self.context))
+        try_observers!(self, epilogue(&self.context))?;
+        Ok(())
     }
 
     /// Moves to target tick without calling observers and processing delta
@@ -291,7 +276,7 @@ impl<'a> Parser<'a> {
             self.context.net_tick = u32::MAX;
             self.reader.reset_to(16);
 
-            self.context.entities.entities_vec.clear();
+            // self.context.entities.entities_vec.clear();
 
             self.context.string_tables.tables.clear();
             self.context.string_tables.name_to_table.clear();
@@ -410,7 +395,8 @@ impl<'a> Parser<'a> {
             _ => {}
         };
 
-        try_observers!(self, on_demo_command(&self.context, msg_type, msg))
+        try_observers!(self, on_demo_command(&self.context, msg_type, msg))?;
+        Ok(())
     }
 
     fn on_net_message(&mut self, msg_type: NetMessages, msg: &[u8]) -> Result<(), ParserError> {
@@ -418,7 +404,8 @@ impl<'a> Parser<'a> {
             self.context.net_tick = CNetMsgTick::decode(msg)?.tick();
         }
 
-        try_observers!(self, on_net_message(&self.context, msg_type, msg))
+        try_observers!(self, on_net_message(&self.context, msg_type, msg))?;
+        Ok(())
     }
 
     fn on_svc_message(&mut self, msg_type: SvcMessages, msg: &[u8]) -> Result<(), ParserError> {
@@ -430,7 +417,8 @@ impl<'a> Parser<'a> {
             _ => {}
         }
 
-        try_observers!(self, on_svc_message(&self.context, msg_type, msg))
+        try_observers!(self, on_svc_message(&self.context, msg_type, msg))?;
+        Ok(())
     }
 
     fn on_base_user_message(
@@ -438,7 +426,8 @@ impl<'a> Parser<'a> {
         msg_type: EBaseUserMessages,
         msg: &[u8],
     ) -> Result<(), ParserError> {
-        try_observers!(self, on_base_user_message(&self.context, msg_type, msg))
+        try_observers!(self, on_base_user_message(&self.context, msg_type, msg))?;
+        Ok(())
     }
 
     fn on_base_game_event(
@@ -446,7 +435,8 @@ impl<'a> Parser<'a> {
         msg_type: EBaseGameEvents,
         msg: &[u8],
     ) -> Result<(), ParserError> {
-        try_observers!(self, on_base_game_event(&self.context, msg_type, msg))
+        try_observers!(self, on_base_game_event(&self.context, msg_type, msg))?;
+        Ok(())
     }
 
     fn on_dota_user_message(
@@ -459,7 +449,8 @@ impl<'a> Parser<'a> {
             self.combat_log.push_back(entry);
         }
 
-        try_observers!(self, on_dota_user_message(&self.context, msg_type, msg))
+        try_observers!(self, on_dota_user_message(&self.context, msg_type, msg))?;
+        Ok(())
     }
 
     pub(crate) fn on_tick_start(&mut self, msg_tick: u32) -> Result<(), ParserError> {
@@ -470,7 +461,8 @@ impl<'a> Parser<'a> {
             return Ok(());
         }
 
-        try_observers!(self, on_tick_start(&self.context))
+        try_observers!(self, on_tick_start(&self.context))?;
+        Ok(())
     }
 
     pub(crate) fn on_tick_end(&mut self, msg_tick: u32) -> Result<(), ParserError> {
@@ -484,11 +476,13 @@ impl<'a> Parser<'a> {
             }
         }
 
-        try_observers!(self, on_tick_end(&self.context))
+        try_observers!(self, on_tick_end(&self.context))?;
+        Ok(())
     }
 
     pub(crate) fn on_combat_log(&self, entry: &CombatLogEntry) -> Result<(), ParserError> {
-        try_observers!(self, on_combat_log(&self.context, entry))
+        try_observers!(self, on_combat_log(&self.context, entry))?;
+        Ok(())
     }
 
     fn dem_send_tables(&mut self, msg: &[u8]) -> Result<(), ParserError> {
@@ -711,101 +705,93 @@ impl<'a> Parser<'a> {
 
     fn packet_entities(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let packet = CSvcMsgPacketEntities::decode(msg)?;
-        let mut entities_reader = Reader::new(packet.entity_data());
+        let mut reader = Reader::new(packet.entity_data());
 
-        let updates = packet.updated_entries();
+        let mut index = usize::MAX;
 
-        let mut index = u32::MAX;
-        let mut op: isize;
+        for _ in 0..packet.updated_entries() {
+            index = index.wrapping_add((reader.read_ubit_var() + 1) as usize);
 
-        if packet.max_entries() as usize > self.context.entities.entities_vec.len() {
-            self.context
-                .entities
-                .entities_vec
-                .resize_with(packet.max_entries() as usize, || None);
-        }
+            let cmd = reader.read_bits(2);
+            if cmd == 1 {
+                continue;
+            }
 
-        let throw_event =
-            |ctx: &Context, index: u32, event: EntityEvents| -> Result<(), ParserError> {
-                try_observers!(
-                    self,
-                    on_entity(
-                        ctx,
-                        event,
-                        ctx.entities.entities_vec[index as usize].as_ref().unwrap()
-                    )
-                )
-            };
-
-        for _ in 0..updates {
-            index = index.wrapping_add(entities_reader.read_ubit_var() + 1);
-
-            let cmd = entities_reader.read_bits(2);
-
-            if cmd & 0x01 == 0 {
-                if cmd & 0x02 != 0 {
-                    let class_id =
-                        entities_reader.read_bits(self.context.classes.class_id_size) as i32;
-                    let serial = entities_reader.read_bits(17);
-
-                    entities_reader.read_var_u32();
+            match EntityEvents::from_cmd(cmd) {
+                EntityEvents::Created => {
+                    let class_id = reader.read_bits(self.context.classes.class_id_size) as i32;
+                    let serial = reader.read_bits(17);
+                    let _ = reader.read_var_u32();
 
                     let class = self.context.classes.get_by_id_rc(class_id as usize).clone();
 
-                    if !self.context.baselines.states.contains_key(&class_id) {
-                        self.context.baselines.read_baseline(&class)
+                    let entity_baseline = self
+                        .context
+                        .baselines
+                        .states
+                        .entry(class_id)
+                        .or_insert_with(|| {
+                            let mut state = FieldState::default();
+                            self.field_reader.read_fields(
+                                &mut Reader::new(&self.context.baselines.baselines[&class_id]),
+                                &class.serializer,
+                                &mut state,
+                            );
+                            state
+                        })
+                        .clone();
+
+                    self.context.entities.entities_vec[index] = Some(Entity::new(
+                        index as u32,
+                        serial,
+                        class.clone(),
+                        entity_baseline,
+                    ));
+
+                    let entity = self.context.entities.entities_vec[index].as_mut().unwrap();
+
+                    self.field_reader.read_fields(
+                        &mut reader,
+                        &entity.class.serializer,
+                        &mut entity.state,
+                    );
+
+                    try_observers!(
+                        self,
+                        on_entity(
+                            &self.context,
+                            EntityEvents::Created,
+                            self.context.entities.entities_vec[index].as_ref().unwrap()
+                        )
+                    )?;
+                }
+                EntityEvents::Updated => {
+                    let entity = self.context.entities.entities_vec[index].as_mut().unwrap();
+
+                    self.field_reader.read_fields(
+                        &mut reader,
+                        &entity.class.serializer,
+                        &mut entity.state,
+                    );
+
+                    try_observers!(
+                        self,
+                        on_entity(
+                            &self.context,
+                            EntityEvents::Updated,
+                            self.context.entities.entities_vec[index].as_ref().unwrap()
+                        )
+                    )?;
+                }
+                EntityEvents::Deleted => {
+                    if let Some(entity) = self.context.entities.entities_vec[index].as_ref() {
+                        try_observers!(
+                            self,
+                            on_entity(&self.context, EntityEvents::Deleted, entity)
+                        )?;
                     }
-
-                    let entity_baseline = self.context.baselines.states[&class_id].clone();
-
-                    self.context.entities.entities_vec[index as usize] =
-                        Some(Entity::new(index, serial, class.clone(), entity_baseline));
-
-                    let e = self.context.entities.entities_vec[index as usize]
-                        .as_mut()
-                        .unwrap();
-
-                    self.field_reader.read_fields(
-                        &mut entities_reader,
-                        &e.class.serializer,
-                        &mut e.state,
-                    );
-
-                    op = EntityEvents::Created as isize | EntityEvents::Entered as isize;
-                } else {
-                    op = EntityEvents::Updated as isize;
-                    let e = self.context.entities.entities_vec[index as usize]
-                        .as_mut()
-                        .unwrap();
-
-                    self.field_reader.read_fields(
-                        &mut entities_reader,
-                        &e.class.serializer,
-                        &mut e.state,
-                    );
+                    self.context.entities.entities_vec[index] = None;
                 }
-            } else {
-                op = EntityEvents::Left as isize;
-                if cmd & 0x02 != 0 {
-                    op |= EntityEvents::Deleted as isize;
-                }
-            }
-
-            if op & EntityEvents::Created as isize != 0 {
-                throw_event(&self.context, index, EntityEvents::Created)?;
-            }
-            if op & EntityEvents::Entered as isize != 0 {
-                throw_event(&self.context, index, EntityEvents::Entered)?;
-            }
-            if op & EntityEvents::Updated as isize != 0 {
-                throw_event(&self.context, index, EntityEvents::Updated)?;
-            }
-            if op & EntityEvents::Left as isize != 0 {
-                throw_event(&self.context, index, EntityEvents::Left)?;
-            }
-            if op & EntityEvents::Deleted as isize != 0 {
-                throw_event(&self.context, index, EntityEvents::Deleted)?;
-                self.context.entities.entities_vec[index as usize] = None;
             }
         }
 

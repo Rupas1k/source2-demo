@@ -8,11 +8,20 @@ use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum EntityEvents {
-    Created = 1 << 0,
-    Updated = 1 << 1,
-    Deleted = 1 << 2,
-    Entered = 1 << 3,
-    Left = 1 << 4,
+    Created,
+    Updated,
+    Deleted,
+}
+
+impl EntityEvents {
+    pub(crate) fn from_cmd(cmd: u32) -> Self {
+        match cmd {
+            0 => EntityEvents::Updated,
+            2 => EntityEvents::Created,
+            3 => EntityEvents::Deleted,
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -37,9 +46,16 @@ pub enum EntityError {
 }
 
 /// Container for entities.
-#[derive(Default)]
 pub struct Entities {
     pub(crate) entities_vec: Vec<Option<Entity>>,
+}
+
+impl Default for Entities {
+    fn default() -> Self {
+        Entities {
+            entities_vec: vec![None; 4096],
+        }
+    }
 }
 
 impl Entities {
