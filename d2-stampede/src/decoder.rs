@@ -3,22 +3,14 @@ use crate::field_value::FieldValue;
 use crate::reader::Reader;
 
 pub enum Decoder {
-    VectorNormal,
-    Fixed64,
     Boolean,
     String,
     Signed8,
     Signed16,
     Signed32,
-    Signed64,
     Unsigned8,
     Unsigned16,
     Unsigned32,
-    FloatCoordinate,
-    NoScale,
-    RuneTime,
-    SimulationTime,
-    Component,
 
     Vector(FieldProperties, u8),
     Unsigned64(FieldProperties),
@@ -31,36 +23,28 @@ impl Decoder {
     #[inline]
     pub(crate) fn from_field(field_type: &FieldType, properties: FieldProperties) -> Self {
         match field_type.base.as_ref() {
-            "bool" => Decoder::Boolean,
+            "bool" | "CBodyComponent" | "CPhysicsComponent" | "CRenderComponent" => {
+                Decoder::Boolean
+            }
+
             "char" | "CUtlString" | "CUtlSymbolLarge" => Decoder::String,
-            "int8" => Decoder::Signed8,
-            "int16" => Decoder::Signed16,
-            "int32" | "HeroID_t" => Decoder::Signed32,
-            "int64" => Decoder::Signed64,
-            "uint8" | "BloodType" => Decoder::Unsigned8,
-            "uint16" => Decoder::Unsigned16,
-            "uint32"
-            | "color32"
-            | "CGameSceneNodeHandle"
-            | "Color"
-            | "CUtlStringToken"
-            | "CHandle"
-            | "CEntityHandle" => Decoder::Unsigned32,
-            "GameTime_t" => Decoder::NoScale,
-            "CBodyComponent" | "CPhysicsComponent" | "CRenderComponent" => Decoder::Component,
-
-            "CNetworkedQuantizedFloat" => Decoder::QuantizedFloat(properties),
-
-            "float32" => Decoder::Float32(properties),
 
             "Vector" => Decoder::Vector(properties, 3),
             "Vector2D" => Decoder::Vector(properties, 2),
             "Vector4D" => Decoder::Vector(properties, 4),
 
-            "uint64" | "CStrongHandle" | "HeroFacetKey_t" => Decoder::Unsigned64(properties),
-
             "QAngle" => Decoder::QAngle(properties),
 
+            "CNetworkedQuantizedFloat" => Decoder::QuantizedFloat(properties),
+            "float32" | "GameTime_t" => Decoder::Float32(properties),
+
+            "int8" => Decoder::Signed8,
+            "int16" => Decoder::Signed16,
+            "int32" | "HeroID_t" => Decoder::Signed32,
+
+            "uint8" | "BloodType" => Decoder::Unsigned8,
+            "uint16" => Decoder::Unsigned16,
+            "uint64" | "CStrongHandle" | "HeroFacetKey_t" => Decoder::Unsigned64(properties),
             _ => Decoder::Unsigned32,
         }
     }
@@ -68,8 +52,6 @@ impl Decoder {
     #[inline]
     pub(crate) fn decode(&self, reader: &mut Reader) -> FieldValue {
         match self {
-            Decoder::VectorNormal => FieldValue::Vector3D(reader.read_3bit_normal()),
-            Decoder::Fixed64 => FieldValue::Unsigned64(reader.read_le_u64()),
             Decoder::Boolean => FieldValue::Boolean({
                 reader.refill();
                 reader.read_bool()
@@ -78,59 +60,47 @@ impl Decoder {
             Decoder::Signed8 => FieldValue::Signed8(reader.read_var_i32() as i8),
             Decoder::Signed16 => FieldValue::Signed16(reader.read_var_i32() as i16),
             Decoder::Signed32 => FieldValue::Signed32(reader.read_var_i32()),
-            Decoder::Signed64 => FieldValue::Signed64(reader.read_var_i32() as i64),
-            Decoder::FloatCoordinate => FieldValue::Float(reader.read_coordinate()),
-            Decoder::NoScale => FieldValue::Float(reader.read_f32()),
-            Decoder::RuneTime => FieldValue::Float(f32::from_bits(reader.read_bits(4))),
-            Decoder::SimulationTime => FieldValue::Float(reader.read_var_u32() as f32 / 30.0),
             Decoder::Unsigned8 => FieldValue::Unsigned8(reader.read_var_u32() as u8),
             Decoder::Unsigned16 => FieldValue::Unsigned16(reader.read_var_u32() as u16),
             Decoder::Unsigned32 => FieldValue::Unsigned32(reader.read_var_u32()),
-            Decoder::Component => FieldValue::Boolean({
-                reader.refill();
-                reader.read_bool()
-            }),
             Decoder::Float32(fp) => match fp.encoder {
-                Some(Encoder::Coord) => Decoder::FloatCoordinate.decode(reader),
-                Some(Encoder::SimTime) => Decoder::SimulationTime.decode(reader),
-                Some(Encoder::RuneTime) => Decoder::RuneTime.decode(reader),
+                Some(Encoder::Coord) => FieldValue::Float(reader.read_coordinate()),
+                Some(Encoder::SimTime) => FieldValue::Float(reader.read_var_u32() as f32 / 30.0),
+                Some(Encoder::RuneTime) => FieldValue::Float(f32::from_bits(reader.read_bits(4))),
                 _ => {
-                    if fp.bit_count <= 0 || fp.bit_count >= 32 {
-                        return Decoder::NoScale.decode(reader);
+                    if fp.bit_count == 32 {
+                        return FieldValue::Float(reader.read_f32());
                     }
                     Decoder::QuantizedFloat(*fp).decode(reader)
                 }
             },
-            Decoder::Vector(fp, n) => {
-                if *n == 2 {
-                    return FieldValue::Vector2D([
-                        Decoder::Float32(*fp).decode(reader).as_float(),
-                        Decoder::Float32(*fp).decode(reader).as_float(),
-                    ]);
-                }
-                if *n == 3 {
+            Decoder::Vector(fp, n) => match n {
+                2 => FieldValue::Vector2D([
+                    Decoder::Float32(*fp).decode(reader).as_float(),
+                    Decoder::Float32(*fp).decode(reader).as_float(),
+                ]),
+                3 => {
                     if fp.encoder == Some(Encoder::Normal) {
-                        return Decoder::VectorNormal.decode(reader);
+                        FieldValue::Vector3D(reader.read_3bit_normal())
+                    } else {
+                        FieldValue::Vector3D([
+                            Decoder::Float32(*fp).decode(reader).as_float(),
+                            Decoder::Float32(*fp).decode(reader).as_float(),
+                            Decoder::Float32(*fp).decode(reader).as_float(),
+                        ])
                     }
-                    return FieldValue::Vector3D([
-                        Decoder::Float32(*fp).decode(reader).as_float(),
-                        Decoder::Float32(*fp).decode(reader).as_float(),
-                        Decoder::Float32(*fp).decode(reader).as_float(),
-                    ]);
                 }
-                if *n == 4 {
-                    return FieldValue::Vector4D([
-                        Decoder::Float32(*fp).decode(reader).as_float(),
-                        Decoder::Float32(*fp).decode(reader).as_float(),
-                        Decoder::Float32(*fp).decode(reader).as_float(),
-                        Decoder::Float32(*fp).decode(reader).as_float(),
-                    ]);
-                }
-                unreachable!()
-            }
+                4 => FieldValue::Vector4D([
+                    Decoder::Float32(*fp).decode(reader).as_float(),
+                    Decoder::Float32(*fp).decode(reader).as_float(),
+                    Decoder::Float32(*fp).decode(reader).as_float(),
+                    Decoder::Float32(*fp).decode(reader).as_float(),
+                ]),
+                _ => unreachable!(),
+            },
             Decoder::Unsigned64(fp) => {
                 if fp.encoder == Some(Encoder::Fixed64) {
-                    return Decoder::Fixed64.decode(reader);
+                    return FieldValue::Unsigned64(reader.read_le_u64());
                 }
                 FieldValue::Unsigned64(reader.read_var_u64())
             }
@@ -156,6 +126,7 @@ impl Decoder {
                     ]);
                 }
 
+                // move to reader
                 let mut v = [0f32; 3];
                 let x = reader.read_bool();
                 let y = reader.read_bool();
@@ -169,6 +140,7 @@ impl Decoder {
                 if z {
                     v[2] = reader.read_coordinate();
                 }
+
                 FieldValue::Vector3D(v)
             }
         }
@@ -197,18 +169,6 @@ pub(crate) struct QuantizedFloatDecoder {
 
 impl QuantizedFloatDecoder {
     pub(crate) fn new(field_properties: &FieldProperties) -> Self {
-        if field_properties.bit_count == 0 || field_properties.bit_count >= 32 {
-            return QuantizedFloatDecoder {
-                bit_count: 32,
-                low: 0.0,
-                high: 1.0,
-                high_low_mul: 0.0,
-                dec_mul: 0.0,
-                offset: 0.0,
-                flags: 0,
-            };
-        }
-
         let mut decoder = QuantizedFloatDecoder {
             bit_count: field_properties.bit_count as u32,
             offset: 0.0,
