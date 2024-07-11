@@ -35,7 +35,7 @@ impl Decoder {
             "char" | "CUtlString" | "CUtlSymbolLarge" => Decoder::String,
             "int8" => Decoder::Signed8,
             "int16" => Decoder::Signed16,
-            "int32" => Decoder::Signed32,
+            "int32" | "HeroID_t" => Decoder::Signed32,
             "int64" => Decoder::Signed64,
             "uint8" | "BloodType" => Decoder::Unsigned8,
             "uint16" => Decoder::Unsigned16,
