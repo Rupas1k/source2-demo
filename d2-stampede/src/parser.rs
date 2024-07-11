@@ -544,7 +544,9 @@ impl<'a> Parser<'a> {
                         } else {
                             FieldModel::VariableTable(serializer)
                         }
-                    } else if field_type.count.is_some() && field_type.base.as_ref() != "char" {
+                    } else if field_type.count.is_some_and(|x| x > 0)
+                        && field_type.base.as_ref() != "char"
+                    {
                         FieldModel::FixedArray
                     } else if field_type.base.as_ref() == "CUtlVector"
                         || field_type.base.as_ref() == "CNetworkUtlVectorBase"
