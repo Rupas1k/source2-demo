@@ -35,7 +35,9 @@ fn main() -> anyhow::Result<()> {
     let replay = unsafe { memmap2::Mmap::map(&std::fs::File::open(filepath)?)? };
     let mut parser = Parser::new(&replay)?;
 
-    parser.register_observer::<WardEvents>();
+    let wards = parser.register_observer::<Wards>();
+    let ward_events = parser.register_observer::<WardEvents>();
+    wards.borrow_mut().register_observer(ward_events);
 
     let start = std::time::Instant::now();
     parser.run_to_end()?;
