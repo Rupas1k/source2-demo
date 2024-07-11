@@ -14,6 +14,7 @@ pub enum EntityEvents {
 }
 
 impl EntityEvents {
+    #[inline]
     pub(crate) fn from_cmd(cmd: u32) -> Self {
         match cmd {
             0 => EntityEvents::Updated,

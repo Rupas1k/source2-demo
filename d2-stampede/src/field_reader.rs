@@ -22,6 +22,7 @@ impl Default for FieldReader {
 }
 
 impl FieldReader {
+    #[inline]
     pub(crate) fn read_fields(
         &self,
         reader: &mut Reader,
