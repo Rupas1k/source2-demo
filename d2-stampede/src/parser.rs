@@ -10,7 +10,7 @@ use crate::reader::Reader;
 use crate::serializer::Serializer;
 use crate::string_table::{StringTable, StringTableError, StringTableRow, StringTables};
 use crate::ObserverResult;
-use hashbrown::{HashMap, HashSet};
+use hashbrown::HashMap;
 use prettytable::{row, Table};
 use std::cell::RefCell;
 use std::cmp::min;
@@ -500,79 +500,51 @@ impl<'a> Parser<'a> {
             "".into()
         };
 
-        let pointer_types: HashSet<&'static str> = [
-            "PhysicsRagdollPose_t",
-            "CBodyComponent",
-            "CEntityIdentity",
-            "CPhysicsComponent",
-            "CRenderComponent",
-            "CDOTAGamerules",
-            "CDOTAGameManager",
-            "CDOTASpectatorGraphManager",
-            "CPlayerLocalData",
-            "CPlayer_CameraServices",
-            "CDOTAGameRules",
-        ]
-        .iter()
-        .copied()
-        .collect();
-
-        let mut fields = vec![];
-        let mut field_types = HashMap::<Box<str>, Rc<FieldType>>::default();
+        let mut fields: Vec<Rc<Field>> = vec![];
+        let mut field_types: HashMap<Box<str>, Rc<FieldType>> = HashMap::default();
 
         for s in fs.serializers.iter() {
             let serializer_name = fs.symbols[s.serializer_name_sym() as usize].clone();
             let mut serializer = Serializer::default();
 
-            for i in s.fields_index.iter() {
-                let current_field = &fs.fields[*i as usize];
+            for i in s.fields_index.iter().map(|x| *x as usize) {
+                let current_field = &fs.fields[i];
                 let field_serializer_name = resolve(current_field.field_serializer_name_sym);
 
-                if *i as usize >= fields.len() {
+                if i >= fields.len() {
                     let var_type_str = resolve(current_field.var_type_sym);
+                    let var_name = resolve(current_field.var_name_sym);
+
                     let current_field_serializer = self
                         .context
                         .serializers
                         .get(&field_serializer_name)
                         .cloned();
 
-                    if !field_types.contains_key(&var_type_str) {
-                        field_types.insert(
-                            var_type_str.clone(),
-                            Rc::new(FieldType::new(var_type_str.clone().as_ref())),
-                        );
-                    }
+                    let field_type = field_types
+                        .entry(var_type_str.clone())
+                        .or_insert_with(|| FieldType::new(var_type_str.clone().as_ref()).into())
+                        .clone();
 
-                    let var_name = resolve(current_field.var_name_sym);
-                    let field_type = field_types[&var_type_str].clone();
-                    let mut properties = FieldProperties {
-                        encoder: Encoder::from_str(&resolve(current_field.var_encoder_sym)),
+                    let properties = FieldProperties {
+                        encoder: match var_name.as_ref() {
+                            "m_flSimulationTime" | "m_flAnimTime" => Some(Encoder::SimTime),
+                            "m_flRuneTime" => Some(Encoder::RuneTime),
+                            _ => Encoder::from_str(&resolve(current_field.var_encoder_sym)),
+                        },
                         encoder_flags: current_field.encode_flags(),
                         bit_count: current_field.bit_count(),
                         low_value: current_field.low_value(),
                         high_value: current_field.high_value(),
                     };
 
-                    match var_name.as_ref() {
-                        "m_flSimulationTime" | "m_flAnimTime" => {
-                            properties.encoder = Some(Encoder::SimTime);
-                        }
-                        "m_flRuneTime" => {
-                            properties.encoder = Some(Encoder::RuneTime);
-                        }
-                        _ => {}
-                    }
-
                     let model = if let Some(serializer) = current_field_serializer {
-                        if field_type.pointer || pointer_types.contains(field_type.base.as_ref()) {
+                        if field_type.pointer {
                             FieldModel::FixedTable(serializer)
                         } else {
                             FieldModel::VariableTable(serializer)
                         }
-                    } else if field_type.count.is_some()
-                        && field_type.count.unwrap() > 0
-                        && field_type.base.as_ref() != "char"
-                    {
+                    } else if field_type.count.is_some() && field_type.base.as_ref() != "char" {
                         FieldModel::FixedArray
                     } else if field_type.base.as_ref() == "CUtlVector"
                         || field_type.base.as_ref() == "CNetworkUtlVectorBase"
@@ -601,13 +573,13 @@ impl<'a> Parser<'a> {
 
                         decoder,
                     };
-                    fields.push(Rc::new(field));
+                    fields.push(field.into());
                 }
-                serializer.fields.push(fields[*i as usize].clone());
+                serializer.fields.push(fields[i].clone());
             }
             self.context
                 .serializers
-                .insert(serializer_name.into(), Rc::new(serializer));
+                .insert(serializer_name.into(), serializer.into());
         }
         Ok(())
     }

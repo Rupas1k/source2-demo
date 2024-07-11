@@ -203,6 +203,22 @@ impl FieldType {
         if name.ends_with('*') {
             pointer = true;
             base_end -= 1;
+        } else if [
+            "PhysicsRagdollPose_t",
+            "CBodyComponent",
+            "CEntityIdentity",
+            "CPhysicsComponent",
+            "CRenderComponent",
+            "CDOTAGamerules",
+            "CDOTAGameManager",
+            "CDOTASpectatorGraphManager",
+            "CPlayerLocalData",
+            "CPlayer_CameraServices",
+            "CDOTAGameRules",
+        ]
+        .contains(&name)
+        {
+            pointer = true;
         }
 
         if let Some(open_bracket_pos) = name.find('[') {
