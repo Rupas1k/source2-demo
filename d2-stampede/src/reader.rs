@@ -1,3 +1,5 @@
+use crate::proto::*;
+use crate::ParserError;
 use bitter::{BitReader, LittleEndianReader};
 
 pub(crate) struct Reader<'a> {
@@ -200,7 +202,7 @@ impl<'a> Reader<'a> {
         }
     }
 
-    const FRACTION_FACTOR: f32 = (1.0 / (1 << 5) as f32);
+    const COORD_FACTOR: f32 = (1.0 / (1 << 5) as f32);
     #[inline]
     pub(crate) fn read_coordinate(&mut self) -> f32 {
         self.refill();
@@ -221,7 +223,7 @@ impl<'a> Reader<'a> {
                 fract_val = self.read_bits_no_refill(5);
             }
 
-            value = (int_val as f32) + (fract_val as f32) * Self::FRACTION_FACTOR;
+            value = (int_val as f32) + (fract_val as f32) * Self::COORD_FACTOR;
 
             if signbit == 1 {
                 value = -value;
@@ -244,5 +246,50 @@ impl<'a> Reader<'a> {
             tmp.push(self.read_bits(bits) as u8);
         }
         tmp
+    }
+
+    #[inline]
+    pub(crate) fn read_next_message(
+        &mut self,
+    ) -> Result<Option<crate::parser::OuterMessage>, ParserError> {
+        if self.bytes_remaining() == 0 {
+            return Ok(None);
+        }
+
+        let cmd = self.read_var_u32() as i32;
+        let tick = self.read_var_u32();
+        let size = self.read_var_u32();
+
+        let msg_type =
+            EDemoCommands::try_from(cmd & !(EDemoCommands::DemIsCompressed as i32)).unwrap();
+        let msg_compressed = cmd & EDemoCommands::DemIsCompressed as i32 != 0;
+
+        let buf = if msg_compressed {
+            let buf = self.read_bytes(size);
+            let mut decoder = snap::raw::Decoder::new();
+            decoder.decompress_vec(&buf)?
+        } else {
+            self.read_bytes(size)
+        };
+
+        Ok(Some(crate::parser::OuterMessage {
+            msg_type,
+            tick,
+            buf,
+        }))
+    }
+
+    #[inline]
+    pub(crate) fn read_replay_info(&mut self) -> Result<CDemoFileInfo, ParserError> {
+        let offset = u32::from_le_bytes(self.buf[8..12].try_into().unwrap()) as usize;
+
+        if self.buf.len() < offset {
+            return Err(ParserError::ReplayEncodingError);
+        }
+
+        let mut reader = Reader::new(&self.buf[offset..]);
+        Ok(CDemoFileInfo::decode(
+            reader.read_next_message()?.unwrap().buf.as_slice(),
+        )?)
     }
 }
