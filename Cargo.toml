@@ -3,8 +3,8 @@ members = [
     "d2-stampede",
     "d2-stampede-protobufs",
     "d2-stampede-observers",
-    "d2-stampede-examples/*"
-]
+    "d2-stampede-examples/*",
+    "d2-stampede-macros"]
 
 resolver = "2"
 
