@@ -126,6 +126,7 @@ pub mod proto {
 }
 
 pub use crate::parser::ParserError;
+pub use d2_stampede_macros::*;
 
 /// Result type for observers ([`anyhow::Result`])
 pub type ObserverResult = anyhow::Result<()>;
