@@ -1,5 +1,5 @@
+use crate::error::ParserError;
 use crate::proto::*;
-use crate::ParserError;
 use bitter::{BitReader, LittleEndianReader};
 
 pub(crate) struct Reader<'a> {

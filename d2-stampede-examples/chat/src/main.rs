@@ -4,23 +4,21 @@ use d2_stampede::proto::*;
 #[derive(Default)]
 struct Chat;
 
-impl Observer for Chat {
-    fn on_dota_user_message(
+#[observer]
+impl Chat {
+    #[on_message]
+    fn handle_chat_msg(
         &mut self,
         ctx: &Context,
-        msg_type: EDotaUserMessages,
-        msg: &[u8],
+        chat_msg: CDotaUserMsgChatMessage,
     ) -> ObserverResult {
-        if msg_type == EDotaUserMessages::DotaUmChatMessage {
-            if let Ok(pr) = ctx.entities().get_by_class_name("CDOTA_PlayerResource") {
-                let message = CDotaUserMsgChatMessage::decode(msg)?;
-                let name: String = property!(
-                    pr,
-                    "m_vecPlayerData.{:04}.m_iszPlayerName",
-                    message.source_player_id()
-                );
-                println!("{}: {}", name, message.message_text());
-            }
+        if let Ok(pr) = ctx.entities().get_by_class_name("CDOTA_PlayerResource") {
+            let name: String = property!(
+                pr,
+                "m_vecPlayerData.{:04}.m_iszPlayerName",
+                chat_msg.source_player_id()
+            );
+            println!("{}: {}", name, chat_msg.message_text());
         }
         Ok(())
     }
@@ -39,7 +37,9 @@ fn main() -> anyhow::Result<()> {
     parser.register_observer::<Chat>();
 
     let start = std::time::Instant::now();
+
     parser.run_to_end()?;
+
     println!("Elapsed: {:?}", start.elapsed());
 
     Ok(())

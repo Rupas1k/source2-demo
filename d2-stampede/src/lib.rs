@@ -100,7 +100,16 @@ pub mod prelude {
     pub use crate::parser::{Context, Observer, Parser};
     pub use crate::ObserverResult;
     pub use crate::{property, try_property};
+
+    pub use d2_stampede_macros::*;
+
     pub use d2_stampede_protobufs::prost::Message;
+    pub use d2_stampede_protobufs::EBaseGameEvents;
+    pub use d2_stampede_protobufs::EBaseUserMessages;
+    pub use d2_stampede_protobufs::EDemoCommands;
+    pub use d2_stampede_protobufs::EDotaUserMessages;
+    pub use d2_stampede_protobufs::NetMessages;
+    pub use d2_stampede_protobufs::SvcMessages;
 }
 
 pub use crate::class::{Class, Classes};
@@ -109,6 +118,7 @@ pub use crate::entity::{Entities, Entity, EntityEvents};
 pub use crate::field_value::FieldValue;
 pub use crate::parser::{Context, Observer, Parser};
 pub use crate::string_table::{StringTable, StringTableRow, StringTables};
+pub use d2_stampede_macros::*;
 
 pub mod error {
     pub use crate::class::ClassError;
@@ -124,8 +134,6 @@ pub mod proto {
     pub use d2_stampede_protobufs::prost::Message;
     pub use d2_stampede_protobufs::*;
 }
-
-pub use crate::parser::ParserError;
 
 /// Result type for observers ([`anyhow::Result`])
 pub type ObserverResult = anyhow::Result<()>;

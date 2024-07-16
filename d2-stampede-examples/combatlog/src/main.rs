@@ -4,8 +4,10 @@ use d2_stampede::proto::DotaCombatlogTypes;
 #[derive(Default)]
 struct CombatLog;
 
-impl Observer for CombatLog {
-    fn on_combat_log(&mut self, _ctx: &Context, combat_log: &CombatLogEntry) -> ObserverResult {
+#[observer]
+impl CombatLog {
+    #[on_combat_log]
+    fn handle_cle(&mut self, _ctx: &Context, combat_log: &CombatLogEntry) -> ObserverResult {
         let time = combat_log.timestamp()?;
         match combat_log.r#type() {
             DotaCombatlogTypes::DotaCombatlogDamage => {

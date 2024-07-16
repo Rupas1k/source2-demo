@@ -16,8 +16,15 @@ impl Default for LifeState {
     }
 }
 
-impl Observer for LifeState {
-    fn on_entity(&mut self, ctx: &Context, event: EntityEvents, entity: &Entity) -> ObserverResult {
+#[observer]
+impl LifeState {
+    #[on_entity]
+    fn handle_entities(
+        &mut self,
+        ctx: &Context,
+        event: EntityEvents,
+        entity: &Entity,
+    ) -> ObserverResult {
         if EntityEvents::Created == event || EntityEvents::Updated == event {
             if let Ok(life_state) = entity.get_property_by_name("m_lifeState") {
                 let new_state: i32 = life_state.try_into()?;
