@@ -1,57 +1,132 @@
-extern crate proc_macro2;
+mod protobuf_map;
 
+use crate::protobuf_map::get_enum_from_struct;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, ItemImpl, ItemStruct, ItemFn, Type};
-
+use syn::{parse_macro_input, ItemImpl, Type};
 
 #[proc_macro_attribute]
 pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(item as ItemStruct);
-    let struct_name = &input.ident;
+    let input = parse_macro_input!(item as ItemImpl);
+    let struct_name = &input.self_ty;
 
-    let fields = if let syn::Fields::Named(fields) = &input.fields {
-        fields.named.iter().map(|field| {
-            let field_name = &field.ident;
-            let field_type = &field.ty;
-            quote! {
-                #field_name: #field_type,
-            }
-        }).collect::<Vec<_>>()
-    } else {
-        vec![]
-    };
+    let mut on_dota_user_message_body = quote!();
+    let mut on_base_user_message_body = quote!();
+    let mut on_svc_message_body = quote!();
+    let mut on_net_message_body = quote!();
+    let mut on_base_game_event_body = quote!();
+    let mut on_demo_command_body = quote!();
+    let mut on_tick_start_body = quote!();
+    let mut on_tick_end_body = quote!();
+    let mut on_entity_body = quote!();
+    let mut on_combat_log_body = quote!();
 
-    let fields_default = if let syn::Fields::Named(fields) = &input.fields {
-        fields.named.iter().map(|field| {
-            let field_name = &field.ident;
-            quote! {
-                #field_name: Default::default(),
+    for item in &input.items {
+        if let syn::ImplItem::Fn(method) = item {
+            let method_name = &method.sig.ident;
+            for attr in &method.attrs {
+                if attr.path().is_ident("on_message") {
+                    if let Some(arg_type) = get_message_type(method) {
+                        let enum_type = get_enum_from_struct(&arg_type.to_token_stream().to_string());
+                        match enum_type.to_token_stream().to_string().split("::").collect::<Vec<_>>()[0].trim() {
+                            "EDotaUserMessages" => {
+                                on_dota_user_message_body = quote! {
+                                    #on_dota_user_message_body
+                                    if msg_type == #enum_type {
+                                        if let Ok(message) = #arg_type::decode(msg) {
+                                            self.#method_name(ctx, message)?;
+                                        }
+                                    }
+                                };
+                            }
+                            "EBaseUserMessages" => {
+                                on_base_user_message_body = quote! {
+                                    #on_base_user_message_body
+                                    if msg_type == #enum_type {
+                                        if let Ok(message) = #arg_type::decode(msg) {
+                                            self.#method_name(ctx, message)?;
+                                        }
+                                    }
+                                };
+                            }
+                            "SvcMessages" => {
+                                on_svc_message_body = quote! {
+                                    #on_svc_message_body
+                                    if msg_type == #enum_type {
+                                        if let Ok(message) = #arg_type::decode(msg) {
+                                            self.#method_name(ctx, message)?;
+                                        }
+                                    }
+                                };
+                            }
+                            "EBaseGameEvents" => {
+                                on_base_game_event_body = quote! {
+                                    #on_base_game_event_body
+                                    if msg_type == #enum_type {
+                                        if let Ok(message) = #arg_type::decode(msg) {
+                                            self.#method_name(ctx, message)?;
+                                        }
+                                    }
+                                };
+                            }
+                            "NetMessages" => {
+                                on_net_message_body = quote! {
+                                    #on_net_message_body
+                                    if msg_type == #enum_type {
+                                        if let Ok(message) = #arg_type::decode(msg) {
+                                            self.#method_name(ctx, message)?;
+                                        }
+                                    }
+                                };
+                            }
+                            "EDemoCommands" => {
+                                on_demo_command_body = quote! {
+                                    #on_demo_command_body
+                                    if msg_type == #enum_type {
+                                        if let Ok(message) = #arg_type::decode(msg) {
+                                            self.#method_name(ctx, message)?;
+                                        }
+                                    }
+                                };
+                            }
+                            x => unreachable!("{}", x),
+                        }
+                    }
+                }
+
+                if attr.path().is_ident("on_tick_start") {
+                    on_tick_start_body = quote! {
+                        #on_tick_start_body
+                        self.#method_name(ctx)?;
+                    };
+                }
+
+                if attr.path().is_ident("on_tick_end") {
+                    on_tick_end_body = quote! {
+                        #on_tick_end_body
+                        self.#method_name(ctx)?;
+                    };
+                }
+
+
+                if attr.path().is_ident("on_entity") {
+                    on_entity_body = quote! {
+                        #on_entity_body
+                        self.#method_name(ctx, event, entity)?;
+                    };
+                }
+
+                if attr.path().is_ident("on_combat_log") {
+                    on_combat_log_body = quote! {
+                        #on_combat_log_body
+                        self.#method_name(ctx, cle)?;
+                    };
+                }
             }
-        }).collect::<Vec<_>>()
-    } else {
-        vec![]
-    };
+        }
+    }
 
     let expanded = quote! {
-        struct #struct_name {
-            #(#fields),*
-            dota_handlers: std::collections::HashMap<EDotaUserMessages, Vec<Box<dyn Fn(&mut Self, &Context, &[u8]) -> ObserverResult>>>,
-            base_handlers: std::collections::HashMap<EBaseUserMessages, Vec<Box<dyn Fn(&mut Self, &Context, &[u8]) -> ObserverResult>>>,
-        }
-
-        impl Default for #struct_name {
-            fn default() -> Self {
-                let mut instance = Self {
-                    dota_handlers: std::collections::HashMap::new(),
-                    base_handlers: std::collections::HashMap::new(),
-                    #(#fields_default),*
-                };
-                instance.register_handlers();
-                instance
-            }
-        }
-
         impl Observer for #struct_name {
             fn on_dota_user_message(
                 &mut self,
@@ -59,143 +134,93 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 msg_type: EDotaUserMessages,
                 msg: &[u8],
             ) -> ObserverResult {
-                self.handle_dota_user_message(ctx, msg_type, msg)
-            }
-
-            // fn on_base_user_message(
-            //     &mut self,
-            //     ctx: &Context,
-            //     msg_type: EBaseUserMessages,
-            //     msg: &[u8],
-            // ) -> ObserverResult {
-            //     self.handle_base_user_message(ctx, msg_type, msg)
-            // }
-        }
-    };
-
-    TokenStream::from(expanded)
-}
-
-#[inline]
-fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
-    match struct_name {
-        "CDotaUserMsgChatMessage" => quote! { EDotaUserMessages::DotaUmChatMessage },
-        // "CDotaUserMsgCombatLogData" => "EDotaUserMessages::DotaUmCombatLogData",
-        // "CDotaUserMsgCombatLogData2" => "EDotaUserMessages::DotaUmCombatLogData2",
-        // "CDotaUserMsgCreateLinearProjectile" => "EDotaUserMessages::DotaUmCreateLinearProjectile",
-        // "CDotaUserMsgDestroyLinearProjectile" => "EDotaUserMessages::DotaUmDestroyLinearProjectile",
-        // "CDotaUserMsgGlobalLightColor" => "EDotaUserMessages::DotaUmGlobalLightColor",
-        // "CDotaUserMsgGlobalLightDirection" => "EDotaUserMessages::DotaUmGlobalLightDirection",
-        // "CDotaUserMsgHeroEffect" => "EDotaUserMessages::DotaUmHeroEffect",
-        // "CDotaUserMsgModifyUnitMotionController" => "EDotaUserMessages::DotaUmModifyUnitMotionController",
-        // "CDotaUserMsgParticleManager" => "EDotaUserMessages::DotaUmParticleManager",
-        // "CDotaUserMsgPing" => "EDotaUserMessages::DotaUmPing",
-        // "CDotaUserMsgRemoveLinearProjectile" => "EDotaUserMessages::DotaUmRemoveLinearProjectile",
-        // "CDotaUserMsgSelection" => "EDotaUserMessages::DotaUmSelection",
-        // "CDotaUserMsgSpectatorPlayerClick" => "EDotaUserMessages::DotaUmSpectatorPlayerClick",
-        // "CDotaUserMsgTutorialTipInfo" => "EDotaUserMessages::DotaUmTutorialTipInfo",
-        // "CDotaUserMsgUpdateHealth" => "EDotaUserMessages::DotaUmUpdateHealth",
-        // "CDotaUserMsgUpdateMana" => "EDotaUserMessages::DotaUmUpdateMana",
-        // "CDotaUserMsgUpdateMultipleEntities" => "EDotaUserMessages::DotaUmUpdateMultipleEntities",
-        // "CDotaUserMsgUpdateMultipleEntities2" => "EDotaUserMessages::DotaUmUpdateMultipleEntities2",
-        // "CDotaUserMsgUpdateMultipleEntities3" => "EDotaUserMessages::DotaUmUpdateMultipleEntities3",
-        // "CDotaUserMsgWorldLine" => "EDotaUserMessages::DotaUmWorldLine",
-        _ => panic!("Unknown message type: {}", struct_name)
-    }
-}
-
-#[proc_macro_attribute]
-pub fn observermethods(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(item as ItemImpl);
-    let struct_name = &input.self_ty;
-    let mut register_handlers_body = quote!();
-
-    for item in &input.items {
-        if let syn::ImplItem::Fn(method) = item {
-            for attr in &method.attrs {
-                if attr.path().is_ident("on_dota_user_message") {
-                    if let Some(arg_type) = get_message_type(method) {
-                        let enum_type = get_enum_from_struct(&arg_type.to_token_stream().to_string());
-                        let method_name = &method.sig.ident;
-                        register_handlers_body = quote! {
-                            #register_handlers_body
-                            self.register_dota_handler(#enum_type, |slf: &mut Self, ctx, msg| -> ObserverResult {
-                                if let Ok(message) = #arg_type::decode(msg) {
-                                    slf.#method_name(ctx, message)?;
-                                }
-                                Ok(())
-                            });
-                        };
-                    }
-                }
-                // else if attr.path().is_ident("on_base_user_message") {
-                //     if let Some(arg_type) = get_message_type(method) {
-                //         let method_name = &method.sig.ident;
-                //         register_handlers_body = quote! {
-                //             #register_handlers_body
-                //             self.register_base_handler(#arg_type::default(), |slf: &Self, ctx, msg| {
-                //                 if let Ok(message) = #arg_type::decode(msg) {
-                //                     slf.#method_name(ctx, message);
-                //                 }
-                //             });
-                //         };
-                //     }
-                // }
-            }
-        }
-    }
-
-    let expanded = quote! {
-        impl #struct_name {
-            fn register_dota_handler<F>(&mut self, msg_type: EDotaUserMessages, handler: F)
-            where
-                F: Fn(&mut Self, &Context, &[u8]) -> ObserverResult + 'static,
-            {
-                let handlers = self.dota_handlers.entry(msg_type).or_insert_with(Vec::new);
-                handlers.push(Box::new(handler));
-            }
-
-            fn register_base_handler<F>(&mut self, msg_type: EBaseUserMessages, handler: F)
-            where
-                F: Fn(&mut Self, &Context, &[u8]) -> ObserverResult + 'static,
-            {
-                let handlers = self.base_handlers.entry(msg_type).or_insert_with(Vec::new);
-                handlers.push(Box::new(handler));
-            }
-
-            #[inline]
-            fn handle_dota_user_message(
-                &mut self,
-                ctx: &Context,
-                msg_type: EDotaUserMessages,
-                msg: &[u8],
-            ) -> ObserverResult {
-                let self_ptr = self as *mut Self;
-
-                if let Some(v) = self.dota_handlers.get(&msg_type) {
-                    for h in v.iter() {
-                        unsafe { h(self_ptr.as_mut().unwrap(), ctx, msg).unwrap() }
-                    }
-                }
-
+                #on_dota_user_message_body
                 Ok(())
             }
 
-            fn handle_base_user_message(
+            fn on_base_user_message(
                 &mut self,
                 ctx: &Context,
                 msg_type: EBaseUserMessages,
                 msg: &[u8],
             ) -> ObserverResult {
-                // let x = self.base_handlers.get(&msg_type);
-                // if let Some(handler) = x {
-                //     handler(self, ctx, msg)?;
-                // }
+                #on_base_user_message_body
                 Ok(())
             }
 
-            fn register_handlers(&mut self) {
-                #register_handlers_body
+            fn on_svc_message(
+                &mut self,
+                ctx: &Context,
+                msg_type: SvcMessages,
+                msg: &[u8],
+            ) -> ObserverResult {
+                #on_svc_message_body
+                Ok(())
+            }
+
+            fn on_net_message(
+                &mut self,
+                ctx: &Context,
+                msg_type: NetMessages,
+                msg: &[u8],
+            ) -> ObserverResult {
+                #on_net_message_body
+                Ok(())
+            }
+
+            fn on_base_game_event(
+                &mut self,
+                ctx: &Context,
+                msg_type: EBaseGameEvents,
+                msg: &[u8],
+            ) -> ObserverResult {
+                #on_base_game_event_body
+                Ok(())
+            }
+
+            fn on_demo_command(
+                &mut self,
+                ctx: &Context,
+                msg_type: EDemoCommands,
+                msg: &[u8],
+            ) -> ObserverResult {
+                #on_demo_command_body
+                Ok(())
+            }
+
+            fn on_tick_start(
+                &mut self,
+                ctx: &Context,
+            ) -> ObserverResult {
+                #on_tick_start_body
+                Ok(())
+            }
+
+            fn on_tick_end(
+                &mut self,
+                ctx: &Context,
+            ) -> ObserverResult {
+                #on_tick_end_body
+                Ok(())
+            }
+            
+            fn on_entity(
+                &mut self,
+                ctx: &Context,
+                event: EntityEvents,
+                entity: &Entity,
+            ) -> ObserverResult {
+                #on_entity_body
+                Ok(())
+            }
+            
+            fn on_combat_log(
+                &mut self,
+                ctx: &Context,
+                cle: &CombatLogEntry,
+            ) -> ObserverResult {
+                #on_combat_log_body
+                Ok(())
             }
         }
 
@@ -206,20 +231,30 @@ pub fn observermethods(_attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn on_dota_user_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    TokenStream::from(parse_macro_input!(item as ItemFn).to_token_stream())
+pub fn on_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
 }
+
 #[proc_macro_attribute]
-pub fn on_base_user_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    TokenStream::from(parse_macro_input!(item as ItemFn).to_token_stream())
+pub fn on_tick_start(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+#[proc_macro_attribute]
+pub fn on_tick_end(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+#[proc_macro_attribute]
+pub fn on_entity(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+#[proc_macro_attribute]
+pub fn on_combat_log(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
 }
 
 fn get_message_type(method: &syn::ImplItemFn) -> Option<&Type> {
-    method.sig.inputs.iter().nth(2).and_then(|arg| {
-        if let syn::FnArg::Typed(pat_type) = arg {
-            Some(&*pat_type.ty)
-        } else {
-            None
-        }
-    })
+    method.sig.inputs.iter().nth(2).and_then(|arg| if let syn::FnArg::Typed(pat_type) = arg { Some(&*pat_type.ty) } else { None })
 }
