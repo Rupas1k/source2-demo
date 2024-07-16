@@ -1,7 +1,7 @@
 [package]
 name = "d2-stampede"
 description = "Dota 2 replay parser written in Rust"
-version = "0.1.4"
+version = "0.2.0"
 repository = "https://github.com/Rupas1k/d2-stampede"
 authors = ["Artem Rupasov <artemrupasov125@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -12,7 +12,7 @@ edition = "2021"
 
 [dependencies]
 d2-stampede-protobufs = { version = "0.2", path = "../d2-stampede-protobufs" }
-d2-stampede-macros = { path = "../d2-stampede-macros" }
+d2-stampede-macros = { version = "0.1", path = "../d2-stampede-macros" }
 snap = "1.1"
 bitter = "0.7"
 hashbrown = "0.14"

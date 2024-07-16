@@ -8,27 +8,26 @@ Dota 2 replay parser written in Rust.
 use d2_stampede::prelude::*;
 use d2_stampede::proto::*;
 
-// Create struct that implements Observer and Default traits
+// Create struct that implements Default trait
 #[derive(Default)]
 struct Chat;
 
-impl Observer for Chat {
-    fn on_dota_user_message(
+// Mark impl block with observer attribute
+#[observer]
+impl Chat {
+    #[on_message] // Use on_message attribute to mark protobuf message handler
+    fn handle_chat_msg(
         &mut self,
         ctx: &Context,
-        msg_type: EDotaUserMessages,
-        msg: &[u8],
+        chat_msg: CDotaUserMsgChatMessage, // Use any protobuf message as an argument
     ) -> ObserverResult {
-        if msg_type == EDotaUserMessages::DotaUmChatMessage {
-            if let Ok(pr) = ctx.entities().get_by_class_name("CDOTA_PlayerResource") {
-                let message = CDotaUserMsgChatMessage::decode(msg)?;
-                let name: String = property!(
-                    pr,
-                    "m_vecPlayerData.{:04}.m_iszPlayerName",
-                    message.source_player_id()
-                );
-                println!("{}: {}", name, message.message_text());
-            }
+        if let Ok(pr) = ctx.entities().get_by_class_name("CDOTA_PlayerResource") {
+            let name: String = property!(
+                pr,
+                "m_vecPlayerData.{:04}.m_iszPlayerName",
+                chat_msg.source_player_id()
+            );
+            println!("{}: {}", name, chat_msg.message_text());
         }
         Ok(())
     }

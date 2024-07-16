@@ -1,7 +1,7 @@
 [package]
 name = "d2-stampede-observers"
 description = "Collection of observers for d2-stampede"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 repository = "https://github.com/Rupas1k/d2-stampede"
 authors = ["Artem Rupasov <artemrupasov125@gmail.com>"]
@@ -10,6 +10,6 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-d2-stampede = { version = "0.1", path = "../d2-stampede", default-features = false }
+d2-stampede = { version = "0.2", path = "../d2-stampede", default-features = false }
 hashbrown = "0.14"
 anyhow = "1.0"
