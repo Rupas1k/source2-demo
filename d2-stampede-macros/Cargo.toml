@@ -7,6 +7,7 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
+d2-stampede-protobufs = { version = "0.2.0", path = "../d2-stampede-protobufs" }
 syn = "2.0"
 quote = "1.0"
 proc-macro2 = "1.0"
