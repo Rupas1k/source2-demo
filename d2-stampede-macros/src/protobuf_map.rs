@@ -2,7 +2,7 @@ use quote::quote;
 
 #[inline]
 pub(crate) fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
-    match struct_name { 
+    match struct_name {
         name if name.starts_with("CDota") || name == "CMsgDotaCombatLogEntry" => dota_um_to_enum(name),
         name if name.starts_with("CSvc") => svc_msg_to_enum(name),
         name if name.starts_with("CUserMessage") => base_um_to_enum(name),
