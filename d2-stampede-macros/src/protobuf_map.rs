@@ -1,21 +1,9 @@
 use quote::quote;
 
-#[inline]
-pub(crate) fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
+pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
     match struct_name {
-        name if name.starts_with("CDota") || name == "CMsgDotaCombatLogEntry" => dota_um_to_enum(name),
-        name if name.starts_with("CSvc") => svc_msg_to_enum(name),
-        name if name.starts_with("CUserMessage") => base_um_to_enum(name),
-        name if name.starts_with("CMsg") => base_ge_to_enum(name),
-        name if name.starts_with("CNetMsg") => net_msg_to_enum(name),
-        name if name.starts_with("CDemo") => demo_command_to_enum(name),
-        _ => panic!("Unknown message type: {}", struct_name)
-    }
-}
-
-#[inline]
-fn demo_command_to_enum(struct_name: &str) -> proc_macro2::TokenStream {
-    match struct_name {
+        // EDemoCommands
+        
         "CDemoFileHeader" => quote! { EDemoCommands::DemFileHeader },
         // "CDemoError" => quote! { EDemoCommands::DemError },
         "CDemoStop" => quote! { EDemoCommands::DemStop },
@@ -37,13 +25,9 @@ fn demo_command_to_enum(struct_name: &str) -> proc_macro2::TokenStream {
         "CDemoAnimationHeader" => quote! { EDemoCommands::DemAnimationHeader },
         // "CDemoMax" => quote! { EDemoCommands::DemMax },
         // "CDemoIsCompressed" => quote! { EDemoCommands::DemIsCompressed },
-        _ => panic!("Unknown message type: {}", struct_name)
-    }
-}
 
-#[inline]
-fn dota_um_to_enum(struct_name: &str) -> proc_macro2::TokenStream {
-    match struct_name {
+        // EDotaUserMessages
+        
         // "CDotaUserMsgAddUnitToSelection" => quote! { EDotaUserMessages::DotaUmAddUnitToSelection },
         "CDotaUserMsgAiDebugLine" => quote! { EDotaUserMessages::DotaUmAiDebugLine },
         "CDotaUserMsgChatEvent" => quote! { EDotaUserMessages::DotaUmChatEvent },
@@ -205,14 +189,8 @@ fn dota_um_to_enum(struct_name: &str) -> proc_macro2::TokenStream {
         "CDotaUserMsgFacetPing" => quote! { EDotaUserMessages::DotaUmFacetPing },
         "CDotaUserMsgInnatePing" => quote! { EDotaUserMessages::DotaUmInnatePing },
 
-        _ => panic!("Unknown message type: {}", struct_name)
-    }
-}
-
-
-#[inline]
-fn svc_msg_to_enum(struct_name: &str) -> proc_macro2::TokenStream {
-    match struct_name {
+        // SVC MESSAGE
+        
         "CSvcMsgServerInfo" => quote! { SvcMessages::SvcServerInfo },
         "CSvcMsgFlattenedSerializer" => quote! { SvcMessages::SvcFlattenedSerializer },
         "CSvcMsgClassInfo" => quote! { SvcMessages::SvcClassInfo },
@@ -244,14 +222,8 @@ fn svc_msg_to_enum(struct_name: &str) -> proc_macro2::TokenStream {
         "CSvcMsgBroadcastCommand" => quote! { SvcMessages::SvcBroadcastCommand },
         "CSvcMsgHltvFixupOperatorStatus" => quote! { SvcMessages::SvcHltvFixupOperatorStatus },
 
-        _ => panic!("Unknown message type: {}", struct_name)
-    }
-}
-
-
-#[inline]
-fn base_um_to_enum(struct_name: &str) -> proc_macro2::TokenStream {
-    match struct_name {
+        // EBaseUserMessages
+        
         "CUserMessageAchievementEvent" => quote! { EBaseUserMessages::UmAchievementEvent },
         "CUserMessageCloseCaption" => quote! { EBaseUserMessages::UmCloseCaption },
         "CUserMessageCloseCaptionDirect" => quote! { EBaseUserMessages::UmCloseCaptionDirect },
@@ -303,13 +275,9 @@ fn base_um_to_enum(struct_name: &str) -> proc_macro2::TokenStream {
         "CUserMessageExtraUserData" => quote! { EBaseUserMessages::UmExtraUserData },
         "CUserMessageNotifyResponseFound" => quote! { EBaseUserMessages::UmNotifyResponseFound },
         "CUserMessagePlayResponseConditional" => quote! { EBaseUserMessages::UmPlayResponseConditional },
-        _ => panic!("Unknown message type: {}", struct_name)
-    }
-}
 
-#[inline]
-fn base_ge_to_enum(struct_name: &str) -> proc_macro2::TokenStream {
-    match struct_name {
+        // EBaseGameEvents
+        
         "CMsgSource1LegacyGameEventList" => quote! { EBaseGameEvents::GeSource1LegacyGameEventList },
         "CMsgSource1LegacyListenEvents" => quote! { EBaseGameEvents::GeSource1LegacyListenEvents },
         "CMsgSource1LegacyGameEvent" => quote! { EBaseGameEvents::GeSource1LegacyGameEvent },
@@ -319,13 +287,8 @@ fn base_ge_to_enum(struct_name: &str) -> proc_macro2::TokenStream {
         "CMsgSosSetLibraryStackFields" => quote! { EBaseGameEvents::GeSosSetLibraryStackFields },
         "CMsgSosStopSoundEventHash" => quote! { EBaseGameEvents::GeSosStopSoundEventHash },
 
-        _ => panic!("Unknown message type: {}", struct_name)
-    }
-}
-
-#[inline]
-fn net_msg_to_enum(struct_name: &str) -> proc_macro2::TokenStream {
-    match struct_name {
+        // NetMessages
+        
         "CNetMsgNop" => quote! { NetMessages::NetNop },
         "CNetMsgDisconnectLegacy" => quote! { NetMessages::NetDisconnectLegacy },
         "CNetMsgSplitScreenUser" => quote! { NetMessages::NetSplitScreenUser },
@@ -339,7 +302,7 @@ fn net_msg_to_enum(struct_name: &str) -> proc_macro2::TokenStream {
         "CNetMsgSpawnGroupUnload" => quote! { NetMessages::NetSpawnGroupUnload },
         "CNetMsgSpawnGroupLoadCompleted" => quote! { NetMessages::NetSpawnGroupLoadCompleted },
         "CNetMsgDebugOverlay" => quote! { NetMessages::NetDebugOverlay },
-
+        
         _ => panic!("Unknown message type: {}", struct_name)
     }
 }
