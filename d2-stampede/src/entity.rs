@@ -54,7 +54,7 @@ pub struct Entities {
 impl Default for Entities {
     fn default() -> Self {
         Entities {
-            entities_vec: vec![None; 4096],
+            entities_vec: vec![None; 8192],
         }
     }
 }

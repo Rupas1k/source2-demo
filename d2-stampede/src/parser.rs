@@ -264,7 +264,7 @@ impl<'a> Parser<'a> {
             self.context.net_tick = u32::MAX;
             self.reader.reset_to(16);
 
-            self.context.entities.entities_vec = vec![None; 4096];
+            self.context.entities.entities_vec = vec![None; 8192];
 
             self.context.string_tables.tables.clear();
             self.context.string_tables.name_to_table.clear();
