@@ -24,11 +24,9 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
     for item in &input.items {
         if let syn::ImplItem::Fn(method) = item {
             let method_name = &method.sig.ident;
-
-            check_second_arg_is_context(method);
-            
             for attr in &method.attrs {
                 if attr.path().is_ident("on_message") {
+                    check_second_arg_is_context(method);
                     if let Some((arg_type, is_reference)) = get_message_type(method) {
                         let enum_type = get_enum_from_struct(&arg_type.to_token_stream().to_string());
                         let call_message = if is_reference {
@@ -105,6 +103,7 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
 
                 if attr.path().is_ident("on_tick_start") {
+                    check_second_arg_is_context(method);
                     on_tick_start_body = quote! {
                         #on_tick_start_body
                         self.#method_name(ctx)?;
@@ -112,6 +111,7 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
 
                 if attr.path().is_ident("on_tick_end") {
+                    check_second_arg_is_context(method);
                     on_tick_end_body = quote! {
                         #on_tick_end_body
                         self.#method_name(ctx)?;
@@ -119,6 +119,7 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
 
                 if attr.path().is_ident("on_entity") {
+                    check_second_arg_is_context(method);
                     on_entity_body = quote! {
                         #on_entity_body
                         self.#method_name(ctx, event, entity)?;
@@ -126,6 +127,7 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
 
                 if attr.path().is_ident("on_combat_log") {
+                    check_second_arg_is_context(method);
                     on_combat_log_body = quote! {
                         #on_combat_log_body
                         self.#method_name(ctx, cle)?;
