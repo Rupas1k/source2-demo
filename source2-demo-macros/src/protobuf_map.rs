@@ -391,6 +391,11 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CSvcMsgHltvReplay" => quote! { SvcMessages::SvcHltvReplay },
         "CSvcMsgBroadcastCommand" => quote! { SvcMessages::SvcBroadcastCommand },
         "CSvcMsgHltvFixupOperatorStatus" => quote! { SvcMessages::SvcHltvFixupOperatorStatus },
+        "CSvcMsgGameEventList" => {
+            quote! { EBaseGameEvents::GeSource1LegacyGameEventList }
+        }
+        "CSvcMsgGameEvent" => quote! { EBaseGameEvents::GeSource1LegacyGameEvent },
+
 
         // EBaseUserMessages
         "CUserMessageAchievementEvent" => quote! { EBaseUserMessages::UmAchievementEvent },
