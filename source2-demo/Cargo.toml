@@ -1,0 +1,21 @@
+[package]
+name = "source2-demo"
+description = "Dota 2 / Deadlock replay parser written in Rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hashbrown = "0.14"
+snap = "1.1"
+bitter = "0.7"
+thiserror = "1.0"
+anyhow = "1.0"
+prettytable = "0.10"
+mimalloc = { version = "0.1", optional = true }
+source2-demo-protobufs = { path = "../source2-demo-protobufs" }
+source2-demo-macros = { path = "../source2-demo-macros" }
+
+[features]
+default = ["dota", "mimalloc"]
+dota = ["source2-demo-protobufs/dota", "source2-demo-macros/dota"]
+deadlock = ["source2-demo-protobufs/citadel", "source2-demo-macros/citadel"]

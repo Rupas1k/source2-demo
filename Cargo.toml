@@ -1,10 +1,12 @@
 [workspace]
 members = [
-    "d2-stampede",
-    "d2-stampede-protobufs",
-    "d2-stampede-macros",
-    "d2-stampede-observers",
-    "d2-stampede-examples/*",
+    "source2-demo",
+    "source2-demo-protobufs",
+    "source2-demo-macros",
+    #    "dl-examples",
+    #    "d2-stampede",
+    #    "d2-stampede-observers",
+    #    "d2-stampede-examples/*",
 ]
 
 resolver = "2"
