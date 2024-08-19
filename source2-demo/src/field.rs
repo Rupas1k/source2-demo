@@ -23,7 +23,7 @@ impl Field {
                 if let Some(s) = st.get_field_state(fp) {
                     fp.last += 1;
                     for i in 0..s.vec.len() {
-                        fp.path[fp.last] = i as u8;
+                        fp.path[fp.last] = i as u16;
                         field_paths.push(*fp);
                     }
                     fp.last -= 1;
@@ -40,7 +40,7 @@ impl Field {
                 if let Some(x) = st.get_field_state(fp) {
                     fp.last += 2;
                     for i in 0..x.vec.len() {
-                        fp.path[fp.last - 1] = i as u8;
+                        fp.path[fp.last - 1] = i as u16;
                         field_paths.extend(serializer.get_field_paths(fp, st));
                     }
                     fp.last -= 2;
@@ -73,12 +73,7 @@ impl Encoder {
             "fixed64" => Some(Encoder::Fixed64),
             "qangle_pitch_yaw" => Some(Encoder::QAnglePitchYaw),
             "qangle_precise" => Some(Encoder::QAnglePrecise),
-            _ => {
-                if s != "" {
-                    println!("{}", s);
-                }
-                None
-            }
+            _ => None,
         }
     }
 }
@@ -137,7 +132,7 @@ impl FieldState {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct FieldPath {
-    pub(crate) path: [u8; 7],
+    pub(crate) path: [u16; 7],
     pub(crate) last: usize,
 }
 
@@ -157,13 +152,13 @@ impl FieldPath {
     #[inline]
     pub(crate) fn new() -> Self {
         FieldPath {
-            path: [u8::MAX, 0, 0, 0, 0, 0, 0],
+            path: [u16::MAX, 0, 0, 0, 0, 0, 0],
             last: 0,
         }
     }
 
     #[inline]
-    pub(crate) fn push(&mut self, val: u8) {
+    pub(crate) fn push(&mut self, val: u16) {
         self.last += 1;
         self.path[self.last] = val;
     }
@@ -177,17 +172,17 @@ impl FieldPath {
     }
 
     #[inline]
-    pub(crate) fn inc(&mut self, n: usize, val: u8) {
+    pub(crate) fn inc(&mut self, n: usize, val: u16) {
         self.path[n] = self.path[n].wrapping_add(val)
     }
 
     #[inline]
-    pub(crate) fn sub(&mut self, n: usize, val: u8) {
+    pub(crate) fn sub(&mut self, n: usize, val: u16) {
         self.path[n] = self.path[n].wrapping_sub(val)
     }
 
     #[inline]
-    pub(crate) fn inc_curr(&mut self, val: u8) {
+    pub(crate) fn inc_curr(&mut self, val: u16) {
         self.path[self.last] = self.path[self.last].wrapping_add(val)
     }
 }
@@ -248,16 +243,12 @@ impl FieldType {
 
         let base = name[..base_end].trim().to_string().into_boxed_str();
 
-        let fp = FieldType {
+        FieldType {
             base,
             generic,
             pointer,
             count,
-        };
-
-        // println!("{}", fp.as_string());
-
-        fp
+        }
     }
 
     pub fn as_string(&self) -> String {

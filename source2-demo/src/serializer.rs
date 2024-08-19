@@ -132,18 +132,18 @@ impl Serializer {
             'outer: loop {
                 for (i, f) in current_serializer.fields.iter().enumerate() {
                     if &name[offset..] == f.var_name.as_ref() {
-                        fp.path[fp.last] = i as u8;
+                        fp.path[fp.last] = i as u16;
                         break 'outer;
                     }
                     if name[offset..].as_bytes().get(f.var_name.len()) == Some(&b"."[0])
                         && &name[offset..(offset + f.var_name.len())] == f.var_name.as_ref()
                     {
-                        fp.path[fp.last] = i as u8;
+                        fp.path[fp.last] = i as u16;
                         fp.last += 1;
                         offset += f.var_name.len() + 1;
                         match &f.model {
                             FieldModel::FixedArray | FieldModel::VariableArray(_) => {
-                                fp.path[fp.last] = name[offset..].parse::<u8>().unwrap();
+                                fp.path[fp.last] = name[offset..].parse::<u16>().unwrap();
                                 break 'outer;
                             }
                             FieldModel::FixedTable(serializer) => {
@@ -152,7 +152,7 @@ impl Serializer {
                             }
                             FieldModel::VariableTable(serializer) => {
                                 fp.path[fp.last] =
-                                    name[offset..(offset + 4)].parse::<u8>().unwrap();
+                                    name[offset..(offset + 4)].parse::<u16>().unwrap();
                                 fp.last += 1;
                                 offset += 5;
                                 current_serializer = serializer;
@@ -178,7 +178,7 @@ impl Serializer {
             .iter()
             .enumerate()
             .flat_map(|(i, f)| {
-                fp.path[fp.last] = i as u8;
+                fp.path[fp.last] = i as u16;
                 f.get_field_paths(fp, st)
             })
             .collect::<Vec<_>>()
