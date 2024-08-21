@@ -1,9 +1,0 @@
-[package]
-name = "dl-examples"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-source2-demo = { path = "../../source2-demo", default-features = false, features = ["deadlock"] }
-anyhow = "1.0.86"
-memmap2 = "0.9.4"

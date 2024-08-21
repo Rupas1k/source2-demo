@@ -1,6 +1,7 @@
 [package]
 name = "source2-demo-macros"
 description = "Procedural macros for Source 2 replay parser"
+repository = "https://github.com/Rupas1k/source2-demo"
 version = "0.1.0"
 edition = "2021"
 

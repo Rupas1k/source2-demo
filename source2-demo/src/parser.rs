@@ -544,6 +544,7 @@ impl<'a> Parser<'a> {
                         FieldModel::FixedArray
                     } else if field_type.base.as_ref() == "CUtlVector"
                         || field_type.base.as_ref() == "CNetworkUtlVectorBase"
+                        || field_type.base.as_ref() == "CUtlVectorEmbeddedNetworkVar"
                     {
                         FieldModel::VariableArray(Decoder::from_field(
                             field_type.generic.as_ref().unwrap(),

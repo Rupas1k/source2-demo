@@ -3,7 +3,7 @@ name = "source2-demo-protobufs"
 description = "Dota 2 and Deadlock Protobufs"
 version = "0.1.0"
 edition = "2021"
-repository = "https://github.com/Rupas1k/d2-stampede"
+repository = "https://github.com/Rupas1k/source2-demo"
 authors = ["Artem Rupasov <artemrupasov125@gmail.com>"]
 license = "MIT OR Apache-2.0"
 exclude = ["protos/*", "build.rs"]
@@ -16,7 +16,7 @@ prost-build = "0.13"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-prost = { version = "0.13" }
+prost = "0.13"
 
 [features]
 dota = []
