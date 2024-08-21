@@ -140,13 +140,14 @@ pub use crate::combat_log::CombatLogEntry;
 
 pub mod error {
     pub use crate::class::ClassError;
-    #[cfg(feature = "dota")]
-    pub use crate::combat_log::CombatLogError;
     pub use crate::entity::EntityError;
     pub use crate::field_value::FieldValueError;
     pub use crate::parser::ParserError;
     pub use crate::serializer::SerializerError;
     pub use crate::string_table::StringTableError;
+
+    #[cfg(feature = "dota")]
+    pub use crate::combat_log::CombatLogError;
 }
 
 pub mod proto {

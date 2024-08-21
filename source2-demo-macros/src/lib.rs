@@ -5,9 +5,6 @@ use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_macro_input, FnArg, ItemImpl, Type};
 
-#[cfg(all(feature = "dota", feature = "citadel"))]
-compile_error!("Mutually exclusive features enabled");
-
 #[proc_macro_attribute]
 pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemImpl);
@@ -17,7 +14,6 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut on_combat_log_body = quote!();
     #[cfg(feature = "dota")]
     let mut on_dota_user_message_body = quote!();
-
 
     #[cfg(feature = "citadel")]
     let mut on_citadel_user_message_body = quote!();
@@ -41,13 +37,20 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 if attr.path().is_ident("on_message") {
                     check_second_arg_is_context(method);
                     if let Some((arg_type, is_reference)) = get_message_type(method) {
-                        let enum_type = get_enum_from_struct(&arg_type.to_token_stream().to_string());
+                        let enum_type =
+                            get_enum_from_struct(&arg_type.to_token_stream().to_string());
                         let call_message = if is_reference {
                             quote! { self.#method_name(ctx, &message)?; }
                         } else {
                             quote! { self.#method_name(ctx, message)?; }
                         };
-                        match enum_type.to_token_stream().to_string().split("::").collect::<Vec<_>>()[0].trim() {
+                        match enum_type
+                            .to_token_stream()
+                            .to_string()
+                            .split("::")
+                            .collect::<Vec<_>>()[0]
+                            .trim()
+                        {
                             #[cfg(feature = "dota")]
                             "EDotaUserMessages" => {
                                 on_dota_user_message_body = quote! {
@@ -183,9 +186,11 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let specific_methods = {
+        let mut methods = quote! {};
+
         #[cfg(feature = "dota")]
         {
-            quote! {
+            methods.extend(quote! {
                 fn on_dota_user_message(
                     &mut self,
                     ctx: &Context,
@@ -204,11 +209,12 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     #on_combat_log_body
                     Ok(())
                 }
-            }
+            });
         }
+
         #[cfg(feature = "citadel")]
         {
-            quote! {
+            methods.extend(quote! {
                 fn on_citadel_user_message(
                     &mut self,
                     ctx: &Context,
@@ -228,12 +234,10 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     #on_citadel_game_event_body
                     Ok(())
                 }
-            }
+            });
         }
-        #[cfg(not(any(feature = "dota", feature = "citadel")))]
-        {
-            quote! {}
-        }
+
+        methods
     };
 
     let expanded = quote! {
