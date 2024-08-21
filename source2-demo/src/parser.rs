@@ -843,18 +843,12 @@ impl<'a> Parser<'a> {
         let game_dir = info.game_dir();
 
         #[cfg(feature = "dota")]
-        if let Some(start) = game_dir.find("dota_v") {
-            let start = start + "dota_v".len();
-            if let Some(end) = game_dir[start..].find('/') {
-                let build_str = &game_dir[start..start + end];
-                let build = build_str.parse::<u32>().unwrap();
-                self.context.game_build = build;
-            }
-        }
-
+        let game_prefix = "dota_v";
         #[cfg(feature = "deadlock")]
-        if let Some(start) = game_dir.find("citadel_v") {
-            let start = start + "citadel_v".len();
+        let game_prefix = "citadel_v";
+
+        if let Some(start) = game_dir.find(game_prefix) {
+            let start = start + game_prefix.len();
             if let Some(end) = game_dir[start..].find('/') {
                 let build_str = &game_dir[start..start + end];
                 let build = build_str.parse::<u32>().unwrap();
