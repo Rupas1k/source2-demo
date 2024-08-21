@@ -16,6 +16,6 @@ source2-demo-protobufs = { path = "../source2-demo-protobufs" }
 source2-demo-macros = { path = "../source2-demo-macros" }
 
 [features]
-default = ["dota", "mimalloc"]
+default = ["mimalloc"]
 dota = ["source2-demo-protobufs/dota", "source2-demo-macros/dota"]
 deadlock = ["source2-demo-protobufs/citadel", "source2-demo-macros/citadel"]
