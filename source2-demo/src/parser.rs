@@ -5,6 +5,7 @@ use crate::entity::{Entities, Entity, EntityError, EntityEvents};
 use crate::field::{Encoder, Field, FieldModel, FieldProperties, FieldState, FieldType};
 use crate::field_reader::FieldReader;
 use crate::field_value::FieldValueError;
+use crate::game_event::{GameEvent, GameEventList};
 use crate::proto::*;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
@@ -74,6 +75,8 @@ pub struct Parser<'a> {
 
     #[cfg(feature = "dota")]
     combat_log: VecDeque<CMsgDotaCombatLogEntry>,
+
+    game_event: GameEventList,
 
     prologue_completed: bool,
     skip_deltas: bool,
@@ -183,6 +186,7 @@ impl<'a> Parser<'a> {
 
             #[cfg(feature = "dota")]
             combat_log: VecDeque::default(),
+            game_event: GameEventList::default(),
 
             prologue_completed: false,
             skip_deltas: false,
@@ -393,6 +397,15 @@ impl<'a> Parser<'a> {
         msg_type: EBaseGameEvents,
         msg: &[u8],
     ) -> Result<(), ParserError> {
+        if msg_type == EBaseGameEvents::GeSource1LegacyGameEventList {
+            self.game_event = GameEventList::new(CSvcMsgGameEventList::decode(msg)?);
+        }
+
+        if msg_type == EBaseGameEvents::GeSource1LegacyGameEvent {
+            let ge = GameEvent::new(&self.game_event, CSvcMsgGameEvent::decode(msg)?);
+            try_observers!(self, on_game_event(&self.context, &ge))?;
+        }
+
         try_observers!(self, on_base_game_event(&self.context, msg_type, msg))?;
         Ok(())
     }
@@ -911,6 +924,10 @@ pub trait Observer {
     }
 
     fn on_entity(&mut self, ctx: &Context, event: EntityEvents, entity: &Entity) -> ObserverResult {
+        Ok(())
+    }
+
+    fn on_game_event(&mut self, ctx: &Context, ge: &GameEvent) -> ObserverResult {
         Ok(())
     }
 

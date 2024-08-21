@@ -14,6 +14,7 @@ mod string_table;
 
 #[cfg(feature = "dota")]
 mod combat_log;
+mod game_event;
 
 /// Macro for getting property from [`Entity`].
 ///
@@ -100,6 +101,7 @@ macro_rules! try_property {
 pub mod prelude {
     pub use crate::entity::{Entity, EntityEvents};
     pub use crate::field_value::FieldValue;
+    pub use crate::game_event::GameEvent;
     pub use crate::parser::{Context, Observer, Parser};
     pub use crate::ObserverResult;
     pub use crate::{property, try_property};
@@ -128,6 +130,7 @@ pub mod prelude {
 pub use crate::class::{Class, Classes};
 pub use crate::entity::{Entities, Entity, EntityEvents};
 pub use crate::field_value::FieldValue;
+pub use crate::game_event::GameEvent;
 pub use crate::parser::{Context, Observer, Parser};
 pub use crate::string_table::{StringTable, StringTableRow, StringTables};
 pub use source2_demo_macros::*;
