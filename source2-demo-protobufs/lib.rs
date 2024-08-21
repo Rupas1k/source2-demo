@@ -1,6 +1,3 @@
-#[cfg(all(feature = "dota", feature = "citadel"))]
-compile_error!("Mutually exclusive features");
-
 #[cfg(feature = "dota")]
 mod dota;
 #[cfg(feature = "dota")]

@@ -31,7 +31,8 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CCitadelUserMsgTeamRewards" => quote! { CitadelUserMessageIds::KEUserMsgTeamRewards },
         // "CCitadelUserMsgAbilityFailed" => quote! { CitadelUserMessageIds::KEUserMsgAbilityFailed
         // },
-        "CCitadelUserMsgTriggerDamageFlash" => { quote! { CitadelUserMessageIds::KEUserMsgTriggerDamageFlash }
+        "CCitadelUserMsgTriggerDamageFlash" => {
+            quote! { CitadelUserMessageIds::KEUserMsgTriggerDamageFlash }
         }
         "CCitadelUserMsgAbilitiesChanged" => {
             quote! { CitadelUserMessageIds::KEUserMsgAbilitiesChanged }
@@ -395,7 +396,6 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
             quote! { EBaseGameEvents::GeSource1LegacyGameEventList }
         }
         "CSvcMsgGameEvent" => quote! { EBaseGameEvents::GeSource1LegacyGameEvent },
-
 
         // EBaseUserMessages
         "CUserMessageAchievementEvent" => quote! { EBaseUserMessages::UmAchievementEvent },

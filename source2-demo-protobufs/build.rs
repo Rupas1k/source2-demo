@@ -1,4 +1,3 @@
-/// Script for updating protobufs
 fn main() -> std::io::Result<()> {
     let update = std::env::var_os("UPDATE_PROTOBUFS")
         .map(|v| v == "1")
@@ -36,10 +35,6 @@ fn main() -> std::io::Result<()> {
                 "./protos/common/network_connection.proto",
                 "./protos/common/networkbasetypes.proto",
                 "./protos/common/usermessages.proto",
-                "./protos/common/gcsdk_gcmessages.proto",
-                "./protos/common/steammessages.proto",
-                "./protos/common/steammessages_steamlearn.steamworkssdk.proto",
-                "./protos/common/steammessages_unified_base.steamworkssdk.proto",
                 "./protos/citadel/citadel_gameevents.proto",
                 "./protos/citadel/citadel_gcmessages_common.proto",
                 "./protos/citadel/citadel_usermessages.proto",

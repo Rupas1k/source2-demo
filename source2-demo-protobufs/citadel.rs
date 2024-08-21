@@ -5615,6 +5615,525 @@ impl EHapticPulseType {
 #[derive(serde::Serialize, serde::Deserialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CMsgFireBullets {
+    #[prost(message, optional, tag = "1")]
+    pub origin: ::core::option::Option<CMsgVector>,
+    #[prost(message, optional, tag = "2")]
+    pub angles: ::core::option::Option<CMsgQAngle>,
+    #[prost(uint32, optional, tag = "4")]
+    pub seed: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "5", default = "-1")]
+    pub shooter_entity: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "7", default = "-1")]
+    pub ability: ::core::option::Option<i32>,
+    #[prost(float, optional, tag = "8")]
+    pub penetration_percent: ::core::option::Option<f32>,
+    #[prost(float, optional, tag = "9")]
+    pub spread: ::core::option::Option<f32>,
+    #[prost(bool, optional, tag = "10", default = "true")]
+    pub fired_from_gun: ::core::option::Option<bool>,
+    #[prost(uint32, optional, tag = "11")]
+    pub bullets_override: ::core::option::Option<u32>,
+    #[prost(message, optional, tag = "12")]
+    pub tracer_replacement: ::core::option::Option<c_msg_fire_bullets::TracerAssignment>,
+    #[prost(message, repeated, tag = "13")]
+    pub tracer_additional: ::prost::alloc::vec::Vec<c_msg_fire_bullets::TracerAssignment>,
+    #[prost(message, optional, tag = "14")]
+    pub angles_original: ::core::option::Option<CMsgQAngle>,
+    #[prost(uint32, optional, tag = "15")]
+    pub weapon_subclass_id: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "16")]
+    pub shot_number: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "17", default = "-1")]
+    pub ignore_entity: ::core::option::Option<i32>,
+    #[prost(float, optional, tag = "18")]
+    pub max_range: ::core::option::Option<f32>,
+}
+/// Nested message and enum types in `CMsgFireBullets`.
+pub mod c_msg_fire_bullets {
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    pub struct TracerAssignment {
+        #[prost(uint64, optional, tag = "1")]
+        pub tracer_resource_id: ::core::option::Option<u64>,
+        #[prost(uint32, optional, tag = "2")]
+        pub bullet_indicies: ::core::option::Option<u32>,
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CMsgBulletImpact {
+    #[prost(message, optional, tag = "1")]
+    pub trace_start: ::core::option::Option<CMsgVector>,
+    #[prost(message, optional, tag = "2")]
+    pub impact_origin: ::core::option::Option<CMsgVector>,
+    #[prost(message, optional, tag = "3")]
+    pub surface_normal: ::core::option::Option<CMsgVector>,
+    #[prost(uint32, optional, tag = "4")]
+    pub damage: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "5")]
+    pub surface_type: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "7", default = "-1")]
+    pub ability_entindex: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "8", default = "-1")]
+    pub impacted_entindex: ::core::option::Option<i32>,
+    #[prost(uint32, optional, tag = "9")]
+    pub impacted_hitbox: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "10")]
+    pub weapon_subclass_id: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "11", default = "-1")]
+    pub shooter_entindex: ::core::option::Option<i32>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CMsgPlayerAnimEvent {
+    #[prost(fixed32, optional, tag = "1", default = "16777215")]
+    pub player: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "2")]
+    pub event: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "3")]
+    pub data: ::core::option::Option<i32>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CMsgParticleSystemManager {
+    #[prost(
+        enumeration = "ParticleSystemManagerMessage",
+        required,
+        tag = "1",
+        default = "ParticleSystemManagerEventCreate"
+    )]
+    pub r#type: i32,
+    #[prost(uint32, required, tag = "2")]
+    pub index: u32,
+    #[prost(message, optional, tag = "3")]
+    pub create_particle: ::core::option::Option<c_msg_particle_system_manager::CreateParticle>,
+    #[prost(message, optional, tag = "4")]
+    pub destroy_particle: ::core::option::Option<c_msg_particle_system_manager::DestroyParticle>,
+    #[prost(message, optional, tag = "5")]
+    pub destroy_particle_involving:
+        ::core::option::Option<c_msg_particle_system_manager::DestroyParticleInvolving>,
+    #[prost(message, optional, tag = "6")]
+    pub release_particle_index:
+        ::core::option::Option<c_msg_particle_system_manager::ReleaseParticleIndex>,
+    #[prost(message, optional, tag = "7")]
+    pub update_particle: ::core::option::Option<c_msg_particle_system_manager::UpdateParticle>,
+    #[prost(message, optional, tag = "8")]
+    pub update_particle_fwd:
+        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleFwd>,
+    #[prost(message, optional, tag = "9")]
+    pub update_particle_orient:
+        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleOrient>,
+    #[prost(message, optional, tag = "10")]
+    pub update_particle_fallback:
+        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleFallback>,
+    #[prost(message, optional, tag = "11")]
+    pub update_particle_offset:
+        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleOffset>,
+    #[prost(message, optional, tag = "12")]
+    pub update_particle_ent:
+        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleEnt>,
+    #[prost(message, optional, tag = "13")]
+    pub update_particle_frozen:
+        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleFrozen>,
+    #[prost(message, optional, tag = "14")]
+    pub update_particle_should_draw:
+        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleShouldDraw>,
+}
+/// Nested message and enum types in `CMsgParticleSystemManager`.
+pub mod c_msg_particle_system_manager {
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    pub struct CreateParticle {
+        #[prost(fixed64, optional, tag = "1")]
+        pub particle_name_index: ::core::option::Option<u64>,
+        #[prost(int32, optional, tag = "2")]
+        pub attach_type: ::core::option::Option<i32>,
+        #[prost(uint32, optional, tag = "3", default = "16777215")]
+        pub entity_handle: ::core::option::Option<u32>,
+        #[prost(message, optional, tag = "4")]
+        pub position: ::core::option::Option<super::CMsgVector>,
+        #[prost(message, optional, tag = "5")]
+        pub angles: ::core::option::Option<super::CMsgQAngle>,
+    }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    pub struct DestroyParticle {
+        #[prost(bool, optional, tag = "1")]
+        pub destroy_immediately: ::core::option::Option<bool>,
+    }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    pub struct DestroyParticleInvolving {
+        #[prost(bool, optional, tag = "1")]
+        pub destroy_immediately: ::core::option::Option<bool>,
+        #[prost(uint32, optional, tag = "3", default = "16777215")]
+        pub entity_handle: ::core::option::Option<u32>,
+    }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    pub struct ReleaseParticleIndex {}
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    pub struct UpdateParticle {
+        #[prost(int32, optional, tag = "1")]
+        pub control_point: ::core::option::Option<i32>,
+        #[prost(message, optional, tag = "2")]
+        pub position: ::core::option::Option<super::CMsgVector>,
+    }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    pub struct UpdateParticleFwd {
+        #[prost(int32, optional, tag = "1")]
+        pub control_point: ::core::option::Option<i32>,
+        #[prost(message, optional, tag = "2")]
+        pub forward: ::core::option::Option<super::CMsgVector>,
+    }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    pub struct UpdateParticleOrient {
+        #[prost(int32, optional, tag = "1")]
+        pub control_point: ::core::option::Option<i32>,
+        #[prost(message, optional, tag = "2")]
+        pub forward: ::core::option::Option<super::CMsgVector>,
+        #[prost(message, optional, tag = "3")]
+        pub left: ::core::option::Option<super::CMsgVector>,
+        #[prost(message, optional, tag = "4")]
+        pub up: ::core::option::Option<super::CMsgVector>,
+    }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    pub struct UpdateParticleFallback {
+        #[prost(int32, optional, tag = "1")]
+        pub control_point: ::core::option::Option<i32>,
+        #[prost(message, optional, tag = "2")]
+        pub position: ::core::option::Option<super::CMsgVector>,
+    }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    pub struct UpdateParticleEnt {
+        #[prost(int32, optional, tag = "1")]
+        pub control_point: ::core::option::Option<i32>,
+        #[prost(uint32, optional, tag = "2", default = "16777215")]
+        pub entity_handle: ::core::option::Option<u32>,
+        #[prost(int32, optional, tag = "3")]
+        pub attach_type: ::core::option::Option<i32>,
+        #[prost(int32, optional, tag = "4")]
+        pub attachment: ::core::option::Option<i32>,
+        #[prost(message, optional, tag = "5")]
+        pub fallback_position: ::core::option::Option<super::CMsgVector>,
+    }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    pub struct UpdateParticleOffset {
+        #[prost(int32, optional, tag = "1")]
+        pub control_point: ::core::option::Option<i32>,
+        #[prost(message, optional, tag = "2")]
+        pub origin_offset: ::core::option::Option<super::CMsgVector>,
+    }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    pub struct UpdateParticleFrozen {
+        #[prost(bool, optional, tag = "1")]
+        pub set_frozen: ::core::option::Option<bool>,
+    }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    pub struct UpdateParticleShouldDraw {
+        #[prost(bool, optional, tag = "1")]
+        pub should_draw: ::core::option::Option<bool>,
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CMsgScreenTextPretty {
+    #[prost(float, optional, tag = "1")]
+    pub x_pos: ::core::option::Option<f32>,
+    #[prost(float, optional, tag = "2")]
+    pub y_pos: ::core::option::Option<f32>,
+    #[prost(int32, optional, tag = "3")]
+    pub line: ::core::option::Option<i32>,
+    #[prost(string, optional, tag = "4")]
+    pub text: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(int32, optional, tag = "5")]
+    pub r: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "6")]
+    pub g: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "7")]
+    pub b: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "8")]
+    pub a: ::core::option::Option<i32>,
+    #[prost(float, optional, tag = "9")]
+    pub duration: ::core::option::Option<f32>,
+    #[prost(string, optional, tag = "10")]
+    pub font_name: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(int32, optional, tag = "11")]
+    pub font_size: ::core::option::Option<i32>,
+    #[prost(bool, optional, tag = "12")]
+    pub bold_font: ::core::option::Option<bool>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CMsgServerRequestedTracer {
+    #[prost(message, optional, tag = "1")]
+    pub origin: ::core::option::Option<CMsgVector>,
+    #[prost(message, optional, tag = "2")]
+    pub end: ::core::option::Option<CMsgVector>,
+    #[prost(int32, optional, tag = "3", default = "-1")]
+    pub weaponid: ::core::option::Option<i32>,
+    #[prost(uint32, optional, tag = "4", default = "16777215")]
+    pub entity_handle: ::core::option::Option<u32>,
+    #[prost(float, optional, tag = "5")]
+    pub dps: ::core::option::Option<f32>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CMsgEnableSatVolumesEvent {
+    #[prost(uint32, optional, tag = "1")]
+    pub mode: ::core::option::Option<u32>,
+    #[prost(float, optional, tag = "2")]
+    pub desat_amount: ::core::option::Option<f32>,
+    #[prost(fixed32, optional, tag = "3")]
+    pub sat_tint: ::core::option::Option<u32>,
+    #[prost(fixed32, optional, tag = "4")]
+    pub desat_tint: ::core::option::Option<u32>,
+    #[prost(fixed32, optional, tag = "5")]
+    pub outline_color: ::core::option::Option<u32>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CMsgPlaceSatVolumeEvent {
+    #[prost(message, optional, tag = "1")]
+    pub position: ::core::option::Option<CMsgVector>,
+    #[prost(message, optional, tag = "2")]
+    pub direction: ::core::option::Option<CMsgVector>,
+    #[prost(float, optional, tag = "3")]
+    pub radius: ::core::option::Option<f32>,
+    #[prost(float, optional, tag = "4")]
+    pub falloff_distance: ::core::option::Option<f32>,
+    #[prost(float, optional, tag = "5")]
+    pub theta_dot: ::core::option::Option<f32>,
+    #[prost(float, optional, tag = "6")]
+    pub phi_dot: ::core::option::Option<f32>,
+    #[prost(uint32, optional, tag = "7", default = "16777215")]
+    pub entity_handle: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "8")]
+    pub attachment_handle: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "9")]
+    pub r#type: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "10")]
+    pub volume_id: ::core::option::Option<i32>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CMsgRemoveSatVolumeEvent {
+    #[prost(int32, optional, tag = "1")]
+    pub volume_id: ::core::option::Option<i32>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CMsgDisableSatVolumesEvent {}
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    ::prost::Enumeration,
+)]
+#[repr(i32)]
+pub enum ECitadelGameEvents {
+    GeFireBullets = 450,
+    GePlayerAnimEvent = 451,
+    GeParticleSystemManager = 458,
+    GeScreenTextPretty = 459,
+    GeServerRequestedTracer = 460,
+    GeBulletImpact = 461,
+    GeEnableSatVolumesEvent = 462,
+    GePlaceSatVolumeEvent = 463,
+    GeDisableSatVolumesEvent = 464,
+    GeRemoveSatVolumeEvent = 465,
+}
+impl ECitadelGameEvents {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic
+    /// use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            ECitadelGameEvents::GeFireBullets => "GE_FireBullets",
+            ECitadelGameEvents::GePlayerAnimEvent => "GE_PlayerAnimEvent",
+            ECitadelGameEvents::GeParticleSystemManager => "GE_ParticleSystemManager",
+            ECitadelGameEvents::GeScreenTextPretty => "GE_ScreenTextPretty",
+            ECitadelGameEvents::GeServerRequestedTracer => "GE_ServerRequestedTracer",
+            ECitadelGameEvents::GeBulletImpact => "GE_BulletImpact",
+            ECitadelGameEvents::GeEnableSatVolumesEvent => "GE_EnableSatVolumesEvent",
+            ECitadelGameEvents::GePlaceSatVolumeEvent => "GE_PlaceSatVolumeEvent",
+            ECitadelGameEvents::GeDisableSatVolumesEvent => "GE_DisableSatVolumesEvent",
+            ECitadelGameEvents::GeRemoveSatVolumeEvent => "GE_RemoveSatVolumeEvent",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "GE_FireBullets" => Some(Self::GeFireBullets),
+            "GE_PlayerAnimEvent" => Some(Self::GePlayerAnimEvent),
+            "GE_ParticleSystemManager" => Some(Self::GeParticleSystemManager),
+            "GE_ScreenTextPretty" => Some(Self::GeScreenTextPretty),
+            "GE_ServerRequestedTracer" => Some(Self::GeServerRequestedTracer),
+            "GE_BulletImpact" => Some(Self::GeBulletImpact),
+            "GE_EnableSatVolumesEvent" => Some(Self::GeEnableSatVolumesEvent),
+            "GE_PlaceSatVolumeEvent" => Some(Self::GePlaceSatVolumeEvent),
+            "GE_DisableSatVolumesEvent" => Some(Self::GeDisableSatVolumesEvent),
+            "GE_RemoveSatVolumeEvent" => Some(Self::GeRemoveSatVolumeEvent),
+            _ => None,
+        }
+    }
+}
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    ::prost::Enumeration,
+)]
+#[repr(i32)]
+pub enum ParticleSystemManagerMessage {
+    ParticleSystemManagerEventCreate = 0,
+    ParticleSystemManagerEventDestroy = 1,
+    ParticleSystemManagerEventDestroyInvolving = 2,
+    ParticleSystemManagerEventRelease = 3,
+    ParticleSystemManagerEventUpdate = 4,
+    ParticleSystemManagerEventUpdateForward = 5,
+    ParticleSystemManagerEventUpdateOrientation = 6,
+    ParticleSystemManagerEventUpdateFallback = 7,
+    ParticleSystemManagerEventUpdateEnt = 8,
+    ParticleSystemManagerEventUpdateOffset = 9,
+    ParticleSystemManagerEventUpdateFrozen = 10,
+    ParticleSystemManagerEventUpdateShouldDraw = 11,
+}
+impl ParticleSystemManagerMessage {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic
+    /// use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            ParticleSystemManagerMessage::ParticleSystemManagerEventCreate => {
+                "PARTICLE_SYSTEM_MANAGER_EVENT_CREATE"
+            }
+            ParticleSystemManagerMessage::ParticleSystemManagerEventDestroy => {
+                "PARTICLE_SYSTEM_MANAGER_EVENT_DESTROY"
+            }
+            ParticleSystemManagerMessage::ParticleSystemManagerEventDestroyInvolving => {
+                "PARTICLE_SYSTEM_MANAGER_EVENT_DESTROY_INVOLVING"
+            }
+            ParticleSystemManagerMessage::ParticleSystemManagerEventRelease => {
+                "PARTICLE_SYSTEM_MANAGER_EVENT_RELEASE"
+            }
+            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdate => {
+                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE"
+            }
+            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateForward => {
+                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_FORWARD"
+            }
+            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateOrientation => {
+                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_ORIENTATION"
+            }
+            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateFallback => {
+                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_FALLBACK"
+            }
+            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateEnt => {
+                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_ENT"
+            }
+            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateOffset => {
+                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_OFFSET"
+            }
+            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateFrozen => {
+                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_FROZEN"
+            }
+            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateShouldDraw => {
+                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_SHOULD_DRAW"
+            }
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "PARTICLE_SYSTEM_MANAGER_EVENT_CREATE" => Some(Self::ParticleSystemManagerEventCreate),
+            "PARTICLE_SYSTEM_MANAGER_EVENT_DESTROY" => {
+                Some(Self::ParticleSystemManagerEventDestroy)
+            }
+            "PARTICLE_SYSTEM_MANAGER_EVENT_DESTROY_INVOLVING" => {
+                Some(Self::ParticleSystemManagerEventDestroyInvolving)
+            }
+            "PARTICLE_SYSTEM_MANAGER_EVENT_RELEASE" => {
+                Some(Self::ParticleSystemManagerEventRelease)
+            }
+            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE" => Some(Self::ParticleSystemManagerEventUpdate),
+            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_FORWARD" => {
+                Some(Self::ParticleSystemManagerEventUpdateForward)
+            }
+            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_ORIENTATION" => {
+                Some(Self::ParticleSystemManagerEventUpdateOrientation)
+            }
+            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_FALLBACK" => {
+                Some(Self::ParticleSystemManagerEventUpdateFallback)
+            }
+            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_ENT" => {
+                Some(Self::ParticleSystemManagerEventUpdateEnt)
+            }
+            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_OFFSET" => {
+                Some(Self::ParticleSystemManagerEventUpdateOffset)
+            }
+            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_FROZEN" => {
+                Some(Self::ParticleSystemManagerEventUpdateFrozen)
+            }
+            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_SHOULD_DRAW" => {
+                Some(Self::ParticleSystemManagerEventUpdateShouldDraw)
+            }
+            _ => None,
+        }
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CMsgProtoBufHeader {
     #[prost(fixed64, optional, tag = "1")]
     pub client_steam_id: ::core::option::Option<u64>,
@@ -8047,525 +8566,6 @@ impl GcConnectionStatus {
             "GCConnectionStatus_NO_STEAM" => Some(Self::NoSteam),
             "GCConnectionStatus_SUSPENDED" => Some(Self::Suspended),
             "GCConnectionStatus_STEAM_GOING_DOWN" => Some(Self::SteamGoingDown),
-            _ => None,
-        }
-    }
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CMsgFireBullets {
-    #[prost(message, optional, tag = "1")]
-    pub origin: ::core::option::Option<CMsgVector>,
-    #[prost(message, optional, tag = "2")]
-    pub angles: ::core::option::Option<CMsgQAngle>,
-    #[prost(uint32, optional, tag = "4")]
-    pub seed: ::core::option::Option<u32>,
-    #[prost(int32, optional, tag = "5", default = "-1")]
-    pub shooter_entity: ::core::option::Option<i32>,
-    #[prost(int32, optional, tag = "7", default = "-1")]
-    pub ability: ::core::option::Option<i32>,
-    #[prost(float, optional, tag = "8")]
-    pub penetration_percent: ::core::option::Option<f32>,
-    #[prost(float, optional, tag = "9")]
-    pub spread: ::core::option::Option<f32>,
-    #[prost(bool, optional, tag = "10", default = "true")]
-    pub fired_from_gun: ::core::option::Option<bool>,
-    #[prost(uint32, optional, tag = "11")]
-    pub bullets_override: ::core::option::Option<u32>,
-    #[prost(message, optional, tag = "12")]
-    pub tracer_replacement: ::core::option::Option<c_msg_fire_bullets::TracerAssignment>,
-    #[prost(message, repeated, tag = "13")]
-    pub tracer_additional: ::prost::alloc::vec::Vec<c_msg_fire_bullets::TracerAssignment>,
-    #[prost(message, optional, tag = "14")]
-    pub angles_original: ::core::option::Option<CMsgQAngle>,
-    #[prost(uint32, optional, tag = "15")]
-    pub weapon_subclass_id: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "16")]
-    pub shot_number: ::core::option::Option<u32>,
-    #[prost(int32, optional, tag = "17", default = "-1")]
-    pub ignore_entity: ::core::option::Option<i32>,
-    #[prost(float, optional, tag = "18")]
-    pub max_range: ::core::option::Option<f32>,
-}
-/// Nested message and enum types in `CMsgFireBullets`.
-pub mod c_msg_fire_bullets {
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-    pub struct TracerAssignment {
-        #[prost(uint64, optional, tag = "1")]
-        pub tracer_resource_id: ::core::option::Option<u64>,
-        #[prost(uint32, optional, tag = "2")]
-        pub bullet_indicies: ::core::option::Option<u32>,
-    }
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct CMsgBulletImpact {
-    #[prost(message, optional, tag = "1")]
-    pub trace_start: ::core::option::Option<CMsgVector>,
-    #[prost(message, optional, tag = "2")]
-    pub impact_origin: ::core::option::Option<CMsgVector>,
-    #[prost(message, optional, tag = "3")]
-    pub surface_normal: ::core::option::Option<CMsgVector>,
-    #[prost(uint32, optional, tag = "4")]
-    pub damage: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "5")]
-    pub surface_type: ::core::option::Option<u32>,
-    #[prost(int32, optional, tag = "7", default = "-1")]
-    pub ability_entindex: ::core::option::Option<i32>,
-    #[prost(int32, optional, tag = "8", default = "-1")]
-    pub impacted_entindex: ::core::option::Option<i32>,
-    #[prost(uint32, optional, tag = "9")]
-    pub impacted_hitbox: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "10")]
-    pub weapon_subclass_id: ::core::option::Option<u32>,
-    #[prost(int32, optional, tag = "11", default = "-1")]
-    pub shooter_entindex: ::core::option::Option<i32>,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct CMsgPlayerAnimEvent {
-    #[prost(fixed32, optional, tag = "1", default = "16777215")]
-    pub player: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "2")]
-    pub event: ::core::option::Option<u32>,
-    #[prost(int32, optional, tag = "3")]
-    pub data: ::core::option::Option<i32>,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct CMsgParticleSystemManager {
-    #[prost(
-        enumeration = "ParticleSystemManagerMessage",
-        required,
-        tag = "1",
-        default = "ParticleSystemManagerEventCreate"
-    )]
-    pub r#type: i32,
-    #[prost(uint32, required, tag = "2")]
-    pub index: u32,
-    #[prost(message, optional, tag = "3")]
-    pub create_particle: ::core::option::Option<c_msg_particle_system_manager::CreateParticle>,
-    #[prost(message, optional, tag = "4")]
-    pub destroy_particle: ::core::option::Option<c_msg_particle_system_manager::DestroyParticle>,
-    #[prost(message, optional, tag = "5")]
-    pub destroy_particle_involving:
-        ::core::option::Option<c_msg_particle_system_manager::DestroyParticleInvolving>,
-    #[prost(message, optional, tag = "6")]
-    pub release_particle_index:
-        ::core::option::Option<c_msg_particle_system_manager::ReleaseParticleIndex>,
-    #[prost(message, optional, tag = "7")]
-    pub update_particle: ::core::option::Option<c_msg_particle_system_manager::UpdateParticle>,
-    #[prost(message, optional, tag = "8")]
-    pub update_particle_fwd:
-        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleFwd>,
-    #[prost(message, optional, tag = "9")]
-    pub update_particle_orient:
-        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleOrient>,
-    #[prost(message, optional, tag = "10")]
-    pub update_particle_fallback:
-        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleFallback>,
-    #[prost(message, optional, tag = "11")]
-    pub update_particle_offset:
-        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleOffset>,
-    #[prost(message, optional, tag = "12")]
-    pub update_particle_ent:
-        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleEnt>,
-    #[prost(message, optional, tag = "13")]
-    pub update_particle_frozen:
-        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleFrozen>,
-    #[prost(message, optional, tag = "14")]
-    pub update_particle_should_draw:
-        ::core::option::Option<c_msg_particle_system_manager::UpdateParticleShouldDraw>,
-}
-/// Nested message and enum types in `CMsgParticleSystemManager`.
-pub mod c_msg_particle_system_manager {
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-    pub struct CreateParticle {
-        #[prost(fixed64, optional, tag = "1")]
-        pub particle_name_index: ::core::option::Option<u64>,
-        #[prost(int32, optional, tag = "2")]
-        pub attach_type: ::core::option::Option<i32>,
-        #[prost(uint32, optional, tag = "3", default = "16777215")]
-        pub entity_handle: ::core::option::Option<u32>,
-        #[prost(message, optional, tag = "4")]
-        pub position: ::core::option::Option<super::CMsgVector>,
-        #[prost(message, optional, tag = "5")]
-        pub angles: ::core::option::Option<super::CMsgQAngle>,
-    }
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-    pub struct DestroyParticle {
-        #[prost(bool, optional, tag = "1")]
-        pub destroy_immediately: ::core::option::Option<bool>,
-    }
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-    pub struct DestroyParticleInvolving {
-        #[prost(bool, optional, tag = "1")]
-        pub destroy_immediately: ::core::option::Option<bool>,
-        #[prost(uint32, optional, tag = "3", default = "16777215")]
-        pub entity_handle: ::core::option::Option<u32>,
-    }
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-    pub struct ReleaseParticleIndex {}
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-    pub struct UpdateParticle {
-        #[prost(int32, optional, tag = "1")]
-        pub control_point: ::core::option::Option<i32>,
-        #[prost(message, optional, tag = "2")]
-        pub position: ::core::option::Option<super::CMsgVector>,
-    }
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-    pub struct UpdateParticleFwd {
-        #[prost(int32, optional, tag = "1")]
-        pub control_point: ::core::option::Option<i32>,
-        #[prost(message, optional, tag = "2")]
-        pub forward: ::core::option::Option<super::CMsgVector>,
-    }
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-    pub struct UpdateParticleOrient {
-        #[prost(int32, optional, tag = "1")]
-        pub control_point: ::core::option::Option<i32>,
-        #[prost(message, optional, tag = "2")]
-        pub forward: ::core::option::Option<super::CMsgVector>,
-        #[prost(message, optional, tag = "3")]
-        pub left: ::core::option::Option<super::CMsgVector>,
-        #[prost(message, optional, tag = "4")]
-        pub up: ::core::option::Option<super::CMsgVector>,
-    }
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-    pub struct UpdateParticleFallback {
-        #[prost(int32, optional, tag = "1")]
-        pub control_point: ::core::option::Option<i32>,
-        #[prost(message, optional, tag = "2")]
-        pub position: ::core::option::Option<super::CMsgVector>,
-    }
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-    pub struct UpdateParticleEnt {
-        #[prost(int32, optional, tag = "1")]
-        pub control_point: ::core::option::Option<i32>,
-        #[prost(uint32, optional, tag = "2", default = "16777215")]
-        pub entity_handle: ::core::option::Option<u32>,
-        #[prost(int32, optional, tag = "3")]
-        pub attach_type: ::core::option::Option<i32>,
-        #[prost(int32, optional, tag = "4")]
-        pub attachment: ::core::option::Option<i32>,
-        #[prost(message, optional, tag = "5")]
-        pub fallback_position: ::core::option::Option<super::CMsgVector>,
-    }
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-    pub struct UpdateParticleOffset {
-        #[prost(int32, optional, tag = "1")]
-        pub control_point: ::core::option::Option<i32>,
-        #[prost(message, optional, tag = "2")]
-        pub origin_offset: ::core::option::Option<super::CMsgVector>,
-    }
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-    pub struct UpdateParticleFrozen {
-        #[prost(bool, optional, tag = "1")]
-        pub set_frozen: ::core::option::Option<bool>,
-    }
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-    pub struct UpdateParticleShouldDraw {
-        #[prost(bool, optional, tag = "1")]
-        pub should_draw: ::core::option::Option<bool>,
-    }
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CMsgScreenTextPretty {
-    #[prost(float, optional, tag = "1")]
-    pub x_pos: ::core::option::Option<f32>,
-    #[prost(float, optional, tag = "2")]
-    pub y_pos: ::core::option::Option<f32>,
-    #[prost(int32, optional, tag = "3")]
-    pub line: ::core::option::Option<i32>,
-    #[prost(string, optional, tag = "4")]
-    pub text: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(int32, optional, tag = "5")]
-    pub r: ::core::option::Option<i32>,
-    #[prost(int32, optional, tag = "6")]
-    pub g: ::core::option::Option<i32>,
-    #[prost(int32, optional, tag = "7")]
-    pub b: ::core::option::Option<i32>,
-    #[prost(int32, optional, tag = "8")]
-    pub a: ::core::option::Option<i32>,
-    #[prost(float, optional, tag = "9")]
-    pub duration: ::core::option::Option<f32>,
-    #[prost(string, optional, tag = "10")]
-    pub font_name: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(int32, optional, tag = "11")]
-    pub font_size: ::core::option::Option<i32>,
-    #[prost(bool, optional, tag = "12")]
-    pub bold_font: ::core::option::Option<bool>,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct CMsgServerRequestedTracer {
-    #[prost(message, optional, tag = "1")]
-    pub origin: ::core::option::Option<CMsgVector>,
-    #[prost(message, optional, tag = "2")]
-    pub end: ::core::option::Option<CMsgVector>,
-    #[prost(int32, optional, tag = "3", default = "-1")]
-    pub weaponid: ::core::option::Option<i32>,
-    #[prost(uint32, optional, tag = "4", default = "16777215")]
-    pub entity_handle: ::core::option::Option<u32>,
-    #[prost(float, optional, tag = "5")]
-    pub dps: ::core::option::Option<f32>,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct CMsgEnableSatVolumesEvent {
-    #[prost(uint32, optional, tag = "1")]
-    pub mode: ::core::option::Option<u32>,
-    #[prost(float, optional, tag = "2")]
-    pub desat_amount: ::core::option::Option<f32>,
-    #[prost(fixed32, optional, tag = "3")]
-    pub sat_tint: ::core::option::Option<u32>,
-    #[prost(fixed32, optional, tag = "4")]
-    pub desat_tint: ::core::option::Option<u32>,
-    #[prost(fixed32, optional, tag = "5")]
-    pub outline_color: ::core::option::Option<u32>,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct CMsgPlaceSatVolumeEvent {
-    #[prost(message, optional, tag = "1")]
-    pub position: ::core::option::Option<CMsgVector>,
-    #[prost(message, optional, tag = "2")]
-    pub direction: ::core::option::Option<CMsgVector>,
-    #[prost(float, optional, tag = "3")]
-    pub radius: ::core::option::Option<f32>,
-    #[prost(float, optional, tag = "4")]
-    pub falloff_distance: ::core::option::Option<f32>,
-    #[prost(float, optional, tag = "5")]
-    pub theta_dot: ::core::option::Option<f32>,
-    #[prost(float, optional, tag = "6")]
-    pub phi_dot: ::core::option::Option<f32>,
-    #[prost(uint32, optional, tag = "7", default = "16777215")]
-    pub entity_handle: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "8")]
-    pub attachment_handle: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "9")]
-    pub r#type: ::core::option::Option<u32>,
-    #[prost(int32, optional, tag = "10")]
-    pub volume_id: ::core::option::Option<i32>,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct CMsgRemoveSatVolumeEvent {
-    #[prost(int32, optional, tag = "1")]
-    pub volume_id: ::core::option::Option<i32>,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct CMsgDisableSatVolumesEvent {}
-#[derive(
-    serde::Serialize,
-    serde::Deserialize,
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    ::prost::Enumeration,
-)]
-#[repr(i32)]
-pub enum ECitadelGameEvents {
-    GeFireBullets = 450,
-    GePlayerAnimEvent = 451,
-    GeParticleSystemManager = 458,
-    GeScreenTextPretty = 459,
-    GeServerRequestedTracer = 460,
-    GeBulletImpact = 461,
-    GeEnableSatVolumesEvent = 462,
-    GePlaceSatVolumeEvent = 463,
-    GeDisableSatVolumesEvent = 464,
-    GeRemoveSatVolumeEvent = 465,
-}
-impl ECitadelGameEvents {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            ECitadelGameEvents::GeFireBullets => "GE_FireBullets",
-            ECitadelGameEvents::GePlayerAnimEvent => "GE_PlayerAnimEvent",
-            ECitadelGameEvents::GeParticleSystemManager => "GE_ParticleSystemManager",
-            ECitadelGameEvents::GeScreenTextPretty => "GE_ScreenTextPretty",
-            ECitadelGameEvents::GeServerRequestedTracer => "GE_ServerRequestedTracer",
-            ECitadelGameEvents::GeBulletImpact => "GE_BulletImpact",
-            ECitadelGameEvents::GeEnableSatVolumesEvent => "GE_EnableSatVolumesEvent",
-            ECitadelGameEvents::GePlaceSatVolumeEvent => "GE_PlaceSatVolumeEvent",
-            ECitadelGameEvents::GeDisableSatVolumesEvent => "GE_DisableSatVolumesEvent",
-            ECitadelGameEvents::GeRemoveSatVolumeEvent => "GE_RemoveSatVolumeEvent",
-        }
-    }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "GE_FireBullets" => Some(Self::GeFireBullets),
-            "GE_PlayerAnimEvent" => Some(Self::GePlayerAnimEvent),
-            "GE_ParticleSystemManager" => Some(Self::GeParticleSystemManager),
-            "GE_ScreenTextPretty" => Some(Self::GeScreenTextPretty),
-            "GE_ServerRequestedTracer" => Some(Self::GeServerRequestedTracer),
-            "GE_BulletImpact" => Some(Self::GeBulletImpact),
-            "GE_EnableSatVolumesEvent" => Some(Self::GeEnableSatVolumesEvent),
-            "GE_PlaceSatVolumeEvent" => Some(Self::GePlaceSatVolumeEvent),
-            "GE_DisableSatVolumesEvent" => Some(Self::GeDisableSatVolumesEvent),
-            "GE_RemoveSatVolumeEvent" => Some(Self::GeRemoveSatVolumeEvent),
-            _ => None,
-        }
-    }
-}
-#[derive(
-    serde::Serialize,
-    serde::Deserialize,
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    ::prost::Enumeration,
-)]
-#[repr(i32)]
-pub enum ParticleSystemManagerMessage {
-    ParticleSystemManagerEventCreate = 0,
-    ParticleSystemManagerEventDestroy = 1,
-    ParticleSystemManagerEventDestroyInvolving = 2,
-    ParticleSystemManagerEventRelease = 3,
-    ParticleSystemManagerEventUpdate = 4,
-    ParticleSystemManagerEventUpdateForward = 5,
-    ParticleSystemManagerEventUpdateOrientation = 6,
-    ParticleSystemManagerEventUpdateFallback = 7,
-    ParticleSystemManagerEventUpdateEnt = 8,
-    ParticleSystemManagerEventUpdateOffset = 9,
-    ParticleSystemManagerEventUpdateFrozen = 10,
-    ParticleSystemManagerEventUpdateShouldDraw = 11,
-}
-impl ParticleSystemManagerMessage {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            ParticleSystemManagerMessage::ParticleSystemManagerEventCreate => {
-                "PARTICLE_SYSTEM_MANAGER_EVENT_CREATE"
-            }
-            ParticleSystemManagerMessage::ParticleSystemManagerEventDestroy => {
-                "PARTICLE_SYSTEM_MANAGER_EVENT_DESTROY"
-            }
-            ParticleSystemManagerMessage::ParticleSystemManagerEventDestroyInvolving => {
-                "PARTICLE_SYSTEM_MANAGER_EVENT_DESTROY_INVOLVING"
-            }
-            ParticleSystemManagerMessage::ParticleSystemManagerEventRelease => {
-                "PARTICLE_SYSTEM_MANAGER_EVENT_RELEASE"
-            }
-            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdate => {
-                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE"
-            }
-            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateForward => {
-                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_FORWARD"
-            }
-            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateOrientation => {
-                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_ORIENTATION"
-            }
-            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateFallback => {
-                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_FALLBACK"
-            }
-            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateEnt => {
-                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_ENT"
-            }
-            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateOffset => {
-                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_OFFSET"
-            }
-            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateFrozen => {
-                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_FROZEN"
-            }
-            ParticleSystemManagerMessage::ParticleSystemManagerEventUpdateShouldDraw => {
-                "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_SHOULD_DRAW"
-            }
-        }
-    }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "PARTICLE_SYSTEM_MANAGER_EVENT_CREATE" => Some(Self::ParticleSystemManagerEventCreate),
-            "PARTICLE_SYSTEM_MANAGER_EVENT_DESTROY" => {
-                Some(Self::ParticleSystemManagerEventDestroy)
-            }
-            "PARTICLE_SYSTEM_MANAGER_EVENT_DESTROY_INVOLVING" => {
-                Some(Self::ParticleSystemManagerEventDestroyInvolving)
-            }
-            "PARTICLE_SYSTEM_MANAGER_EVENT_RELEASE" => {
-                Some(Self::ParticleSystemManagerEventRelease)
-            }
-            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE" => Some(Self::ParticleSystemManagerEventUpdate),
-            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_FORWARD" => {
-                Some(Self::ParticleSystemManagerEventUpdateForward)
-            }
-            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_ORIENTATION" => {
-                Some(Self::ParticleSystemManagerEventUpdateOrientation)
-            }
-            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_FALLBACK" => {
-                Some(Self::ParticleSystemManagerEventUpdateFallback)
-            }
-            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_ENT" => {
-                Some(Self::ParticleSystemManagerEventUpdateEnt)
-            }
-            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_OFFSET" => {
-                Some(Self::ParticleSystemManagerEventUpdateOffset)
-            }
-            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_FROZEN" => {
-                Some(Self::ParticleSystemManagerEventUpdateFrozen)
-            }
-            "PARTICLE_SYSTEM_MANAGER_EVENT_UPDATE_SHOULD_DRAW" => {
-                Some(Self::ParticleSystemManagerEventUpdateShouldDraw)
-            }
             _ => None,
         }
     }
