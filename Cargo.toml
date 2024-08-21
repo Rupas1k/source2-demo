@@ -3,7 +3,8 @@ members = [
     "source2-demo",
     "source2-demo-protobufs",
     "source2-demo-macros",
-    #    "dl-examples",
+    "source2-demo-examples/dl-examples",
+    "source2-demo-examples/chat"
     #    "d2-stampede",
     #    "d2-stampede-observers",
     #    "d2-stampede-examples/*",
