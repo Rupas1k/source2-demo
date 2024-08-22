@@ -130,7 +130,7 @@ pub mod prelude {
 pub use crate::class::{Class, Classes};
 pub use crate::entity::{Entities, Entity, EntityEvents};
 pub use crate::field_value::FieldValue;
-pub use crate::game_event::GameEvent;
+pub use crate::game_event::{GameEvent, GameEventError, GameEventList};
 pub use crate::parser::{Context, Observer, Parser};
 pub use crate::string_table::{StringTable, StringTableRow, StringTables};
 pub use source2_demo_macros::*;
@@ -142,6 +142,7 @@ pub mod error {
     pub use crate::class::ClassError;
     pub use crate::entity::EntityError;
     pub use crate::field_value::FieldValueError;
+    pub use crate::game_event::GameEventError;
     pub use crate::parser::ParserError;
     pub use crate::serializer::SerializerError;
     pub use crate::string_table::StringTableError;

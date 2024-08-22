@@ -5,7 +5,7 @@ use crate::entity::{Entities, Entity, EntityError, EntityEvents};
 use crate::field::{Encoder, Field, FieldModel, FieldProperties, FieldState, FieldType};
 use crate::field_reader::FieldReader;
 use crate::field_value::FieldValueError;
-use crate::game_event::{GameEvent, GameEventList};
+use crate::game_event::{GameEvent, GameEventError, GameEventList};
 use crate::proto::*;
 use crate::reader::Reader;
 use crate::serializer::Serializer;
@@ -54,6 +54,9 @@ pub enum ParserError {
     #[error(transparent)]
     FieldValue(#[from] FieldValueError),
 
+    #[error(transparent)]
+    GameEvent(#[from] GameEventError),
+
     #[cfg(feature = "dota")]
     #[error(transparent)]
     CombatLog(#[from] CombatLogError),
@@ -76,8 +79,6 @@ pub struct Parser<'a> {
     #[cfg(feature = "dota")]
     combat_log: VecDeque<CMsgDotaCombatLogEntry>,
 
-    game_event: GameEventList,
-
     prologue_completed: bool,
     skip_deltas: bool,
 
@@ -91,6 +92,7 @@ pub struct Context {
     pub(crate) classes: Classes,
     pub(crate) entities: Entities,
     pub(crate) string_tables: StringTables,
+    pub(crate) game_events: GameEventList,
 
     pub(crate) tick: u32,
     pub(crate) previous_tick: u32,
@@ -109,6 +111,7 @@ impl Default for Context {
             classes: Classes::default(),
             entities: Entities::default(),
             string_tables: StringTables::default(),
+            game_events: Default::default(),
             tick: u32::MAX,
             previous_tick: u32::MAX,
             net_tick: u32::MAX,
@@ -131,6 +134,10 @@ impl Context {
 
     pub fn string_tables(&self) -> &StringTables {
         &self.string_tables
+    }
+
+    pub fn game_events(&self) -> &GameEventList {
+        &self.game_events
     }
 
     pub fn tick(&self) -> u32 {
@@ -186,7 +193,6 @@ impl<'a> Parser<'a> {
 
             #[cfg(feature = "dota")]
             combat_log: VecDeque::default(),
-            game_event: GameEventList::default(),
 
             prologue_completed: false,
             skip_deltas: false,
@@ -398,11 +404,11 @@ impl<'a> Parser<'a> {
         msg: &[u8],
     ) -> Result<(), ParserError> {
         if msg_type == EBaseGameEvents::GeSource1LegacyGameEventList {
-            self.game_event = GameEventList::new(CSvcMsgGameEventList::decode(msg)?);
+            self.context.game_events = GameEventList::new(CSvcMsgGameEventList::decode(msg)?);
         }
 
         if msg_type == EBaseGameEvents::GeSource1LegacyGameEvent {
-            let ge = GameEvent::new(&self.game_event, CSvcMsgGameEvent::decode(msg)?);
+            let ge = GameEvent::new(&self.context.game_events, CSvcMsgGameEvent::decode(msg)?);
             try_observers!(self, on_game_event(&self.context, &ge))?;
         }
 
