@@ -157,7 +157,15 @@ impl Display for Context {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut table = Table::new();
         table.add_row(row!["Classes", self.classes.classes_vec.len()]);
-        table.add_row(row!["Entities", self.entities.entities_vec.len()]);
+        table.add_row(row![
+            "Entities",
+            self.entities
+                .entities_vec
+                .iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .len()
+        ]);
         table.add_row(row!["String Tables", self.string_tables.tables.len()]);
         table.add_row(row!["Tick", self.tick]);
         table.add_row(row!["Net Tick", self.net_tick]);
