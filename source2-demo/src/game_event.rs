@@ -197,6 +197,36 @@ impl TryInto<bool> for &EventValue {
     }
 }
 
+impl TryInto<f32> for EventValue {
+    type Error = GameEventError;
+
+    fn try_into(self) -> Result<f32, GameEventError> {
+        if let EventValue::Float(x) = self {
+            Ok(x)
+        } else {
+            Err(GameEventError::ConversionError(
+                format!("{:?}", self),
+                "f32".to_string(),
+            ))
+        }
+    }
+}
+
+impl TryInto<f32> for &EventValue {
+    type Error = GameEventError;
+
+    fn try_into(self) -> Result<f32, GameEventError> {
+        if let EventValue::Float(x) = self {
+            Ok(*x)
+        } else {
+            Err(GameEventError::ConversionError(
+                format!("{:?}", self),
+                "f32".to_string(),
+            ))
+        }
+    }
+}
+
 macro_rules! impl_try_into_for_integers {
     ($target:ty) => {
         impl TryInto<$target> for EventValue {
