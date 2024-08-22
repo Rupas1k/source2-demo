@@ -1,5 +1,8 @@
 use hashbrown::HashMap;
+use prettytable::{row, Table};
 use source2_demo_protobufs::{CSvcMsgGameEvent, CSvcMsgGameEventList};
+use std::collections::BTreeMap;
+use std::fmt::Display;
 use std::rc::Rc;
 
 #[derive(thiserror::Error, Debug)]
@@ -20,15 +23,15 @@ pub enum EventValue {
     U64(u64),
 }
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct GameEventList {
     list: HashMap<i32, Rc<GameEventDefinition>>,
-    name_to_definition: HashMap<String, Rc<GameEventDefinition>>,
+    // name_to_definition: HashMap<String, Rc<GameEventDefinition>>,
 }
 
 impl GameEventList {
     pub fn new(list: CSvcMsgGameEventList) -> Self {
-        let mut name_to_definition = HashMap::default();
+        // let mut name_to_definition = HashMap::default();
         let list = list
             .descriptors
             .into_iter()
@@ -54,20 +57,19 @@ impl GameEventList {
                         .map(|key| (key.name.clone(), key))
                         .collect(),
                 });
-                name_to_definition.insert(descriptor.name().to_string(), definition.clone());
+                // name_to_definition.insert(descriptor.name().to_string(), definition.clone());
                 (descriptor.eventid(), definition)
             })
             .collect::<HashMap<_, _>>();
 
         Self {
             list,
-            name_to_definition,
+            // name_to_definition,
         }
     }
 }
 
-#[derive(Debug)]
-pub struct GameEventDefinition {
+struct GameEventDefinition {
     id: i32,
     name: String,
     keys: Vec<Rc<GameEventKey>>,
@@ -80,7 +82,6 @@ pub struct GameEventKey {
     name: String,
 }
 
-#[derive(Debug)]
 pub struct GameEvent<'a> {
     id: i32,
     list: &'a GameEventList,
@@ -121,19 +122,45 @@ impl<'a> GameEvent<'a> {
         &self.list.list[&self.id].name
     }
 
-    pub fn iter_keys(&self) -> impl Iterator<Item = (&str, &EventValue)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &EventValue)> {
         self.keys
             .iter()
             .zip(self.list.list[&self.id].keys.iter())
             .map(|(value, key)| (key.name.as_str(), value))
     }
 
-    pub fn get_key_by_name(&self, key: &str) -> Result<&EventValue, GameEventError> {
+    pub fn get_value(&self, key: &str) -> Result<&EventValue, GameEventError> {
         let key = self.list.list[&self.id]
             .name_to_key
             .get(key)
             .ok_or_else(|| GameEventError::UnknownKey(key.to_string()))?;
         Ok(&self.keys[key.id as usize])
+    }
+}
+
+impl Display for GameEvent<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut table = Table::new();
+
+        table.add_row(row!["Key", "Value"]);
+
+        for (key, value) in self.iter() {
+            table.add_row(row![key, format!("{:?}", value)]);
+        }
+
+        write!(f, "{}", table)
+    }
+}
+
+impl Display for GameEventList {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut table = Table::new();
+
+        for (id, definition) in self.list.iter().collect::<BTreeMap<_, _>>() {
+            table.add_row(row![id, definition.name]);
+        }
+
+        write!(f, "{}", table)
     }
 }
 
