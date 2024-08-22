@@ -25,7 +25,7 @@ pub enum EventValue {
 
 #[derive(Default)]
 pub struct GameEventList {
-    list: HashMap<i32, Rc<GameEventDefinition>>,
+    pub(crate) list: HashMap<i32, Rc<GameEventDefinition>>,
     // name_to_definition: HashMap<String, Rc<GameEventDefinition>>,
 }
 
@@ -49,7 +49,6 @@ impl GameEventList {
                     })
                     .collect::<Vec<_>>();
                 let definition = Rc::new(GameEventDefinition {
-                    id: descriptor.eventid(),
                     name: descriptor.name().into(),
                     keys: keys.clone(),
                     name_to_key: keys
@@ -69,8 +68,7 @@ impl GameEventList {
     }
 }
 
-struct GameEventDefinition {
-    id: i32,
+pub(crate) struct GameEventDefinition {
     name: String,
     keys: Vec<Rc<GameEventKey>>,
     name_to_key: HashMap<String, Rc<GameEventKey>>,

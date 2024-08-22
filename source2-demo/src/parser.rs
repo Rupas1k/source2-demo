@@ -272,6 +272,11 @@ impl<'a> Parser<'a> {
     /// Moves to target tick without calling observers and processing delta
     /// packets.
     pub fn jump_to_tick(&mut self, mut target_tick: u32) -> Result<(), ParserError> {
+        #[cfg(feature = "dota")]
+        let fp_delta = 1800;
+        #[cfg(feature = "deadlock")]
+        let fp_delta = 3600;
+
         target_tick = min(target_tick, self.last_tick);
 
         if target_tick < self.context.tick {
@@ -284,6 +289,7 @@ impl<'a> Parser<'a> {
 
             self.context.string_tables.tables.clear();
             self.context.string_tables.name_to_table.clear();
+            self.context.game_events.list.clear();
         }
 
         self.prologue()?;
@@ -303,7 +309,8 @@ impl<'a> Parser<'a> {
             }
 
             let next_fp = self.context.last_full_packet_tick == u32::MAX
-                || (target_tick - self.context.last_full_packet_tick) > 1800;
+                || self.context.last_full_packet_tick < target_tick
+                    && (target_tick - self.context.last_full_packet_tick) > fp_delta;
 
             if message.msg_type == EDemoCommands::DemFullPacket {
                 if next_fp && first_fp_checked {
