@@ -4,7 +4,6 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
     match struct_name {
         // EDemoCommands
         "CDemoFileHeader" => quote! { EDemoCommands::DemFileHeader },
-        // "CDemoError" => quote! { EDemoCommands::DemError },
         "CDemoStop" => quote! { EDemoCommands::DemStop },
         "CDemoFileInfo" => quote! { EDemoCommands::DemFileInfo },
         "CDemoSyncTick" => quote! { EDemoCommands::DemSyncTick },
@@ -12,7 +11,6 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CDemoClassInfo" => quote! { EDemoCommands::DemClassInfo },
         "CDemoStringTables" => quote! { EDemoCommands::DemStringTables },
         "CDemoPacket" => quote! { EDemoCommands::DemPacket },
-        // "CDemoSignonPacket" => quote! { EDemoCommands::DemSignonPacket },
         "CDemoConsoleCmd" => quote! { EDemoCommands::DemConsoleCmd },
         "CDemoCustomData" => quote! { EDemoCommands::DemCustomData },
         "CDemoCustomDataCallbacks" => quote! { EDemoCommands::DemCustomDataCallbacks },
@@ -22,6 +20,8 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CDemoSpawnGroups" => quote! { EDemoCommands::DemSpawnGroups },
         "CDemoAnimationData" => quote! { EDemoCommands::DemAnimationData },
         "CDemoAnimationHeader" => quote! { EDemoCommands::DemAnimationHeader },
+        // "CDemoSignonPacket" => quote! { EDemoCommands::DemSignonPacket },
+        // "CDemoError" => quote! { EDemoCommands::DemError },
         // "CDemoMax" => quote! { EDemoCommands::DemMax },
         // "CDemoIsCompressed" => quote! { EDemoCommands::DemIsCompressed },
 
@@ -29,97 +29,44 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CCitadelUserMessageDamage" => quote! { CitadelUserMessageIds::KEUserMsgDamage },
         "CCitadelUserMsgMapPing" => quote! { CitadelUserMessageIds::KEUserMsgMapPing },
         "CCitadelUserMsgTeamRewards" => quote! { CitadelUserMessageIds::KEUserMsgTeamRewards },
-        // "CCitadelUserMsgAbilityFailed" => quote! { CitadelUserMessageIds::KEUserMsgAbilityFailed
-        // },
-        "CCitadelUserMsgTriggerDamageFlash" => {
-            quote! { CitadelUserMessageIds::KEUserMsgTriggerDamageFlash }
-        }
-        "CCitadelUserMsgAbilitiesChanged" => {
-            quote! { CitadelUserMessageIds::KEUserMsgAbilitiesChanged }
-        }
-        "CCitadelUserMsgRecentDamageSummary" => {
-            quote! { CitadelUserMessageIds::KEUserMsgRecentDamageSummary }
-        }
-        "CCitadelUserMsgSpectatorTeamChanged" => {
-            quote! { CitadelUserMessageIds::KEUserMsgSpectatorTeamChanged }
-        }
+        "CCitadelUserMsgTriggerDamageFlash" => quote! { CitadelUserMessageIds::KEUserMsgTriggerDamageFlash },
+        "CCitadelUserMsgAbilitiesChanged" => quote! { CitadelUserMessageIds::KEUserMsgAbilitiesChanged },
+        "CCitadelUserMsgRecentDamageSummary" => quote! { CitadelUserMessageIds::KEUserMsgRecentDamageSummary },
+        "CCitadelUserMsgSpectatorTeamChanged" => quote! { CitadelUserMessageIds::KEUserMsgSpectatorTeamChanged },
         "CCitadelUserMsgChatWheel" => quote! { CitadelUserMessageIds::KEUserMsgChatWheel },
         "CCitadelUserMsgGoldHistory" => quote! { CitadelUserMessageIds::KEUserMsgGoldHistory },
         "CCitadelUserMsgChatMsg" => quote! { CitadelUserMessageIds::KEUserMsgChatMsg },
         "CCitadelUserMsgQuickResponse" => quote! { CitadelUserMessageIds::KEUserMsgQuickResponse },
-        "CCitadelUserMsgPostMatchDetails" => {
-            quote! { CitadelUserMessageIds::KEUserMsgPostMatchDetails }
-        }
+        "CCitadelUserMsgPostMatchDetails" => quote! { CitadelUserMessageIds::KEUserMsgPostMatchDetails },
         "CCitadelUserMsgChatEvent" => quote! { CitadelUserMessageIds::KEUserMsgChatEvent },
-        "CCitadelUserMsgAbilityInterrupted" => {
-            quote! { CitadelUserMessageIds::KEUserMsgAbilityInterrupted }
-        }
+        "CCitadelUserMsgAbilityInterrupted" => quote! { CitadelUserMessageIds::KEUserMsgAbilityInterrupted },
         "CCitadelUserMsgHeroKilled" => quote! { CitadelUserMessageIds::KEUserMsgHeroKilled },
         "CCitadelUserMsgReturnIdol" => quote! { CitadelUserMessageIds::KEUserMsgReturnIdol },
-        "CCitadelUserMsgSetClientCameraAngles" => {
-            quote! { CitadelUserMessageIds::KEUserMsgSetClientCameraAngles }
-        }
+        "CCitadelUserMsgSetClientCameraAngles" => quote! { CitadelUserMessageIds::KEUserMsgSetClientCameraAngles },
         "CCitadelUserMsgMapLine" => quote! { CitadelUserMessageIds::KEUserMsgMapLine },
         "CCitadelUserMessageBulletHit" => quote! { CitadelUserMessageIds::KEUserMsgBulletHit },
-        "CCitadelUserMessageObjectiveMask" => {
-            quote! { CitadelUserMessageIds::KEUserMsgObjectiveMask }
-        }
-        "CCitadelUserMessageModifierApplied" => {
-            quote! { CitadelUserMessageIds::KEUserMsgModifierApplied }
-        }
-        "CCitadelUserMsgCameraController" => {
-            quote! { CitadelUserMessageIds::KEUserMsgCameraController }
-        }
-        "CCitadelUserMessageAuraModifierApplied" => {
-            quote! { CitadelUserMessageIds::KEUserMsgAuraModifierApplied }
-        }
-        "CCitadelUserMsgObstructedShotFired" => {
-            quote! { CitadelUserMessageIds::KEUserMsgObstructedShotFired }
-        }
-        "CCitadelUserMsgAbilityLateFailure" => {
-            quote! { CitadelUserMessageIds::KEUserMsgAbilityLateFailure }
-        }
+        "CCitadelUserMessageObjectiveMask" => quote! { CitadelUserMessageIds::KEUserMsgObjectiveMask },
+        "CCitadelUserMessageModifierApplied" => quote! { CitadelUserMessageIds::KEUserMsgModifierApplied },
+        "CCitadelUserMsgCameraController" => quote! { CitadelUserMessageIds::KEUserMsgCameraController },
+        "CCitadelUserMessageAuraModifierApplied" => quote! { CitadelUserMessageIds::KEUserMsgAuraModifierApplied },
+        "CCitadelUserMsgObstructedShotFired" => quote! { CitadelUserMessageIds::KEUserMsgObstructedShotFired },
+        "CCitadelUserMsgAbilityLateFailure" => quote! { CitadelUserMessageIds::KEUserMsgAbilityLateFailure },
         "CCitadelUserMsgAbilityPing" => quote! { CitadelUserMessageIds::KEUserMsgAbilityPing },
-        "CCitadelUserMsgPostProcessingAnim" => {
-            quote! { CitadelUserMessageIds::KEUserMsgPostProcessingAnim }
-        }
-        "CCitadelUserMsgDeathReplayData" => {
-            quote! { CitadelUserMessageIds::KEUserMsgDeathReplayData }
-        }
-        "CCitadelUserMsgPlayerLifetimeStatInfo" => {
-            quote! { CitadelUserMessageIds::KEUserMsgPlayerLifetimeStatInfo }
-        }
-        "CCitadelUserMsgForceShopClosed" => {
-            quote! { CitadelUserMessageIds::KEUserMsgForceShopClosed }
-        }
-        "CCitadelUserMsgStaminaDrained" => {
-            quote! { CitadelUserMessageIds::KEUserMsgStaminaDrained }
-        }
-        "CCitadelUserMessageAbilityNotify" => {
-            quote! { CitadelUserMessageIds::KEUserMsgAbilityNotify }
-        }
-        "CCitadelUserMsgGetDamageStatsResponse" => {
-            quote! { CitadelUserMessageIds::KEUserMsgGetDamageStatsResponse }
-        }
-        "CCitadelUserMsgParticipantStartSoundEvent" => {
-            quote! { CitadelUserMessageIds::KEUserMsgParticipantStartSoundEvent }
-        }
-        "CCitadelUserMsgParticipantStopSoundEvent" => {
-            quote! { CitadelUserMessageIds::KEUserMsgParticipantStopSoundEvent }
-        }
-        "CCitadelUserMsgParticipantStopSoundEventHash" => {
-            quote! { CitadelUserMessageIds::KEUserMsgParticipantStopSoundEventHash }
-        }
-        "CCitadelUserMsgParticipantSetSoundEventParams" => {
-            quote! { CitadelUserMessageIds::KEUserMsgParticipantSetSoundEventParams }
-        }
-        "CCitadelUserMsgParticipantSetLibraryStackFields" => {
-            quote! { CitadelUserMessageIds::KEUserMsgParticipantSetLibraryStackFields }
-        }
-        "CCitadelUserMessageCurrencyChanged" => {
-            quote! { CitadelUserMessageIds::KEUserMsgCurrencyChanged }
-        }
+        "CCitadelUserMsgPostProcessingAnim" => quote! { CitadelUserMessageIds::KEUserMsgPostProcessingAnim },
+        "CCitadelUserMsgDeathReplayData" => quote! { CitadelUserMessageIds::KEUserMsgDeathReplayData },
+        "CCitadelUserMsgPlayerLifetimeStatInfo" => quote! { CitadelUserMessageIds::KEUserMsgPlayerLifetimeStatInfo },
+        "CCitadelUserMsgForceShopClosed" => quote! { CitadelUserMessageIds::KEUserMsgForceShopClosed },
+        "CCitadelUserMsgStaminaDrained" => quote! { CitadelUserMessageIds::KEUserMsgStaminaDrained },
+        "CCitadelUserMessageAbilityNotify" => quote! { CitadelUserMessageIds::KEUserMsgAbilityNotify },
+        "CCitadelUserMsgGetDamageStatsResponse" => quote! { CitadelUserMessageIds::KEUserMsgGetDamageStatsResponse },
+        "CCitadelUserMsgParticipantStartSoundEvent" => quote! { CitadelUserMessageIds::KEUserMsgParticipantStartSoundEvent },
+        "CCitadelUserMsgParticipantStopSoundEvent" => quote! { CitadelUserMessageIds::KEUserMsgParticipantStopSoundEvent },
+        "CCitadelUserMsgParticipantStopSoundEventHash" => quote! { CitadelUserMessageIds::KEUserMsgParticipantStopSoundEventHash },
+        "CCitadelUserMsgParticipantSetSoundEventParams" => quote! { CitadelUserMessageIds::KEUserMsgParticipantSetSoundEventParams },
+        "CCitadelUserMsgParticipantSetLibraryStackFields" => quote! { CitadelUserMessageIds::KEUserMsgParticipantSetLibraryStackFields },
+        "CCitadelUserMessageCurrencyChanged" => quote! { CitadelUserMessageIds::KEUserMsgCurrencyChanged },
         "CCitadelUserMessageGameOver" => quote! { CitadelUserMessageIds::KEUserMsgGameOver },
+        // "CCitadelUserMsgAbilityFailed" => quote! { CitadelUserMessageIds::KEUserMsgAbilityFailed },
 
         // ECitadelGameEvents
         "CMsgFireBullets" => quote! { ECitadelGameEvents::GeFireBullets },
@@ -134,29 +81,14 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CMsgRemoveSatVolumeEvent" => quote! { ECitadelGameEvents::GeRemoveSatVolumeEvent },
 
         // EDotaUserMessages
-
-        // "CDotaUserMsgAddUnitToSelection" => quote! { EDotaUserMessages::DotaUmAddUnitToSelection
-        // },
-        "CDotaUserMsgAiDebugLine" => quote! { EDotaUserMessages::DotaUmAiDebugLine },
         "CDotaUserMsgChatEvent" => quote! { EDotaUserMessages::DotaUmChatEvent },
-        "CDotaUserMsgCombatHeroPositions" => {
-            quote! { EDotaUserMessages::DotaUmCombatHeroPositions }
-        }
-        // "CDotaUserMsgCombatLogData" => quote! { EDotaUserMessages::DotaUmCombatLogData },
+        "CDotaUserMsgCombatHeroPositions" => quote! { EDotaUserMessages::DotaUmCombatHeroPositions },
         "CDotaUserMsgCombatLogBulkData" => quote! { EDotaUserMessages::DotaUmCombatLogBulkData },
-        "CDotaUserMsgCreateLinearProjectile" => {
-            quote! { EDotaUserMessages::DotaUmCreateLinearProjectile }
-        }
-        "CDotaUserMsgDestroyLinearProjectile" => {
-            quote! { EDotaUserMessages::DotaUmDestroyLinearProjectile }
-        }
-        "CDotaUserMsgDodgeTrackingProjectiles" => {
-            quote! { EDotaUserMessages::DotaUmDodgeTrackingProjectiles }
-        }
+        "CDotaUserMsgCreateLinearProjectile" => quote! { EDotaUserMessages::DotaUmCreateLinearProjectile },
+        "CDotaUserMsgDestroyLinearProjectile" => quote! { EDotaUserMessages::DotaUmDestroyLinearProjectile },
+        "CDotaUserMsgDodgeTrackingProjectiles" => quote! { EDotaUserMessages::DotaUmDodgeTrackingProjectiles },
         "CDotaUserMsgGlobalLightColor" => quote! { EDotaUserMessages::DotaUmGlobalLightColor },
-        "CDotaUserMsgGlobalLightDirection" => {
-            quote! { EDotaUserMessages::DotaUmGlobalLightDirection }
-        }
+        "CDotaUserMsgGlobalLightDirection" => quote! { EDotaUserMessages::DotaUmGlobalLightDirection },
         "CDotaUserMsgInvalidCommand" => quote! { EDotaUserMessages::DotaUmInvalidCommand },
         "CDotaUserMsgLocationPing" => quote! { EDotaUserMessages::DotaUmLocationPing },
         "CDotaUserMsgMapLine" => quote! { EDotaUserMessages::DotaUmMapLine },
@@ -167,36 +99,24 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CDotaUserMsgOverheadEvent" => quote! { EDotaUserMessages::DotaUmOverheadEvent },
         "CDotaUserMsgSetNextAutobuyItem" => quote! { EDotaUserMessages::DotaUmSetNextAutobuyItem },
         "CDotaUserMsgSharedCooldown" => quote! { EDotaUserMessages::DotaUmSharedCooldown },
-        "CDotaUserMsgSpectatorPlayerClick" => {
-            quote! { EDotaUserMessages::DotaUmSpectatorPlayerClick }
-        }
+        "CDotaUserMsgSpectatorPlayerClick" => quote! { EDotaUserMessages::DotaUmSpectatorPlayerClick },
         "CDotaUserMsgTutorialTipInfo" => quote! { EDotaUserMessages::DotaUmTutorialTipInfo },
         "CDotaUserMsgUnitEvent" => quote! { EDotaUserMessages::DotaUmUnitEvent },
-        // "CDotaUserMsgParticleManager" => quote! { EDotaUserMessages::DotaUmParticleManager },
         "CDotaUserMsgBotChat" => quote! { EDotaUserMessages::DotaUmBotChat },
         "CDotaUserMsgHudError" => quote! { EDotaUserMessages::DotaUmHudError },
         "CDotaUserMsgItemPurchased" => quote! { EDotaUserMessages::DotaUmItemPurchased },
         "CDotaUserMsgPing" => quote! { EDotaUserMessages::DotaUmPing },
         "CDotaUserMsgItemFound" => quote! { EDotaUserMessages::DotaUmItemFound },
-        // "CDotaUserMsgCharacterSpeakConcept" => quote! {
-        // EDotaUserMessages::DotaUmCharacterSpeakConcept },
         "CDotaUserMsgSwapVerify" => quote! { EDotaUserMessages::DotaUmSwapVerify },
         "CDotaUserMsgWorldLine" => quote! { EDotaUserMessages::DotaUmWorldLine },
-        // "CDotaUserMsgTournamentDrop" => quote! { EDotaUserMessages::DotaUmTournamentDrop },
         "CDotaUserMsgItemAlert" => quote! { EDotaUserMessages::DotaUmItemAlert },
         "CDotaUserMsgHalloweenDrops" => quote! { EDotaUserMessages::DotaUmHalloweenDrops },
         "CDotaUserMsgChatWheel" => quote! { EDotaUserMessages::DotaUmChatWheel },
         "CDotaUserMsgReceivedXmasGift" => quote! { EDotaUserMessages::DotaUmReceivedXmasGift },
-        "CDotaUserMsgUpdateSharedContent" => {
-            quote! { EDotaUserMessages::DotaUmUpdateSharedContent }
-        }
+        "CDotaUserMsgUpdateSharedContent" => quote! { EDotaUserMessages::DotaUmUpdateSharedContent },
         "CDotaUserMsgTutorialRequestExp" => quote! { EDotaUserMessages::DotaUmTutorialRequestExp },
-        "CDotaUserMsgTutorialPingMinimap" => {
-            quote! { EDotaUserMessages::DotaUmTutorialPingMinimap }
-        }
-        "CDotaUserMsgGamerulesStateChanged" => {
-            quote! { EDotaUserMessages::DotaUmGamerulesStateChanged }
-        }
+        "CDotaUserMsgTutorialPingMinimap" => quote! { EDotaUserMessages::DotaUmTutorialPingMinimap },
+        "CDotaUserMsgGamerulesStateChanged" => quote! { EDotaUserMessages::DotaUmGamerulesStateChanged },
         "CDotaUserMsgShowSurvey" => quote! { EDotaUserMessages::DotaUmShowSurvey },
         "CDotaUserMsgTutorialFade" => quote! { EDotaUserMessages::DotaUmTutorialFade },
         "CDotaUserMsgAddQuestLogEntry" => quote! { EDotaUserMessages::DotaUmAddQuestLogEntry },
@@ -220,9 +140,7 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CDotaUserMsgVoteEnd" => quote! { EDotaUserMessages::DotaUmVoteEnd },
         "CDotaUserMsgBoosterState" => quote! { EDotaUserMessages::DotaUmBoosterState },
         "CDotaUserMsgWillPurchaseAlert" => quote! { EDotaUserMessages::DotaUmWillPurchaseAlert },
-        "CDotaUserMsgTutorialMinimapPosition" => {
-            quote! { EDotaUserMessages::DotaUmTutorialMinimapPosition }
-        }
+        "CDotaUserMsgTutorialMinimapPosition" => quote! { EDotaUserMessages::DotaUmTutorialMinimapPosition },
         "CDotaUserMsgPlayerMmr" => quote! { EDotaUserMessages::DotaUmPlayerMmr },
         "CDotaUserMsgAbilitySteal" => quote! { EDotaUserMessages::DotaUmAbilitySteal },
         "CDotaUserMsgCourierKilledAlert" => quote! { EDotaUserMessages::DotaUmCourierKilledAlert },
@@ -231,9 +149,7 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CDotaUserMsgMiniTaunt" => quote! { EDotaUserMessages::DotaUmMiniTaunt },
         "CDotaUserMsgBuyBackStateAlert" => quote! { EDotaUserMessages::DotaUmBuyBackStateAlert },
         "CDotaUserMsgSpeechBubble" => quote! { EDotaUserMessages::DotaUmSpeechBubble },
-        "CDotaUserMsgCustomHeaderMessage" => {
-            quote! { EDotaUserMessages::DotaUmCustomHeaderMessage }
-        }
+        "CDotaUserMsgCustomHeaderMessage" => quote! { EDotaUserMessages::DotaUmCustomHeaderMessage },
         "CDotaUserMsgQuickBuyAlert" => quote! { EDotaUserMessages::DotaUmQuickBuyAlert },
         "CDotaUserMsgStatsHeroDetails" => quote! { EDotaUserMessages::DotaUmStatsHeroDetails },
         "CDotaUserMsgPredictionResult" => quote! { EDotaUserMessages::DotaUmPredictionResult },
@@ -241,28 +157,16 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CDotaUserMsgHpManaAlert" => quote! { EDotaUserMessages::DotaUmHpManaAlert },
         "CDotaUserMsgGlyphAlert" => quote! { EDotaUserMessages::DotaUmGlyphAlert },
         "CDotaUserMsgBeastChat" => quote! { EDotaUserMessages::DotaUmBeastChat },
-        "CDotaUserMsgSpectatorPlayerUnitOrders" => {
-            quote! { EDotaUserMessages::DotaUmSpectatorPlayerUnitOrders }
-        }
-        "CDotaUserMsgCustomHudElementCreate" => {
-            quote! { EDotaUserMessages::DotaUmCustomHudElementCreate }
-        }
-        "CDotaUserMsgCustomHudElementModify" => {
-            quote! { EDotaUserMessages::DotaUmCustomHudElementModify }
-        }
-        "CDotaUserMsgCustomHudElementDestroy" => {
-            quote! { EDotaUserMessages::DotaUmCustomHudElementDestroy }
-        }
+        "CDotaUserMsgSpectatorPlayerUnitOrders" => quote! { EDotaUserMessages::DotaUmSpectatorPlayerUnitOrders },
+        "CDotaUserMsgCustomHudElementCreate" => quote! { EDotaUserMessages::DotaUmCustomHudElementCreate },
+        "CDotaUserMsgCustomHudElementModify" => quote! { EDotaUserMessages::DotaUmCustomHudElementModify },
+        "CDotaUserMsgCustomHudElementDestroy" => quote! { EDotaUserMessages::DotaUmCustomHudElementDestroy },
         "CDotaUserMsgCompendiumState" => quote! { EDotaUserMessages::DotaUmCompendiumState },
         "CDotaUserMsgProjectionAbility" => quote! { EDotaUserMessages::DotaUmProjectionAbility },
         "CDotaUserMsgProjectionEvent" => quote! { EDotaUserMessages::DotaUmProjectionEvent },
         "CMsgDotaCombatLogEntry" => quote! { EDotaUserMessages::DotaUmCombatLogDataHltv },
         "CDotaUserMsgXpAlert" => quote! { EDotaUserMessages::DotaUmXpAlert },
-        "CDotaUserMsgUpdateQuestProgress" => {
-            quote! { EDotaUserMessages::DotaUmUpdateQuestProgress }
-        }
-        // "CDotaUserMsgMatchMetadata" => quote! { EDotaUserMessages::DotaUmMatchMetadata },
-        // "CDotaUserMsgMatchDetails" => quote! { EDotaUserMessages::DotaUmMatchDetails },
+        "CDotaUserMsgUpdateQuestProgress" => quote! { EDotaUserMessages::DotaUmUpdateQuestProgress },
         "CDotaUserMsgQuestStatus" => quote! { EDotaUserMessages::DotaUmQuestStatus },
         "CDotaUserMsgSuggestHeroPick" => quote! { EDotaUserMessages::DotaUmSuggestHeroPick },
         "CDotaUserMsgSuggestHeroRole" => quote! { EDotaUserMessages::DotaUmSuggestHeroRole },
@@ -270,41 +174,23 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CDotaUserMsgSelectPenaltyGold" => quote! { EDotaUserMessages::DotaUmSelectPenaltyGold },
         "CDotaUserMsgRollDiceResult" => quote! { EDotaUserMessages::DotaUmRollDiceResult },
         "CDotaUserMsgFlipCoinResult" => quote! { EDotaUserMessages::DotaUmFlipCoinResult },
-        "CDotaUserMsgRequestItemSuggestions" => {
-            quote! { EDotaUserMessages::DotaUmRequestItemSuggestions }
-        }
-        // "CDotaUserMsgTeamCaptainChanged" => quote! { EDotaUserMessages::DotaUmTeamCaptainChanged
-        // },
-        "CDotaUserMsgSendRoshanSpectatorPhase" => {
-            quote! { EDotaUserMessages::DotaUmSendRoshanSpectatorPhase }
-        }
+        "CDotaUserMsgRequestItemSuggestions" => quote! { EDotaUserMessages::DotaUmRequestItemSuggestions },
+        "CDotaUserMsgSendRoshanSpectatorPhase" => quote! { EDotaUserMessages::DotaUmSendRoshanSpectatorPhase },
         "CDotaUserMsgChatWheelCooldown" => quote! { EDotaUserMessages::DotaUmChatWheelCooldown },
-        "CDotaUserMsgDismissAllStatPopups" => {
-            quote! { EDotaUserMessages::DotaUmDismissAllStatPopups }
-        }
-        "CDotaUserMsgTeDestroyProjectile" => {
-            quote! { EDotaUserMessages::DotaUmTeDestroyProjectile }
-        }
+        "CDotaUserMsgDismissAllStatPopups" => quote! { EDotaUserMessages::DotaUmDismissAllStatPopups },
+        "CDotaUserMsgTeDestroyProjectile" => quote! { EDotaUserMessages::DotaUmTeDestroyProjectile },
         "CDotaUserMsgHeroRelicProgress" => quote! { EDotaUserMessages::DotaUmHeroRelicProgress },
-        "CDotaUserMsgAbilityDraftRequestAbility" => {
-            quote! { EDotaUserMessages::DotaUmAbilityDraftRequestAbility }
-        }
+        "CDotaUserMsgAbilityDraftRequestAbility" => quote! { EDotaUserMessages::DotaUmAbilityDraftRequestAbility },
         "CDotaUserMsgItemSold" => quote! { EDotaUserMessages::DotaUmItemSold },
         "CDotaUserMsgDamageReport" => quote! { EDotaUserMessages::DotaUmDamageReport },
         "CDotaUserMsgSalutePlayer" => quote! { EDotaUserMessages::DotaUmSalutePlayer },
         "CDotaUserMsgTipAlert" => quote! { EDotaUserMessages::DotaUmTipAlert },
         "CDotaUserMsgReplaceQueryUnit" => quote! { EDotaUserMessages::DotaUmReplaceQueryUnit },
         "CDotaUserMsgEmptyTeleportAlert" => quote! { EDotaUserMessages::DotaUmEmptyTeleportAlert },
-        "CDotaUserMsgMarsArenaOfBloodAttack" => {
-            quote! { EDotaUserMessages::DotaUmMarsArenaOfBloodAttack }
-        }
+        "CDotaUserMsgMarsArenaOfBloodAttack" => quote! { EDotaUserMessages::DotaUmMarsArenaOfBloodAttack },
         "CDotaUserMsgEsArcanaCombo" => quote! { EDotaUserMessages::DotaUmEsArcanaCombo },
-        "CDotaUserMsgEsArcanaComboSummary" => {
-            quote! { EDotaUserMessages::DotaUmEsArcanaComboSummary }
-        }
-        "CDotaUserMsgHighFiveLeftHanging" => {
-            quote! { EDotaUserMessages::DotaUmHighFiveLeftHanging }
-        }
+        "CDotaUserMsgEsArcanaComboSummary" => quote! { EDotaUserMessages::DotaUmEsArcanaComboSummary },
+        "CDotaUserMsgHighFiveLeftHanging" => quote! { EDotaUserMessages::DotaUmHighFiveLeftHanging },
         "CDotaUserMsgHighFiveCompleted" => quote! { EDotaUserMessages::DotaUmHighFiveCompleted },
         "CDotaUserMsgShovelUnearth" => quote! { EDotaUserMessages::DotaUmShovelUnearth },
         "CDotaUserMsgInvokerSpellCast" => quote! { EDotaUserMessages::DotaEmInvokerSpellCast },
@@ -319,16 +205,12 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CDotaUserMsgOutpostGrantedXp" => quote! { EDotaUserMessages::DotaUmOutpostGrantedXp },
         "CDotaUserMsgMoveCameraToUnit" => quote! { EDotaUserMessages::DotaUmMoveCameraToUnit },
         "CDotaUserMsgPauseMinigameData" => quote! { EDotaUserMessages::DotaUmPauseMinigameData },
-        "CDotaUserMsgVersusScenePlayerBehavior" => {
-            quote! { EDotaUserMessages::DotaUmVersusScenePlayerBehavior }
-        }
+        "CDotaUserMsgVersusScenePlayerBehavior" => quote! { EDotaUserMessages::DotaUmVersusScenePlayerBehavior },
         "CDotaUserMsgQoPArcanaSummary" => quote! { EDotaUserMessages::DotaUmQoPArcanaSummary },
         "CDotaUserMsgHotPotatoCreated" => quote! { EDotaUserMessages::DotaUmHotPotatoCreated },
         "CDotaUserMsgHotPotatoExploded" => quote! { EDotaUserMessages::DotaUmHotPotatoExploded },
         "CDotaUserMsgWkArcanaProgress" => quote! { EDotaUserMessages::DotaUmWkArcanaProgress },
-        "CDotaUserMsgGuildChallengeProgress" => {
-            quote! { EDotaUserMessages::DotaUmGuildChallengeProgress }
-        }
+        "CDotaUserMsgGuildChallengeProgress" => quote! { EDotaUserMessages::DotaUmGuildChallengeProgress },
         "CDotaUserMsgWrArcanaProgress" => quote! { EDotaUserMessages::DotaUmWrArcanaProgress },
         "CDotaUserMsgWrArcanaSummary" => quote! { EDotaUserMessages::DotaUmWrArcanaSummary },
         "CDotaUserMsgEmptyItemSlotAlert" => quote! { EDotaUserMessages::DotaUmEmptyItemSlotAlert },
@@ -338,28 +220,26 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CDotaUserMsgContextualTip" => quote! { EDotaUserMessages::DotaUmContextualTip },
         "CDotaUserMsgChatMessage" => quote! { EDotaUserMessages::DotaUmChatMessage },
         "CDotaUserMsgNeutralCampAlert" => quote! { EDotaUserMessages::DotaUmNeutralCampAlert },
-        "CDotaUserMsgRockPaperScissorsStarted" => {
-            quote! { EDotaUserMessages::DotaUmRockPaperScissorsStarted }
-        }
-        "CDotaUserMsgRockPaperScissorsFinished" => {
-            quote! { EDotaUserMessages::DotaUmRockPaperScissorsFinished }
-        }
+        "CDotaUserMsgRockPaperScissorsStarted" => quote! { EDotaUserMessages::DotaUmRockPaperScissorsStarted },
+        "CDotaUserMsgRockPaperScissorsFinished" => quote! { EDotaUserMessages::DotaUmRockPaperScissorsFinished },
         "CDotaUserMsgDuelOpponentKilled" => quote! { EDotaUserMessages::DotaUmDuelOpponentKilled },
         "CDotaUserMsgDuelAccepted" => quote! { EDotaUserMessages::DotaUmDuelAccepted },
         "CDotaUserMsgDuelRequested" => quote! { EDotaUserMessages::DotaUmDuelRequested },
-        "CDotaUserMsgMuertaReleaseEventAssignedTargetKilled" => {
-            quote! { EDotaUserMessages::DotaUmMuertaReleaseEventAssignedTargetKilled }
-        }
-        "CDotaUserMsgPlayerDraftSuggestPick" => {
-            quote! { EDotaUserMessages::DotaUmPlayerDraftSuggestPick }
-        }
+        "CDotaUserMsgMuertaReleaseEventAssignedTargetKilled" => quote! { EDotaUserMessages::DotaUmMuertaReleaseEventAssignedTargetKilled },
+        "CDotaUserMsgPlayerDraftSuggestPick" => quote! { EDotaUserMessages::DotaUmPlayerDraftSuggestPick },
         "CDotaUserMsgPlayerDraftPick" => quote! { EDotaUserMessages::DotaUmPlayerDraftPick },
-        "CDotaUserMsgUpdateLinearProjectileCpData" => {
-            quote! { EDotaUserMessages::DotaUmUpdateLinearProjectileCpData }
-        }
+        "CDotaUserMsgUpdateLinearProjectileCpData" => quote! { EDotaUserMessages::DotaUmUpdateLinearProjectileCpData },
         "CDotaUserMsgGiftPlayer" => quote! { EDotaUserMessages::DotaUmGiftPlayer },
         "CDotaUserMsgFacetPing" => quote! { EDotaUserMessages::DotaUmFacetPing },
         "CDotaUserMsgInnatePing" => quote! { EDotaUserMessages::DotaUmInnatePing },
+        // "CDotaUserMsgAddUnitToSelection" => quote! { EDotaUserMessages::DotaUmAddUnitToSelection },
+        // "CDotaUserMsgCombatLogData" => quote! { EDotaUserMessages::DotaUmCombatLogData },
+        // "CDotaUserMsgParticleManager" => quote! { EDotaUserMessages::DotaUmParticleManager },
+        // "CDotaUserMsgCharacterSpeakConcept" => quote! {EDotaUserMessages::DotaUmCharacterSpeakConcept },
+        // "CDotaUserMsgTournamentDrop" => quote! { EDotaUserMessages::DotaUmTournamentDrop },
+        // "CDotaUserMsgMatchMetadata" => quote! { EDotaUserMessages::DotaUmMatchMetadata },
+        // "CDotaUserMsgMatchDetails" => quote! { EDotaUserMessages::DotaUmMatchDetails },
+        // "CDotaUserMsgTeamCaptainChanged" => quote! { EDotaUserMessages::DotaUmTeamCaptainChanged },
 
         // SvcMessages
         "CSvcMsgServerInfo" => quote! { SvcMessages::SvcServerInfo },
@@ -392,9 +272,7 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CSvcMsgHltvReplay" => quote! { SvcMessages::SvcHltvReplay },
         "CSvcMsgBroadcastCommand" => quote! { SvcMessages::SvcBroadcastCommand },
         "CSvcMsgHltvFixupOperatorStatus" => quote! { SvcMessages::SvcHltvFixupOperatorStatus },
-        "CSvcMsgGameEventList" => {
-            quote! { EBaseGameEvents::GeSource1LegacyGameEventList }
-        }
+        "CSvcMsgGameEventList" => quote! { EBaseGameEvents::GeSource1LegacyGameEventList },
         "CSvcMsgGameEvent" => quote! { EBaseGameEvents::GeSource1LegacyGameEvent },
 
         // EBaseUserMessages
@@ -425,39 +303,33 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CUserMessageAmmoDenied" => quote! { EBaseUserMessages::UmAmmoDenied },
         "CUserMessageShowMenu" => quote! { EBaseUserMessages::UmShowMenu },
         "CUserMessageCreditsMsg" => quote! { EBaseUserMessages::UmCreditsMsg },
-        "CUserMessageCloseCaptionPlaceholder" => {
-            quote! { EBaseUserMessages::UmCloseCaptionPlaceholder }
-        }
+        "CUserMessageCloseCaptionPlaceholder" => quote! { EBaseUserMessages::UmCloseCaptionPlaceholder },
         "CUserMessageCameraTransition" => quote! { EBaseUserMessages::UmCameraTransition },
         "CUserMessageAudioParameter" => quote! { EBaseUserMessages::UmAudioParameter },
         "CUserMsgParticleManager" => quote! { EBaseUserMessages::UmParticleManager },
         "CUserMessageHudError" => quote! { EBaseUserMessages::UmHudError },
         "CUserMsgHudError" => quote! { EBaseUserMessages::UmCustomGameEvent },
-        // "CUserMessageAnimGraphUpdate" => quote! { EBaseUserMessages::UmAnimGraphUpdate },
         "CUserMessageHapticsManagerPulse" => quote! { EBaseUserMessages::UmHapticsManagerPulse },
         "CUserMessageHapticsManagerEffect" => quote! { EBaseUserMessages::UmHapticsManagerEffect },
-        // "CUserMessageCommandQueueState" => quote! { EBaseUserMessages::UmCommandQueueState },
         "CUserMessageUpdateCssClasses" => quote! { EBaseUserMessages::UmUpdateCssClasses },
         "CUserMessageServerFrameTime" => quote! { EBaseUserMessages::UmServerFrameTime },
         "CUserMessageLagCompensationError" => quote! { EBaseUserMessages::UmLagCompensationError },
         "CUserMessageRequestDllStatus" => quote! { EBaseUserMessages::UmRequestDllStatus },
         "CUserMessageRequestUtilAction" => quote! { EBaseUserMessages::UmRequestUtilAction },
-        // "CUserMessageUtilActionResponse" => quote! { EBaseUserMessages::UmUtilActionResponse },
-        // "CUserMessageDllStatusResponse" => quote! { EBaseUserMessages::UmDllStatusResponse },
         "CUserMessageRequestInventory" => quote! { EBaseUserMessages::UmRequestInventory },
         "CUserMessageInventoryResponse" => quote! { EBaseUserMessages::UmInventoryResponse },
         "CUserMessageRequestDiagnostic" => quote! { EBaseUserMessages::UmRequestDiagnostic },
         "CUserMessageDiagnosticResponse" => quote! { EBaseUserMessages::UmDiagnosticResponse },
         "CUserMessageExtraUserData" => quote! { EBaseUserMessages::UmExtraUserData },
         "CUserMessageNotifyResponseFound" => quote! { EBaseUserMessages::UmNotifyResponseFound },
-        "CUserMessagePlayResponseConditional" => {
-            quote! { EBaseUserMessages::UmPlayResponseConditional }
-        }
+        "CUserMessagePlayResponseConditional" => quote! { EBaseUserMessages::UmPlayResponseConditional },
+        // "CUserMessageAnimGraphUpdate" => quote! { EBaseUserMessages::UmAnimGraphUpdate },
+        // "CUserMessageCommandQueueState" => quote! { EBaseUserMessages::UmCommandQueueState },
+        // "CUserMessageUtilActionResponse" => quote! { EBaseUserMessages::UmUtilActionResponse },
+        // "CUserMessageDllStatusResponse" => quote! { EBaseUserMessages::UmDllStatusResponse },
 
         // EBaseGameEvents
-        "CMsgSource1LegacyGameEventList" => {
-            quote! { EBaseGameEvents::GeSource1LegacyGameEventList }
-        }
+        "CMsgSource1LegacyGameEventList" => quote! { EBaseGameEvents::GeSource1LegacyGameEventList },
         "CMsgSource1LegacyListenEvents" => quote! { EBaseGameEvents::GeSource1LegacyListenEvents },
         "CMsgSource1LegacyGameEvent" => quote! { EBaseGameEvents::GeSource1LegacyGameEvent },
         "CMsgSosStartSoundEvent" => quote! { EBaseGameEvents::GeSosStartSoundEvent },

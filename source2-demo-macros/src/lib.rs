@@ -37,20 +37,13 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 if attr.path().is_ident("on_message") {
                     check_second_arg_is_context(method);
                     if let Some((arg_type, is_reference)) = get_message_type(method) {
-                        let enum_type =
-                            get_enum_from_struct(&arg_type.to_token_stream().to_string());
+                        let enum_type = get_enum_from_struct(&arg_type.to_token_stream().to_string());
                         let call_message = if is_reference {
                             quote! { self.#method_name(ctx, &message)?; }
                         } else {
                             quote! { self.#method_name(ctx, message)?; }
                         };
-                        match enum_type
-                            .to_token_stream()
-                            .to_string()
-                            .split("::")
-                            .collect::<Vec<_>>()[0]
-                            .trim()
-                        {
+                        match enum_type.to_token_stream().to_string().split("::").collect::<Vec<_>>()[0].trim() {
                             #[cfg(feature = "dota")]
                             "EDotaUserMessages" => {
                                 on_dota_user_message_body = quote! {
