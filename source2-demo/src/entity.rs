@@ -64,8 +64,8 @@ impl Entities {
     /// # Examples
     ///
     /// ```
-    /// use d2_stampede::prelude::*;
-    /// use d2_stampede::proto::*;
+    /// use source2_demo::prelude::*;
+    /// use source2_demo::proto::*;
     ///
     /// #[derive(Default)]
     /// struct MyObs;
@@ -158,7 +158,7 @@ impl Entity {
     /// # Examples
     ///
     /// ```
-    /// use d2_stampede::prelude::*;
+    /// use source2_demo::prelude::*;
     ///
     /// #[derive(Default)]
     /// struct MyObs;
