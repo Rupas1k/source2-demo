@@ -179,6 +179,7 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let specific_methods = {
+        #[allow(unused)]
         let mut methods = quote! {};
 
         #[cfg(feature = "dota")]

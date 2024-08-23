@@ -272,10 +272,11 @@ impl<'a> Parser<'a> {
     /// Moves to target tick without calling observers and processing delta
     /// packets.
     pub fn jump_to_tick(&mut self, mut target_tick: u32) -> Result<(), ParserError> {
-        #[cfg(feature = "dota")]
-        let fp_delta = 1800;
-        #[cfg(feature = "deadlock")]
-        let fp_delta = 3600;
+        let fp_delta = if cfg!(feature = "deadlock") {
+            3600
+        } else {
+            1800
+        };
 
         target_tick = min(target_tick, self.last_tick);
 
@@ -621,6 +622,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    #[allow(unreachable_code)]
     fn dem_packet(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let packet = CDemoPacket::decode(msg)?;
         let mut packet_reader = Reader::new(packet.data());
@@ -628,6 +630,23 @@ impl<'a> Parser<'a> {
             let msg_type = packet_reader.read_ubit_var() as i32;
             let size = packet_reader.read_var_u32();
             let packet_buf = packet_reader.read_bytes(size);
+
+            #[cfg(any(
+                all(feature = "dota", feature = "deadlock"),
+                all(not(feature = "dota"), not(feature = "deadlock"))
+            ))]
+            {
+                if let Ok(msg) = SvcMessages::try_from(msg_type) {
+                    self.on_svc_message(msg, &packet_buf)?;
+                } else if let Ok(msg) = EBaseUserMessages::try_from(msg_type) {
+                    self.on_base_user_message(msg, &packet_buf)?;
+                } else if let Ok(msg) = EBaseGameEvents::try_from(msg_type) {
+                    self.on_base_game_event(msg, &packet_buf)?;
+                } else if let Ok(msg) = NetMessages::try_from(msg_type) {
+                    self.on_net_message(msg, &packet_buf)?;
+                }
+                continue;
+            }
 
             #[cfg(feature = "dota")]
             if let Ok(msg) = EDotaUserMessages::try_from(msg_type) {
@@ -864,10 +883,13 @@ impl<'a> Parser<'a> {
 
         let game_dir = info.game_dir();
 
-        #[cfg(feature = "dota")]
-        let game_prefix = "dota_v";
-        #[cfg(feature = "deadlock")]
-        let game_prefix = "citadel_v";
+        let game_prefix = if cfg!(feature = "dota") {
+            "dota_v"
+        } else if cfg!(feature = "deadlock") {
+            "citadel_v"
+        } else {
+            "unknown"
+        };
 
         if let Some(start) = game_dir.find(game_prefix) {
             let start = start + game_prefix.len();
