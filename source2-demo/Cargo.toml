@@ -16,7 +16,7 @@ snap = "1.1"
 bitter = "0.7"
 thiserror = "1.0"
 anyhow = "1.0"
-prettytable = "0.10"
+prettytable = { version = "0.10", default-features = false }
 mimalloc = { version = "0.1", optional = true }
 source2-demo-protobufs = { path = "../source2-demo-protobufs" }
 source2-demo-macros = { path = "../source2-demo-macros" }
