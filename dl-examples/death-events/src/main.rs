@@ -1,10 +1,10 @@
 use source2_demo::prelude::*;
 
 #[derive(Default)]
-struct Chat;
+struct DeathEvents;
 
 #[observer]
-impl Chat {
+impl DeathEvents {
     fn get_hero_name(
         &self,
         ctx: &Context,
@@ -22,7 +22,7 @@ impl Chat {
     }
 
     #[on_game_event]
-    fn x(&mut self, ctx: &Context, msg: &GameEvent) -> ObserverResult {
+    fn on_event(&mut self, ctx: &Context, msg: &GameEvent) -> ObserverResult {
         if msg.name() == "player_death" {
             let victim: i32 = msg.get_value("userid_pawn")?.try_into()?;
             let attacker: i32 = msg.get_value("attacker_pawn")?.try_into()?;
@@ -47,7 +47,7 @@ fn main() -> anyhow::Result<()> {
     let replay = unsafe { memmap2::Mmap::map(&std::fs::File::open(filepath)?)? };
     let mut parser = Parser::new(&replay)?;
 
-    parser.register_observer::<Chat>();
+    parser.register_observer::<DeathEvents>();
 
     let start = std::time::Instant::now();
     parser.run_to_end()?;
