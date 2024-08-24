@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::fs;
 
@@ -29,7 +30,12 @@ fn main() -> std::io::Result<()> {
 
         config.default_package_filename("citadel");
         config.compile_protos(
-            &["./protos/citadel/citadel_gameevents.proto", "./protos/citadel/citadel_gcmessages_common.proto", "./protos/citadel/citadel_usermessages.proto"],
+            &[
+                "./protos/citadel/citadel_gameevents.proto",
+                "./protos/citadel/citadel_gcmessages_common.proto",
+                "./protos/citadel/citadel_usermessages.proto",
+                "./protos/citadel/base_modifier.proto",
+            ],
             &["./protos/common", "./protos/citadel"],
         )?;
 
@@ -127,7 +133,7 @@ fn extract_blocks(rust_code: &str) -> HashMap<String, String> {
 }
 
 fn clean_matching_blocks(input_blocks: &HashMap<String, String>, common_blocks: &HashMap<String, String>) -> Vec<String> {
-    input_blocks.iter().filter_map(|(name, block)| if !common_blocks.contains_key(name) { Some(block.clone()) } else { None }).collect()
+    input_blocks.iter().sorted().filter_map(|(name, block)| if !common_blocks.contains_key(name) { Some(block.clone()) } else { None }).collect()
 }
 
 fn clean_blocks(input_file: &str, common_file: &str) -> std::io::Result<()> {
