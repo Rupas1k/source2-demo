@@ -21,18 +21,16 @@ impl DeathEvents {
             .to_string())
     }
 
-    #[on_game_event]
-    fn on_event(&mut self, ctx: &Context, msg: &GameEvent) -> ObserverResult {
-        if msg.name() == "player_death" {
-            let victim: i32 = msg.get_value("userid_pawn")?.try_into()?;
-            let attacker: i32 = msg.get_value("attacker_pawn")?.try_into()?;
-            println!(
-                "{:06}: {} killed {}",
-                ctx.tick(),
-                self.get_hero_name(ctx, attacker as usize)?,
-                self.get_hero_name(ctx, victim as usize)?
-            );
-        }
+    #[on_game_event("player_death")]
+    fn x(&mut self, ctx: &Context, msg: &GameEvent) -> ObserverResult {
+        let victim: i32 = msg.get_value("userid_pawn")?.try_into()?;
+        let attacker: i32 = msg.get_value("attacker_pawn")?.try_into()?;
+        println!(
+            "{:06}: {} killed {}",
+            ctx.tick(),
+            self.get_hero_name(ctx, attacker as usize)?,
+            self.get_hero_name(ctx, victim as usize)?
+        );
         Ok(())
     }
 }

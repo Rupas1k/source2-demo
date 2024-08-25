@@ -160,10 +160,20 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 if attr.path().is_ident("on_game_event") {
                     check_second_arg_is_context(method);
-                    on_game_event_body = quote! {
-                        #on_game_event_body
-                        self.#method_name(ctx, &ge)?;
-                    };
+
+                    on_game_event_body = if let Some(event_name) = attr.parse_args::<syn::LitStr>().ok() {
+                        quote! {
+                            #on_game_event_body
+                            if ge.name() == #event_name {
+                                self.#method_name(ctx, ge)?;
+                            }
+                        }
+                    } else {
+                        quote! {
+                            #on_game_event_body
+                            self.#method_name(ctx, ge)?;
+                        }
+                    }
                 }
 
                 #[cfg(feature = "dota")]
