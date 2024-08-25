@@ -57,10 +57,6 @@ pub enum ParserError {
     #[error(transparent)]
     GameEvent(#[from] GameEventError),
 
-    #[cfg(feature = "dota")]
-    #[error(transparent)]
-    CombatLog(#[from] CombatLogError),
-
     #[error(transparent)]
     ObserverError(#[from] anyhow::Error),
 
@@ -69,6 +65,14 @@ pub enum ParserError {
 
     #[error("Supports only Source 2 replays")]
     WrongMagic,
+
+    #[cfg(feature = "dota")]
+    #[error(transparent)]
+    CombatLog(#[from] CombatLogError),
+
+    #[cfg(feature = "deadlock")]
+    #[error("CCitadelUserMsgPostMatchDetails not found")]
+    MatchDetailsNotFound,
 }
 
 pub struct Parser<'a> {
@@ -620,6 +624,36 @@ impl<'a> Parser<'a> {
                 .insert(network_name.into(), class);
         }
         Ok(())
+    }
+
+    #[cfg(feature = "deadlock")]
+    pub fn deadlock_match_details(&mut self) -> Result<CMsgMatchMetaDataContents, ParserError> {
+        let mut temp_reader = Reader::new(self.reader.buf);
+        temp_reader.reset_to(16);
+        while let Some(message) = temp_reader.read_next_message()? {
+            if EDemoCommands::try_from(message.msg_type) != Ok(EDemoCommands::DemPacket) {
+                continue;
+            }
+
+            let packet = CDemoPacket::decode(message.buf.as_slice())?;
+            let mut packet_reader = Reader::new(packet.data());
+            while packet_reader.bytes_remaining() != 0 {
+                let msg_type = packet_reader.read_ubit_var() as i32;
+                let size = packet_reader.read_var_u32();
+                let packet_buf = packet_reader.read_bytes(size);
+
+                if CitadelUserMessageIds::try_from(msg_type)
+                    == Ok(CitadelUserMessageIds::KEUserMsgPostMatchDetails)
+                {
+                    return Ok(CMsgMatchMetaDataContents::decode(
+                        CCitadelUserMsgPostMatchDetails::decode(packet_buf.as_slice())?
+                            .match_details(),
+                    )?);
+                }
+            }
+        }
+
+        Err(ParserError::MatchDetailsNotFound)
     }
 
     #[allow(unreachable_code)]
