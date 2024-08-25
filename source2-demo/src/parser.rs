@@ -302,7 +302,7 @@ impl<'a> Parser<'a> {
         self.skip_deltas = true;
         let observers = mem::take(&mut self.observers);
 
-        let mut first_fp_checked = false;
+        let mut first_fp_checked = self.context.last_full_packet_tick != u32::MAX;
         let mut last_fp_checked = false;
 
         while let Some(mut message) = self.reader.read_next_message()? {
