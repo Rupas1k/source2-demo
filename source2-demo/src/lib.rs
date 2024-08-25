@@ -103,6 +103,7 @@ pub mod prelude {
     pub use crate::field_value::FieldValue;
     pub use crate::game_event::GameEvent;
     pub use crate::parser::{Context, Observer, Parser};
+    pub use crate::string_table::{StringTable, StringTableRow, StringTables};
     pub use crate::ObserverResult;
     pub use crate::{property, try_property};
 

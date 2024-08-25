@@ -859,17 +859,29 @@ impl<'a> Parser<'a> {
 
     fn update_string_table(&mut self, msg: &[u8]) -> Result<(), ParserError> {
         let table_msg = CSvcMsgUpdateStringTable::decode(msg)?;
-        let table = self
-            .context
-            .string_tables
-            .tables
-            .get_mut(table_msg.table_id() as usize)
-            .unwrap();
 
-        table.parse(
-            &mut self.context.baselines,
-            table_msg.string_data(),
-            table_msg.num_changed_entries(),
+        let modified = {
+            let table = self
+                .context
+                .string_tables
+                .tables
+                .get_mut(table_msg.table_id() as usize)
+                .unwrap();
+
+            table.parse(
+                &mut self.context.baselines,
+                table_msg.string_data(),
+                table_msg.num_changed_entries(),
+            )?
+        };
+
+        try_observers!(
+            self,
+            on_string_table(
+                &self.context,
+                &self.context.string_tables.tables[table_msg.table_id() as usize],
+                modified.as_slice()
+            )
         )?;
 
         Ok(())
@@ -889,6 +901,8 @@ impl<'a> Parser<'a> {
             keys: RefCell::new(vec![String::default(); 32]),
         };
 
+        let table_index = table.index as usize;
+
         let buf = if table_msg.data_compressed() {
             let mut decoder = snap::raw::Decoder::new();
             decoder.decompress_vec(table_msg.string_data())?
@@ -896,7 +910,7 @@ impl<'a> Parser<'a> {
             table_msg.string_data().into()
         };
 
-        table.parse(
+        let modified = table.parse(
             &mut self.context.baselines,
             buf.as_slice(),
             table_msg.num_entries(),
@@ -907,6 +921,15 @@ impl<'a> Parser<'a> {
             .name_to_table
             .insert(table.name().into(), table.index as usize);
         self.context.string_tables.tables.push(table);
+
+        try_observers!(
+            self,
+            on_string_table(
+                &self.context,
+                &self.context.string_tables.tables[table_index],
+                modified.as_slice()
+            )
+        )?;
 
         Ok(())
     }
@@ -1000,6 +1023,15 @@ pub trait Observer {
     }
 
     fn on_game_event(&mut self, ctx: &Context, ge: &GameEvent) -> ObserverResult {
+        Ok(())
+    }
+
+    fn on_string_table(
+        &mut self,
+        ctx: &Context,
+        st: &StringTable,
+        modified: &[i32],
+    ) -> ObserverResult {
         Ok(())
     }
 

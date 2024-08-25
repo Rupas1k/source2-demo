@@ -123,15 +123,17 @@ impl StringTable {
         baselines: &mut Baselines,
         buf: &[u8],
         num_updates: i32,
-    ) -> Result<(), StringTableError> {
+    ) -> Result<Vec<i32>, StringTableError> {
         let items = &mut self.items;
         let mut r = Reader::new(buf);
         let mut index = -1;
         let mut delta_pos = 0;
         let mut keys = self.keys.borrow_mut();
 
+        let mut modified = vec![];
+
         if self.name == "decalprecache" {
-            return Ok(());
+            return Ok(modified);
         }
 
         for _ in 0..num_updates {
@@ -201,9 +203,11 @@ impl StringTable {
             } else {
                 items.push(StringTableRow::new(index, key.unwrap_or_default(), value));
             }
+
+            modified.push(index);
         }
 
-        Ok(())
+        Ok(modified)
     }
 }
 
