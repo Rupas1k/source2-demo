@@ -48,7 +48,7 @@ pub enum EntityError {
 
 /// Container for entities.
 pub struct Entities {
-    pub entities_vec: Vec<Option<Entity>>,
+    pub(crate) entities_vec: Vec<Option<Entity>>,
 }
 
 impl Default for Entities {
