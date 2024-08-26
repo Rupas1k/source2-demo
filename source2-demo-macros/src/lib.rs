@@ -181,7 +181,7 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     check_second_arg_is_context(method);
 
                     on_string_table_body = if let Some(table_name) = attr.parse_args::<syn::LitStr>().ok() {
-                         quote! {
+                        quote! {
                             #on_string_table_body
                             if table.name() == #table_name {
                                 self.#method_name(ctx, table, modified)?;
@@ -191,7 +191,7 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         quote! {
                             #on_string_table_body
                             self.#method_name(ctx, table, modified)?;
-                        } 
+                        }
                     };
                 }
 
@@ -351,7 +351,7 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #on_game_event_body
                 Ok(())
             }
-            
+
             fn on_string_table(
                 &mut self,
                 ctx: &Context,

@@ -266,8 +266,8 @@ impl<'a> Parser<'a> {
         while let Some(message) = self.reader.read_next_message()? {
             self.on_tick_start(message.tick)?;
             self.on_demo_command(message.msg_type, message.buf.as_slice())?;
-            self.on_tick_end(message.tick)?;
         }
+        self.on_tick_end()?;
 
         try_observers!(self, epilogue(&self.context))?;
         Ok(())
@@ -364,8 +364,8 @@ impl<'a> Parser<'a> {
         while let Some(message) = self.reader.read_next_message()? {
             self.on_tick_start(message.tick)?;
             self.on_demo_command(message.msg_type, message.buf.as_slice())?;
-            self.on_tick_end(message.tick)?;
             if self.context.tick >= target_tick {
+                self.on_tick_end()?;
                 break;
             }
         }
@@ -472,6 +472,10 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn on_tick_start(&mut self, msg_tick: u32) -> Result<(), ParserError> {
+        if msg_tick > self.context.tick {
+            self.on_tick_end()?;
+        }
+
         self.context.previous_tick = self.context.tick;
         self.context.tick = msg_tick;
 
@@ -483,25 +487,16 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    pub(crate) fn on_tick_end(&mut self, msg_tick: u32) -> Result<(), ParserError> {
-        if self.context.previous_tick == msg_tick {
-            return Ok(());
-        }
-
+    pub(crate) fn on_tick_end(&mut self) -> Result<(), ParserError> {
         #[cfg(feature = "dota")]
         if let Ok(names) = self.context.string_tables.get_by_name("CombatLogNames") {
             while let Some(log) = self.combat_log.pop_front() {
-                self.on_combat_log(&CombatLogEntry { names, log })?;
+                let entry = CombatLogEntry { names, log };
+                try_observers!(self, on_combat_log(&self.context, &entry))?;
             }
         }
 
         try_observers!(self, on_tick_end(&self.context))?;
-        Ok(())
-    }
-
-    #[cfg(feature = "dota")]
-    pub(crate) fn on_combat_log(&self, entry: &CombatLogEntry) -> Result<(), ParserError> {
-        try_observers!(self, on_combat_log(&self.context, entry))?;
         Ok(())
     }
 
