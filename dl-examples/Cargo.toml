@@ -5,6 +5,7 @@ members = [
     "match-details",
     "death-events",
     "damage-events",
+    "chat",
 ]
 
 [profile.dev]

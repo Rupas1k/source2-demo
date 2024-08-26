@@ -28,7 +28,8 @@ impl DeathEvents {
         println!(
             "{:06}: {} killed {}",
             ctx.tick(),
-            self.get_hero_name(ctx, attacker as usize)?,
+            self.get_hero_name(ctx, attacker as usize)
+                .unwrap_or("unknown".to_string()),
             self.get_hero_name(ctx, victim as usize)?
         );
         Ok(())
