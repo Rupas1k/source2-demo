@@ -1,9 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
-    "death-events",
-    "match-details",
     "lifestate",
+    "match-details",
+    "death-events",
+    "damage-events",
 ]
 
 [profile.dev]
