@@ -41,6 +41,7 @@ impl FieldDecoder {
             "int16" => FieldDecoder::Signed16,
             "int32" => FieldDecoder::Signed32,
 
+            #[cfg(feature = "dota")]
             "HeroID_t" => FieldDecoder::Signed32,
 
             "uint8" | "BloodType" => FieldDecoder::Unsigned8,
