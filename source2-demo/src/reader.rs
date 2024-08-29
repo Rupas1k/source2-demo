@@ -249,9 +249,7 @@ impl<'a> Reader<'a> {
     }
 
     #[inline]
-    pub(crate) fn read_next_message(
-        &mut self,
-    ) -> Result<Option<crate::parser::OuterMessage>, ParserError> {
+    pub(crate) fn read_next_message(&mut self) -> Result<Option<OuterMessage>, ParserError> {
         if self.bytes_remaining() == 0 {
             return Ok(None);
         }
@@ -272,7 +270,7 @@ impl<'a> Reader<'a> {
             self.read_bytes(size)
         };
 
-        Ok(Some(crate::parser::OuterMessage {
+        Ok(Some(OuterMessage {
             msg_type,
             tick,
             buf,
@@ -292,4 +290,10 @@ impl<'a> Reader<'a> {
             reader.read_next_message()?.unwrap().buf.as_slice(),
         )?)
     }
+}
+
+pub(crate) struct OuterMessage {
+    pub(crate) msg_type: EDemoCommands,
+    pub(crate) tick: u32,
+    pub(crate) buf: Vec<u8>,
 }

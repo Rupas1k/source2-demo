@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter};
+use crate::error::FieldValueError;
 
 /// Special type for [`Entity`](crate::Entity) field value that can be converted
 /// into Rust type using `try_into`.
@@ -21,35 +21,6 @@ pub enum FieldValue {
     Unsigned16(u16),
     Unsigned32(u32),
     Unsigned64(u64),
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum FieldValueError {
-    #[error("Cannot convert {0} into {1}")]
-    ConversionError(String, String),
-}
-
-impl Display for FieldValue {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FieldValue::Boolean(val) => write!(f, "{}", val),
-            FieldValue::String(val) => write!(f, "\"{}\"", val),
-            FieldValue::Float(val) => write!(f, "{}", val),
-            FieldValue::Vector2D(val) => write!(f, "[{}, {}]", val[0], val[1]),
-            FieldValue::Vector3D(val) => write!(f, "[{}, {}, {}]", val[0], val[1], val[2]),
-            FieldValue::Vector4D(val) => {
-                write!(f, "[{}, {}, {}, {}]", val[0], val[1], val[2], val[3])
-            }
-            FieldValue::Signed8(val) => write!(f, "{}", val),
-            FieldValue::Signed16(val) => write!(f, "{}", val),
-            FieldValue::Signed32(val) => write!(f, "{}", val),
-            FieldValue::Signed64(val) => write!(f, "{}", val),
-            FieldValue::Unsigned8(val) => write!(f, "{}", val),
-            FieldValue::Unsigned16(val) => write!(f, "{}", val),
-            FieldValue::Unsigned32(val) => write!(f, "{}", val),
-            FieldValue::Unsigned64(val) => write!(f, "{}", val),
-        }
-    }
 }
 
 impl TryInto<String> for FieldValue {

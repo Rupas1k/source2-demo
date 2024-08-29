@@ -1,17 +1,7 @@
+use crate::error::GameEventError;
+use crate::proto::{CSvcMsgGameEvent, CSvcMsgGameEventList};
 use hashbrown::HashMap;
-use prettytable::{row, Table};
-use source2_demo_protobufs::{CSvcMsgGameEvent, CSvcMsgGameEventList};
-use std::collections::BTreeMap;
-use std::fmt::Display;
 use std::rc::Rc;
-
-#[derive(thiserror::Error, Debug)]
-pub enum GameEventError {
-    #[error("Unknown key: {0}")]
-    UnknownKey(String),
-    #[error("Conversion error: {0} -> {1}")]
-    ConversionError(String, String),
-}
 
 #[derive(Debug)]
 pub enum EventValue {
@@ -69,7 +59,7 @@ impl GameEventList {
 }
 
 pub(crate) struct GameEventDefinition {
-    name: String,
+    pub(crate) name: String,
     keys: Vec<Rc<GameEventKey>>,
     name_to_key: HashMap<String, Rc<GameEventKey>>,
 }
@@ -92,20 +82,17 @@ impl<'a> GameEvent<'a> {
         let keys = ge
             .keys
             .iter()
-            .map(|key| {
-                let value = match key.r#type() {
-                    1 => EventValue::String(key.val_string().into()),
-                    2 => EventValue::Float(key.val_float()),
-                    3 => EventValue::Int(key.val_long()),
-                    4 => EventValue::Int(key.val_short()),
-                    5 => EventValue::Byte(key.val_byte() as u8),
-                    6 => EventValue::Bool(key.val_bool()),
-                    7 => EventValue::U64(key.val_uint64()),
-                    8 => EventValue::Int(key.val_long()),
-                    9 => EventValue::Int(key.val_short()),
-                    _ => panic!("Unknown event type: {}", key.r#type()),
-                };
-                value
+            .map(|key| match key.r#type() {
+                1 => EventValue::String(key.val_string().into()),
+                2 => EventValue::Float(key.val_float()),
+                3 => EventValue::Int(key.val_long()),
+                4 => EventValue::Int(key.val_short()),
+                5 => EventValue::Byte(key.val_byte() as u8),
+                6 => EventValue::Bool(key.val_bool()),
+                7 => EventValue::U64(key.val_uint64()),
+                8 => EventValue::Int(key.val_long()),
+                9 => EventValue::Int(key.val_short()),
+                _ => unreachable!("Unknown event type: {}", key.r#type()),
             })
             .collect::<Vec<_>>();
 
@@ -133,32 +120,6 @@ impl<'a> GameEvent<'a> {
             .get(key)
             .ok_or_else(|| GameEventError::UnknownKey(key.to_string()))?;
         Ok(&self.keys[key.id as usize])
-    }
-}
-
-impl Display for GameEvent<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut table = Table::new();
-
-        table.add_row(row!["Key", "Value"]);
-
-        for (key, value) in self.iter() {
-            table.add_row(row![key, format!("{:?}", value)]);
-        }
-
-        write!(f, "{}", table)
-    }
-}
-
-impl Display for GameEventList {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut table = Table::new();
-
-        for (id, definition) in self.list.iter().collect::<BTreeMap<_, _>>() {
-            table.add_row(row![id, definition.name]);
-        }
-
-        write!(f, "{}", table)
     }
 }
 

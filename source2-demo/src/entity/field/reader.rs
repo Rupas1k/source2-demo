@@ -1,6 +1,6 @@
-use crate::field::{FieldPath, FieldState};
+use crate::entity::field::serializer::Serializer;
+use crate::entity::field::{FieldPath, FieldState};
 use crate::reader::Reader;
-use crate::serializer::Serializer;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
@@ -12,11 +12,9 @@ pub(crate) struct FieldReader {
 
 impl Default for FieldReader {
     fn default() -> Self {
-        let tree = build_huffman_tree(OPERATIONS.map(|(_, weight)| weight).into());
-        let paths = RefCell::new([FieldPath::new(); 4096]);
         FieldReader {
-            tree,
-            paths_buf: paths,
+            tree: HTree::default(),
+            paths_buf: RefCell::new([FieldPath::default(); 4096]),
         }
     }
 }
@@ -32,7 +30,7 @@ impl FieldReader {
         let mut paths = self.paths_buf.borrow_mut();
         let mut node = &self.tree;
         let mut i = 0;
-        let mut fp = FieldPath::new();
+        let mut fp = FieldPath::default();
         reader.refill();
         loop {
             let next = match reader.read_bool() {
@@ -75,6 +73,38 @@ enum HTree {
         left: Box<HTree>,
         right: Box<HTree>,
     },
+}
+
+impl Default for HTree {
+    fn default() -> Self {
+        let mut trees = OPERATIONS
+            .map(|(_, weight)| weight)
+            .iter()
+            .enumerate()
+            .map(|(v, w)| HTree::Leaf {
+                value: v as i32,
+                weight: if *w == 0 { 1 } else { *w },
+            })
+            .collect::<BinaryHeap<HTree>>();
+
+        let mut n = 40;
+
+        while trees.len() > 1 {
+            let a = trees.pop().unwrap();
+            let b = trees.pop().unwrap();
+
+            trees.push(HTree::Node {
+                weight: a.weight() + b.weight(),
+                value: n,
+                left: Box::new(a),
+                right: Box::new(b),
+            });
+
+            n += 1;
+        }
+
+        trees.pop().unwrap()
+    }
 }
 
 impl Ord for HTree {
@@ -122,35 +152,6 @@ impl HTree {
             HTree::Leaf { .. } => unreachable!(),
         }
     }
-}
-
-fn build_huffman_tree(frequencies: Vec<i32>) -> HTree {
-    let mut trees = frequencies
-        .iter()
-        .enumerate()
-        .map(|(v, w)| HTree::Leaf {
-            value: v as i32,
-            weight: if *w == 0 { 1 } else { *w },
-        })
-        .collect::<BinaryHeap<HTree>>();
-
-    let mut n = 40;
-
-    while trees.len() > 1 {
-        let a = trees.pop().unwrap();
-        let b = trees.pop().unwrap();
-
-        trees.push(HTree::Node {
-            weight: a.weight() + b.weight(),
-            value: n,
-            left: Box::new(a),
-            right: Box::new(b),
-        });
-
-        n += 1;
-    }
-
-    trees.pop().unwrap()
 }
 
 #[derive(Clone, Copy)]

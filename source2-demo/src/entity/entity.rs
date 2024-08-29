@@ -1,9 +1,7 @@
-use crate::class::Class;
-use crate::field::{FieldPath, FieldState};
-use crate::field_value::FieldValue;
-use crate::serializer::SerializerError;
-use prettytable::{row, Table};
-use std::fmt::{Debug, Display, Formatter};
+use crate::entity::class::Class;
+use crate::entity::field::{FieldPath, FieldState, FieldValue};
+use crate::error::EntityError;
+use std::fmt::Debug;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -23,27 +21,6 @@ impl EntityEvents {
             _ => unreachable!(),
         }
     }
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum EntityError {
-    #[error("No entities found at index {0}")]
-    IndexNotFound(usize),
-
-    #[error("No entities found for handle {0}")]
-    HandleNotFound(usize),
-
-    #[error("No entities found for class with id {0}")]
-    ClassIdNotFound(i32),
-
-    #[error("No entities found for class with name {0}")]
-    ClassNameNotFound(String),
-
-    #[error("No property found for name {0} (Class: {1}, FieldPath: {2})")]
-    PropertyNameNotFound(String, String, String),
-
-    #[error(transparent)]
-    FieldPathNotFound(#[from] SerializerError),
 }
 
 /// Container for entities.
@@ -200,46 +177,5 @@ impl Entity {
                 format!("{}", fp),
             )
         })
-    }
-}
-
-impl Display for Entities {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut table = Table::new();
-        table.add_row(row!["idx", "serial", "handle", "class"]);
-        for e in self.entities_vec.iter().flatten() {
-            table.add_row(row![
-                e.index().to_string(),
-                e.serial().to_string(),
-                e.handle().to_string(),
-                e.class().name(),
-            ]);
-        }
-        write!(f, "{}", table)
-    }
-}
-
-impl Display for Entity {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut table = Table::new();
-
-        table.add_row(row!["#", "Field", "Type", "Value"]);
-
-        for fp in self
-            .class
-            .serializer
-            .get_field_paths(&mut FieldPath::new(), &self.state)
-        {
-            let field_type = self.class.serializer.get_type_for_field_path(&fp);
-            let name = self.class.serializer.get_name_for_field_path(&fp);
-            let value = self.state.get_value(&fp);
-            if let Some(v) = value {
-                table.add_row(row![fp, name, field_type.as_string(), format!("{:?}", v)]);
-            } else {
-                table.add_row(row![fp, name, field_type.as_string(), "None"]);
-            }
-        }
-
-        write!(f, "{}", table)
     }
 }

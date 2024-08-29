@@ -1,5 +1,5 @@
-use crate::decoder::Decoder;
-use crate::field::{Field, FieldModel, FieldPath, FieldState, FieldType};
+use crate::entity::field::*;
+use crate::error::SerializerError;
 use hashbrown::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -8,12 +8,6 @@ use std::rc::Rc;
 pub(crate) struct Serializer {
     pub(crate) fields: Vec<Rc<Field>>,
     pub(crate) fp_cache: RefCell<HashMap<Box<str>, FieldPath>>,
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum SerializerError {
-    #[error("No field path for given name {0}")]
-    NoFieldPath(String),
 }
 
 impl Serializer {
@@ -91,7 +85,7 @@ impl Serializer {
     }
 
     #[inline]
-    pub(crate) fn get_decoder_for_field_path(&self, fp: &FieldPath) -> &Decoder {
+    pub(crate) fn get_decoder_for_field_path(&self, fp: &FieldPath) -> &FieldDecoder {
         let mut i = 0;
         let mut current_serializer = self;
         let mut current_field = &current_serializer.fields[fp.path[i] as usize];
@@ -127,7 +121,7 @@ impl Serializer {
     pub(crate) fn get_field_path_for_name(&self, name: &str) -> Result<FieldPath, SerializerError> {
         if !self.fp_cache.borrow().contains_key(name) {
             let mut current_serializer = self;
-            let mut fp = FieldPath::new();
+            let mut fp = FieldPath::default();
             let mut offset = 0;
             'outer: loop {
                 for (i, f) in current_serializer.fields.iter().enumerate() {

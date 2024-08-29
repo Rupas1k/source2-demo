@@ -1,3 +1,4 @@
+use crate::error::CombatLogError;
 use crate::proto::{CMsgDotaCombatLogEntry, DotaCombatlogTypes};
 use crate::string_table::StringTable;
 
@@ -6,14 +7,6 @@ use crate::string_table::StringTable;
 pub struct CombatLogEntry<'a> {
     pub(crate) names: &'a StringTable,
     pub(crate) log: CMsgDotaCombatLogEntry,
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum CombatLogError {
-    #[error("No {0} for {1}")]
-    EmptyProperty(String, String),
-    #[error("No {0} for {1}")]
-    EmptyName(String, String),
 }
 
 macro_rules! define_combat_log_getters {

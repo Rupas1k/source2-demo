@@ -1,7 +1,6 @@
-use crate::serializer::Serializer;
+use crate::entity::field::Serializer;
+use crate::error::ClassError;
 use hashbrown::HashMap;
-use prettytable::{row, Table};
-use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 /// Container for classes.
@@ -10,15 +9,6 @@ pub struct Classes {
     pub(crate) classes_vec: Vec<Rc<Class>>,
     pub(crate) classes_by_name: HashMap<Box<str>, Rc<Class>>,
     pub(crate) class_id_size: u32,
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum ClassError {
-    #[error("Class not found for the given id {0}")]
-    ClassNotFoundById(i32),
-
-    #[error("Class not found for the given name {0}")]
-    ClassNotFoundByName(String),
 }
 
 impl Classes {
@@ -75,16 +65,5 @@ impl Class {
     /// `entity.class().id()`
     pub fn id(&self) -> i32 {
         self.id
-    }
-}
-
-impl Display for Classes {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut table = Table::new();
-        table.add_row(row!["id", "name"]);
-        for class in self.classes_vec.iter() {
-            table.add_row(row![class.id().to_string(), class.name]);
-        }
-        write!(f, "{}", table)
     }
 }
