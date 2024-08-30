@@ -34,12 +34,6 @@ impl DeathEvents {
         );
         Ok(())
     }
-
-    #[on_stop]
-    fn on_stop(&mut self, ctx: &Context) -> ObserverResult {
-        println!("Game ended");
-        Ok(())
-    }
 }
 
 fn main() -> anyhow::Result<()> {
