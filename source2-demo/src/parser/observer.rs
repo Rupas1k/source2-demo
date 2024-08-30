@@ -118,6 +118,13 @@ pub trait Observer {
         Ok(())
     }
 
+    fn on_stop(
+        &mut self,
+        ctx: &Context
+    ) -> ObserverResult {
+        Ok(())
+    }
+
     fn epilogue(&mut self, ctx: &Context) -> ObserverResult {
         Ok(())
     }
