@@ -576,6 +576,8 @@ pub struct CNetMsgTick {
     pub expected_long_tick: ::core::option::Option<u32>,
     #[prost(string, optional, tag = "11")]
     pub expected_long_tick_reason: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(uint32, optional, tag = "12")]
+    pub jitter: ::core::option::Option<u32>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -3104,6 +3106,8 @@ pub mod c_user_msg_particle_manager {
     pub struct SetMaterialOverride {
         #[prost(string, optional, tag = "1")]
         pub material_name: ::core::option::Option<::prost::alloc::string::String>,
+        #[prost(bool, optional, tag = "2")]
+        pub include_children: ::core::option::Option<bool>,
     }
 }
 #[derive(serde::Serialize, serde::Deserialize)]

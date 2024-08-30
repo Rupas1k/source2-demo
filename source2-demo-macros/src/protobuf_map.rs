@@ -66,6 +66,7 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CCitadelUserMsgParticipantSetLibraryStackFields" => quote! { CitadelUserMessageIds::KEUserMsgParticipantSetLibraryStackFields },
         "CCitadelUserMessageCurrencyChanged" => quote! { CitadelUserMessageIds::KEUserMsgCurrencyChanged },
         "CCitadelUserMessageGameOver" => quote! { CitadelUserMessageIds::KEUserMsgGameOver },
+        "CCitadelUserMsgBossKilled" => quote! { CitadelUserMessageIds::KEUserMsgBossKilled },
         // "CCitadelUserMsgAbilityFailed" => quote! { CitadelUserMessageIds::KEUserMsgAbilityFailed },
 
         // ECitadelGameEvents
@@ -141,7 +142,6 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CDotaUserMsgBoosterState" => quote! { EDotaUserMessages::DotaUmBoosterState },
         "CDotaUserMsgWillPurchaseAlert" => quote! { EDotaUserMessages::DotaUmWillPurchaseAlert },
         "CDotaUserMsgTutorialMinimapPosition" => quote! { EDotaUserMessages::DotaUmTutorialMinimapPosition },
-        "CDotaUserMsgPlayerMmr" => quote! { EDotaUserMessages::DotaUmPlayerMmr },
         "CDotaUserMsgAbilitySteal" => quote! { EDotaUserMessages::DotaUmAbilitySteal },
         "CDotaUserMsgCourierKilledAlert" => quote! { EDotaUserMessages::DotaUmCourierKilledAlert },
         "CDotaUserMsgEnemyItemAlert" => quote! { EDotaUserMessages::DotaUmEnemyItemAlert },
@@ -232,6 +232,7 @@ pub fn get_enum_from_struct(struct_name: &str) -> proc_macro2::TokenStream {
         "CDotaUserMsgGiftPlayer" => quote! { EDotaUserMessages::DotaUmGiftPlayer },
         "CDotaUserMsgFacetPing" => quote! { EDotaUserMessages::DotaUmFacetPing },
         "CDotaUserMsgInnatePing" => quote! { EDotaUserMessages::DotaUmInnatePing },
+        "CDotaUserMsgRoshanTimer" => quote! { EDotaUserMessages::DotaUmRoshanTimer },
         // "CDotaUserMsgAddUnitToSelection" => quote! { EDotaUserMessages::DotaUmAddUnitToSelection },
         // "CDotaUserMsgCombatLogData" => quote! { EDotaUserMessages::DotaUmCombatLogData },
         // "CDotaUserMsgParticleManager" => quote! { EDotaUserMessages::DotaUmParticleManager },

@@ -229,6 +229,24 @@ pub struct CCitadelUserMsgAbilityPing {
 #[derive(serde::Serialize, serde::Deserialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CCitadelUserMsgBossKilled {
+    #[prost(int32, optional, tag = "1")]
+    pub objective_team: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "2")]
+    pub objective_mask_change: ::core::option::Option<i32>,
+    #[prost(uint32, required, tag = "3", default = "16777215")]
+    pub entity_killed: u32,
+    #[prost(int32, required, tag = "4")]
+    pub entity_killed_class: i32,
+    #[prost(uint32, required, tag = "5", default = "16777215")]
+    pub entity_killer: u32,
+    #[prost(float, required, tag = "6")]
+    pub gametime: f32,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct CCitadelUserMsgCameraController {
     #[prost(enumeration = "CameraAction", required, tag = "1", default = "KEActionAddOp")]
     pub action: i32,
@@ -1915,8 +1933,12 @@ pub struct CMsgSteamLearnInferenceMetadataResponse {
     pub std_devs: ::prost::alloc::vec::Vec<c_msg_steam_learn_inference_metadata_response::StdDev>,
     #[prost(message, repeated, tag = "5")]
     pub compact_tables: ::prost::alloc::vec::Vec<c_msg_steam_learn_inference_metadata_response::CompactTable>,
+    #[prost(message, repeated, tag = "9")]
+    pub sequence_tables: ::prost::alloc::vec::Vec<c_msg_steam_learn_inference_metadata_response::SequenceTable>,
     #[prost(message, repeated, tag = "6")]
     pub kmeans: ::prost::alloc::vec::Vec<c_msg_steam_learn_inference_metadata_response::KMeans>,
+    #[prost(message, repeated, tag = "8")]
+    pub app_info: ::prost::alloc::vec::Vec<c_msg_steam_learn_inference_metadata_response::AppInfoEntry>,
     #[prost(message, optional, tag = "7")]
     pub snapshot_histogram: ::core::option::Option<c_msg_steam_learn_inference_metadata_response::SnapshotHistogram>,
 }
@@ -1975,8 +1997,6 @@ pub struct CMsgSteamLearnRegisterDataSourceResponse {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CMsgSteamLearnServerInfo {
-    #[prost(bool, optional, tag = "1")]
-    pub enable_data_submission: ::core::option::Option<bool>,
     #[prost(message, optional, tag = "4")]
     pub access_tokens: ::core::option::Option<CMsgSteamLearnAccessTokens>,
     #[prost(message, repeated, tag = "5")]
@@ -2341,6 +2361,7 @@ pub enum CitadelUserMessageIds {
     KEUserMsgParticipantSetLibraryStackFields = 344,
     KEUserMsgCurrencyChanged = 345,
     KEUserMsgGameOver = 346,
+    KEUserMsgBossKilled = 347,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -2443,6 +2464,7 @@ pub enum ECitadelChatMessage {
     CitadelChatMessageNopausesleft = 9,
     CitadelChatMessageCantpauseyet = 10,
     CitadelChatMessagePregameCountdown = 11,
+    CitadelChatMessageNoteampausesleft = 12,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -3725,6 +3747,13 @@ pub mod c_msg_steam_learn_access_tokens {
 pub mod c_msg_steam_learn_inference_backend_response {
     #[derive(serde::Serialize, serde::Deserialize)]
     #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct Sequence {
+        #[prost(float, repeated, packed = "false", tag = "1")]
+        pub value: ::prost::alloc::vec::Vec<f32>,
+    }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, Copy, PartialEq, ::prost::Message)]
     pub struct RegressionOutput {
         #[prost(float, optional, tag = "1")]
@@ -3745,6 +3774,8 @@ pub mod c_msg_steam_learn_inference_backend_response {
         pub weight: ::prost::alloc::vec::Vec<f32>,
         #[prost(float, repeated, packed = "false", tag = "2")]
         pub value: ::prost::alloc::vec::Vec<f32>,
+        #[prost(message, repeated, tag = "3")]
+        pub value_sequence: ::prost::alloc::vec::Vec<Sequence>,
     }
     #[derive(serde::Serialize, serde::Deserialize)]
     #[allow(clippy::derive_partial_eq_without_eq)]
@@ -3754,6 +3785,8 @@ pub mod c_msg_steam_learn_inference_backend_response {
         pub weight: ::prost::alloc::vec::Vec<f32>,
         #[prost(float, repeated, packed = "false", tag = "2")]
         pub value: ::prost::alloc::vec::Vec<f32>,
+        #[prost(message, repeated, tag = "3")]
+        pub value_sequence: ::prost::alloc::vec::Vec<Sequence>,
     }
     #[derive(serde::Serialize, serde::Deserialize)]
     #[allow(clippy::derive_partial_eq_without_eq)]
@@ -3856,6 +3889,50 @@ pub mod c_msg_steam_learn_inference_metadata_response {
     #[derive(serde::Serialize, serde::Deserialize)]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct SequenceTable {
+        #[prost(string, optional, tag = "1")]
+        pub name: ::core::option::Option<::prost::alloc::string::String>,
+        #[prost(message, repeated, tag = "2")]
+        pub map_values: ::prost::alloc::vec::Vec<sequence_table::MapValuesEntry>,
+        #[prost(message, repeated, tag = "3")]
+        pub map_mappings: ::prost::alloc::vec::Vec<sequence_table::MapMappingsEntry>,
+        #[prost(uint64, optional, tag = "4")]
+        pub total_count: ::core::option::Option<u64>,
+    }
+    pub mod sequence_table {
+        #[derive(serde::Serialize, serde::Deserialize)]
+        #[allow(clippy::derive_partial_eq_without_eq)]
+        #[derive(Clone, PartialEq, ::prost::Message)]
+        pub struct Entry {
+            #[prost(uint32, repeated, packed = "false", tag = "1")]
+            pub values: ::prost::alloc::vec::Vec<u32>,
+            #[prost(uint32, optional, tag = "2")]
+            pub crc: ::core::option::Option<u32>,
+            #[prost(uint32, optional, tag = "3")]
+            pub count: ::core::option::Option<u32>,
+        }
+        #[derive(serde::Serialize, serde::Deserialize)]
+        #[allow(clippy::derive_partial_eq_without_eq)]
+        #[derive(Clone, PartialEq, ::prost::Message)]
+        pub struct MapValuesEntry {
+            #[prost(uint32, optional, tag = "1")]
+            pub key: ::core::option::Option<u32>,
+            #[prost(message, optional, tag = "2")]
+            pub value: ::core::option::Option<Entry>,
+        }
+        #[derive(serde::Serialize, serde::Deserialize)]
+        #[allow(clippy::derive_partial_eq_without_eq)]
+        #[derive(Clone, PartialEq, ::prost::Message)]
+        pub struct MapMappingsEntry {
+            #[prost(string, optional, tag = "1")]
+            pub key: ::core::option::Option<::prost::alloc::string::String>,
+            #[prost(message, optional, tag = "2")]
+            pub value: ::core::option::Option<Entry>,
+        }
+    }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct KMeans {
         #[prost(string, optional, tag = "1")]
         pub name: ::core::option::Option<::prost::alloc::string::String>,
@@ -3894,6 +3971,34 @@ pub mod c_msg_steam_learn_inference_metadata_response {
         #[prost(uint32, repeated, packed = "false", tag = "4")]
         pub bucket_counts: ::prost::alloc::vec::Vec<u32>,
     }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct AppInfo {
+        #[prost(string, optional, tag = "1")]
+        pub country_allow: ::core::option::Option<::prost::alloc::string::String>,
+        #[prost(string, optional, tag = "2")]
+        pub country_deny: ::core::option::Option<::prost::alloc::string::String>,
+        #[prost(bool, optional, tag = "3")]
+        pub platform_win: ::core::option::Option<bool>,
+        #[prost(bool, optional, tag = "4")]
+        pub platform_mac: ::core::option::Option<bool>,
+        #[prost(bool, optional, tag = "5")]
+        pub platform_linux: ::core::option::Option<bool>,
+        #[prost(bool, optional, tag = "6")]
+        pub adult_violence: ::core::option::Option<bool>,
+        #[prost(bool, optional, tag = "7")]
+        pub adult_sex: ::core::option::Option<bool>,
+    }
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct AppInfoEntry {
+        #[prost(uint32, optional, tag = "1")]
+        pub key: ::core::option::Option<u32>,
+        #[prost(message, optional, tag = "2")]
+        pub value: ::core::option::Option<AppInfo>,
+    }
 }
 
 pub mod c_msg_steam_learn_server_info {
@@ -3907,6 +4012,10 @@ pub mod c_msg_steam_learn_server_info {
         pub snapshot_published_version: ::core::option::Option<u32>,
         #[prost(uint32, optional, tag = "3")]
         pub inference_published_version: ::core::option::Option<u32>,
+        #[prost(uint32, optional, tag = "6")]
+        pub snapshot_percentage: ::core::option::Option<u32>,
+        #[prost(bool, optional, tag = "7")]
+        pub snapshot_enabled: ::core::option::Option<bool>,
     }
 }
 

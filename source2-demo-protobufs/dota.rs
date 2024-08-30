@@ -512,8 +512,8 @@ pub struct CDotaUserMsgChatWheel {
     pub player_id: ::core::option::Option<i32>,
     #[prost(uint32, optional, tag = "3")]
     pub account_id: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "4")]
-    pub param_hero_id: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "4")]
+    pub param_hero_id: ::core::option::Option<i32>,
     #[prost(uint32, optional, tag = "5")]
     pub emoticon_id: ::core::option::Option<u32>,
 }
@@ -741,10 +741,10 @@ pub struct CDotaUserMsgCustomMsg {
 pub struct CDotaUserMsgDamageReport {
     #[prost(int32, optional, tag = "1", default = "-1")]
     pub player_id: ::core::option::Option<i32>,
-    #[prost(uint32, optional, tag = "2")]
-    pub target_hero_id: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "3")]
-    pub source_hero_id: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "2")]
+    pub target_hero_id: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "3")]
+    pub source_hero_id: ::core::option::Option<i32>,
     #[prost(int32, optional, tag = "4")]
     pub damage_amount: ::core::option::Option<i32>,
     #[prost(bool, optional, tag = "5")]
@@ -1453,28 +1453,6 @@ pub struct CDotaUserMsgPlayerDraftSuggestPick {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CDotaUserMsgPlayerMmr {
-    #[prost(sint32, repeated, tag = "1")]
-    pub mmr: ::prost::alloc::vec::Vec<i32>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CDotaUserMsgPredictionResult {
-    #[prost(uint32, optional, tag = "1")]
-    pub account_id: ::core::option::Option<u32>,
-    #[prost(uint64, optional, tag = "2")]
-    pub match_id: ::core::option::Option<u64>,
-    #[prost(bool, optional, tag = "3")]
-    pub correct: ::core::option::Option<bool>,
-    #[prost(message, repeated, tag = "4")]
-    pub predictions: ::prost::alloc::vec::Vec<cdota_user_msg_prediction_result::Prediction>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct CDotaUserMsgProjectileParticleCpData {
     #[prost(int32, optional, tag = "1")]
@@ -1651,6 +1629,16 @@ pub struct CDotaUserMsgRollDiceResult {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CDotaUserMsgRoshanTimer {
+    #[prost(int32, optional, tag = "1", default = "-1")]
+    pub player_id: ::core::option::Option<i32>,
+    #[prost(bool, optional, tag = "2")]
+    pub negative: ::core::option::Option<bool>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CDotaUserMsgSalutePlayer {
     #[prost(int32, optional, tag = "1", default = "-1")]
@@ -1797,8 +1785,8 @@ pub struct CDotaUserMsgShowSurvey {
     pub match_id: ::core::option::Option<u64>,
     #[prost(string, optional, tag = "3")]
     pub response_style: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(uint32, optional, tag = "4")]
-    pub teammate_hero_id: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "4")]
+    pub teammate_hero_id: ::core::option::Option<i32>,
     #[prost(string, optional, tag = "5")]
     pub teammate_name: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(uint32, optional, tag = "6")]
@@ -1995,8 +1983,8 @@ pub struct CDotaUserMsgStatsTeamMinuteDetails {
 pub struct CDotaUserMsgSuggestHeroPick {
     #[prost(int32, required, tag = "1", default = "-1")]
     pub player_id: i32,
-    #[prost(uint32, optional, tag = "2")]
-    pub hero_id: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "2")]
+    pub hero_id: ::core::option::Option<i32>,
     #[prost(bool, optional, tag = "3")]
     pub ban: ::core::option::Option<bool>,
     #[prost(uint32, optional, tag = "4")]
@@ -2352,8 +2340,8 @@ pub struct CDotaUserMsgWkArcanaProgress {
     pub ehandle: ::core::option::Option<u32>,
     #[prost(uint32, optional, tag = "2")]
     pub arcana_level: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "3")]
-    pub hero_id: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "3")]
+    pub hero_id: ::core::option::Option<i32>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -3392,7 +3380,6 @@ pub enum EDotaUserMessages {
     DotaUmBoosterState = 528,
     DotaUmWillPurchaseAlert = 529,
     DotaUmTutorialMinimapPosition = 530,
-    DotaUmPlayerMmr = 531,
     DotaUmAbilitySteal = 532,
     DotaUmCourierKilledAlert = 533,
     DotaUmEnemyItemAlert = 534,
@@ -3486,6 +3473,7 @@ pub enum EDotaUserMessages {
     DotaUmGiftPlayer = 623,
     DotaUmFacetPing = 624,
     DotaUmInnatePing = 625,
+    DotaUmRoshanTimer = 626,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -3539,6 +3527,7 @@ pub enum EEvent {
     EventId10thAnniversary = 46,
     EventIdCrownfall = 47,
     EventIdFrostivus2023 = 48,
+    EventIdInternational2024 = 49,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -4176,32 +4165,6 @@ pub mod cdota_user_msg_pause_minigame_data {
         pub data: ::core::option::Option<i32>,
         #[prost(int64, optional, tag = "3")]
         pub data_extra: ::core::option::Option<i64>,
-    }
-}
-
-pub mod cdota_user_msg_prediction_result {
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct Prediction {
-        #[prost(uint32, optional, tag = "1")]
-        pub item_def: ::core::option::Option<u32>,
-        #[prost(uint32, optional, tag = "2")]
-        pub num_correct: ::core::option::Option<u32>,
-        #[prost(uint32, optional, tag = "3")]
-        pub num_fails: ::core::option::Option<u32>,
-        #[prost(enumeration = "prediction::EResult", optional, tag = "4", default = "KEResultItemGranted")]
-        pub result: ::core::option::Option<i32>,
-        #[prost(uint32, repeated, packed = "false", tag = "6")]
-        pub granted_item_defs: ::prost::alloc::vec::Vec<u32>,
-    }
-    pub mod prediction {
-        #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-        #[repr(i32)]
-        pub enum EResult {
-            KEResultItemGranted = 1,
-            KEResultDestroyed = 2,
-        }
     }
 }
 
