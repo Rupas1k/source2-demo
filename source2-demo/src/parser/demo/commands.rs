@@ -18,6 +18,10 @@ pub trait DemoCommands {
     fn dem_full_packet(&mut self, full_packet: CDemoFullPacket) -> Result<(), ParserError>;
 
     fn dem_string_tables(&mut self, string_tables: CDemoStringTables) -> Result<(), ParserError>;
+
+    fn dem_stop(&mut self) -> Result<(), ParserError> {
+        Ok(())
+    }
 }
 
 impl DemoCommands for Parser<'_> {
@@ -223,6 +227,11 @@ impl DemoCommands for Parser<'_> {
             }
         }
 
+        Ok(())
+    }
+
+    fn dem_stop(&mut self) -> Result<(), ParserError> {
+        self.on_stop()?;
         Ok(())
     }
 }

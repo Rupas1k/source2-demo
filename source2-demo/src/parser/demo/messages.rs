@@ -27,6 +27,8 @@ pub trait DemoMessages {
 
     fn on_tick_end(&mut self) -> Result<(), ParserError>;
 
+    fn on_stop(&mut self) -> Result<(), ParserError>;
+
     #[cfg(feature = "dota")]
     fn on_dota_user_message(
         &mut self,
@@ -131,6 +133,13 @@ impl DemoMessages for Parser<'_> {
         }
 
         try_observers!(self, on_tick_end(&self.context))?;
+        Ok(())
+    }
+
+    fn on_stop(
+        &mut self,
+    ) -> Result<(), ParserError> {
+        try_observers!(self, on_stop(&self.context))?;
         Ok(())
     }
 

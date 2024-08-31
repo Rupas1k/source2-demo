@@ -30,6 +30,7 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut on_entity_body = quote!();
     let mut on_game_event_body = quote!();
     let mut on_string_table_body = quote!();
+    let mut on_stop_body = quote!();
 
     for item in &input.items {
         if let syn::ImplItem::Fn(method) = item {
@@ -192,6 +193,15 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                             #on_string_table_body
                             self.#method_name(ctx, table, modified)?;
                         }
+                    };
+                }
+
+                if attr.path().is_ident("on_stop") {
+                    check_second_arg_is_context(method);
+                    
+                    on_stop_body = quote! {
+                        #on_stop_body
+                        self.#method_name(ctx)?;
                     };
                 }
 
@@ -361,6 +371,14 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #on_string_table_body
                 Ok(())
             }
+
+            fn on_stop(
+                &mut self,
+                ctx: &Context,
+            ) -> ObserverResult {
+                #on_stop_body
+                Ok(())
+            }
         }
 
         #input
@@ -396,6 +414,11 @@ pub fn on_game_event(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn on_string_table(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+#[proc_macro_attribute]
+pub fn on_stop(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 

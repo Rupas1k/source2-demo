@@ -83,6 +83,10 @@ pub trait Observer {
         Ok(())
     }
 
+    fn on_stop(&mut self, ctx: &Context) -> ObserverResult {
+        Ok(())
+    }
+
     #[cfg(feature = "dota")]
     fn on_combat_log(&mut self, ctx: &Context, cle: &CombatLogEntry) -> ObserverResult {
         Ok(())

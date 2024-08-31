@@ -151,6 +151,9 @@ impl<'a> Parser<'a> {
             EDemoCommands::DemStringTables => {
                 self.dem_string_tables(CDemoStringTables::decode(msg)?)?
             }
+            EDemoCommands::DemStop => {
+                self.dem_stop()?;
+            }
             _ => {}
         };
 
