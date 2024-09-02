@@ -9,7 +9,7 @@ pub struct GameEventList {
 }
 
 impl GameEventList {
-    pub fn new(list: CSvcMsgGameEventList) -> Self {
+    pub(crate) fn new(list: CSvcMsgGameEventList) -> Self {
         let list = list
             .descriptors
             .into_iter()

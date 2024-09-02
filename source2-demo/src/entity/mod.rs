@@ -3,7 +3,7 @@ mod class;
 mod container;
 
 pub(crate) use baseline::*;
-pub mod field;
+pub(crate) mod field;
 pub use class::*;
 pub use container::*;
 
