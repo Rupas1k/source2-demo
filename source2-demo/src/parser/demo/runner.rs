@@ -2,7 +2,7 @@ use crate::error::ParserError;
 use crate::parser::demo::DemoMessages;
 use crate::parser::Parser;
 use crate::proto::*;
-use crate::try_observers;
+use crate::reader::*;
 use std::cmp::min;
 use std::mem;
 
@@ -28,7 +28,6 @@ impl DemoRunner for Parser<'_> {
         }
         self.on_tick_end()?;
 
-        try_observers!(self, epilogue(&self.context))?;
         Ok(())
     }
 

@@ -136,9 +136,7 @@ impl DemoMessages for Parser<'_> {
         Ok(())
     }
 
-    fn on_stop(
-        &mut self,
-    ) -> Result<(), ParserError> {
+    fn on_stop(&mut self) -> Result<(), ParserError> {
         try_observers!(self, on_stop(&self.context))?;
         Ok(())
     }

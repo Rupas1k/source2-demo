@@ -198,7 +198,7 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 if attr.path().is_ident("on_stop") {
                     check_second_arg_is_context(method);
-                    
+
                     on_stop_body = quote! {
                         #on_stop_body
                         self.#method_name(ctx)?;

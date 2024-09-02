@@ -121,8 +121,4 @@ pub trait Observer {
     ) -> ObserverResult {
         Ok(())
     }
-
-    fn epilogue(&mut self, ctx: &Context) -> ObserverResult {
-        Ok(())
-    }
 }

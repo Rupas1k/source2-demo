@@ -2,7 +2,7 @@ use crate::entity::field::*;
 use crate::entity::*;
 use crate::error::ParserError;
 use crate::proto::*;
-use crate::reader::Reader;
+use crate::reader::*;
 use crate::{try_observers, Parser, StringTable};
 use std::cell::RefCell;
 

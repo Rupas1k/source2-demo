@@ -1,5 +1,5 @@
 use crate::entity::field::{FieldEncoder, FieldProperties, FieldType, FieldValue};
-use crate::reader::Reader;
+use crate::reader::*;
 
 pub(crate) enum FieldDecoder {
     Boolean,

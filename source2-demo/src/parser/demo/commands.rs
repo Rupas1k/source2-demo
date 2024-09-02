@@ -3,7 +3,7 @@ use crate::entity::Class;
 use crate::error::ParserError;
 use crate::parser::demo::DemoMessages;
 use crate::proto::*;
-use crate::reader::Reader;
+use crate::reader::*;
 use crate::{Parser, StringTableRow};
 use hashbrown::HashMap;
 use std::rc::Rc;

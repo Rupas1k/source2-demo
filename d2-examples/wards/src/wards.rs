@@ -167,7 +167,7 @@ impl Observer for Wards {
         Ok(())
     }
 
-    fn epilogue(&mut self, ctx: &Context) -> ObserverResult {
+    fn on_stop(&mut self, ctx: &Context) -> ObserverResult {
         self.current_life_state.iter().for_each(|state| {
             self.pending_events.push_back(PendingEvent {
                 entity_idx: *state.0,
