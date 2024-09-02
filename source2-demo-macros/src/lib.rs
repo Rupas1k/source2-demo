@@ -387,47 +387,6 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-#[proc_macro_attribute]
-pub fn on_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    item
-}
-
-#[proc_macro_attribute]
-pub fn on_tick_start(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    item
-}
-
-#[proc_macro_attribute]
-pub fn on_tick_end(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    item
-}
-
-#[proc_macro_attribute]
-pub fn on_entity(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    item
-}
-
-#[proc_macro_attribute]
-pub fn on_game_event(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    item
-}
-
-#[proc_macro_attribute]
-pub fn on_string_table(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    item
-}
-
-#[proc_macro_attribute]
-pub fn on_stop(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    item
-}
-
-#[cfg(feature = "dota")]
-#[proc_macro_attribute]
-pub fn on_combat_log(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    item
-}
-
 fn get_message_type(method: &syn::ImplItemFn) -> Option<(Type, bool)> {
     method.sig.inputs.iter().nth(2).and_then(|arg| {
         if let syn::FnArg::Typed(pat_type) = arg {
@@ -459,4 +418,139 @@ fn check_second_arg_is_context(method: &syn::ImplItemFn) {
         }
     }
     panic!("The second argument must be of type &Context");
+}
+
+
+/// A method wrapped with `#[on_message]` macro is called whenever a specified protobuf message appears in replay.
+///
+/// # Examples
+///
+/// ```no_compile
+/// #[on_message]
+/// fn message(&mut self, ctx: &Context, message: &CCitadelUserMsgChatMsg) -> ObserverResult {
+///     Ok(())
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn on_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+/// A method wrapped with `#[on_tick_start]` macro is called at the start of each tick.
+///
+/// # Examples
+///
+/// ```no_compile
+/// #[on_tick_start]
+/// fn tick_start(&mut self, ctx: &Context) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn on_tick_start(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+/// A method wrapped with `#[on_tick_end]` macro is called at the end of each tick.
+///
+/// # Examples
+///
+/// ```no_compile
+/// #[on_tick_end]
+/// fn tick_start(&mut self, ctx: &Context) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn on_tick_end(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+/// A method wrapped with `#[on_entity]` macro is called whenever an entity is created, updated or deleted.
+///
+/// # Examples
+///
+/// ```no_compile
+/// #[on_entity]
+/// fn entity(&mut self, ctx: &Context, event: EntityEvents, entity: &Entity) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn on_entity(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+/// A method wrapped with `#[on_game_event]` macro is called whenever CSvcMsgGameEvent appears in replay.
+///
+/// # Examples
+///
+/// ```no_compile
+/// #[on_game_event] // Will be called for all game events
+/// fn event(&mut self, ctx: &Context, ge: &GameEvent) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
+///
+/// ```no_compile
+/// #[on_game_event("player_death")] // Will be called for "player_death" event only
+/// fn event(&mut self, ctx: &Context, ge: &GameEvent) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn on_game_event(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+/// A method wrapped with `#[on_string_table]` macro is called when string table is updated.
+///
+/// # Examples
+///
+/// ```no_compile
+/// #[on_string_table] // Will be called when any string table is updated
+/// fn entity(&mut self, ctx: &Context, table: &StringTable, modified: &[i32]) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
+///
+/// ```no_compile
+/// #[on_string_table("EntityNames")] // Will be called when "EntityNames" table is updated
+/// fn entity(&mut self, ctx: &Context, table: &StringTable, modified: &[i32]) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn on_string_table(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+/// A method wrapped with `#[on_stop]` macro is called when CDemoStop appears in replay.
+///
+/// # Examples
+///
+/// ```no_compile
+/// #[on_stop]
+/// fn stop(&mut self, ctx: &Context) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn on_stop(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+/// A method wrapped with `#[on_combat_log]` macro is called whenever CMsgDotaCombatLogEntry appears in replay.
+///
+/// # Examples
+///
+/// ```no_compile
+/// #[on_combat_log]
+/// fn combat_log(&mut self, ctx: &Context, cle: &CombatLogEntry) -> ObserverResult {
+///    Ok(())
+/// }
+#[cfg(feature = "dota")]
+#[proc_macro_attribute]
+pub fn on_combat_log(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
 }
