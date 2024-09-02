@@ -145,42 +145,22 @@ impl DemoCommands for Parser<'_> {
             let size = packet_reader.read_var_u32();
             let msg_buf = packet_reader.read_bytes(size);
 
-            #[cfg(any(
-                all(feature = "dota", feature = "deadlock"),
-                all(not(feature = "dota"), not(feature = "deadlock"))
-            ))]
-            {
-                if let Ok(msg) = SvcMessages::try_from(msg_type) {
-                    self.on_svc_message(msg, &msg_buf)?;
-                } else if let Ok(msg) = EBaseUserMessages::try_from(msg_type) {
-                    self.on_base_user_message(msg, &msg_buf)?;
-                } else if let Ok(msg) = EBaseGameEvents::try_from(msg_type) {
-                    self.on_base_game_event(msg, &msg_buf)?;
-                } else if let Ok(msg) = NetMessages::try_from(msg_type) {
-                    self.on_net_message(msg, &msg_buf)?;
-                }
-                continue;
-            }
-
             #[cfg(feature = "dota")]
             if let Ok(msg) = EDotaUserMessages::try_from(msg_type) {
                 self.on_dota_user_message(msg, &msg_buf)?;
-            } else if let Ok(msg) = SvcMessages::try_from(msg_type) {
-                self.on_svc_message(msg, &msg_buf)?;
-            } else if let Ok(msg) = EBaseUserMessages::try_from(msg_type) {
-                self.on_base_user_message(msg, &msg_buf)?;
-            } else if let Ok(msg) = EBaseGameEvents::try_from(msg_type) {
-                self.on_base_game_event(msg, &msg_buf)?;
-            } else if let Ok(msg) = NetMessages::try_from(msg_type) {
-                self.on_net_message(msg, &msg_buf)?;
+                continue;
             }
 
             #[cfg(feature = "deadlock")]
             if let Ok(msg) = CitadelUserMessageIds::try_from(msg_type) {
                 self.on_citadel_user_message(msg, &msg_buf)?;
+                continue;
             } else if let Ok(msg) = ECitadelGameEvents::try_from(msg_type) {
                 self.on_citadel_game_event(msg, &msg_buf)?;
-            } else if let Ok(msg) = SvcMessages::try_from(msg_type) {
+                continue;
+            }
+
+            if let Ok(msg) = SvcMessages::try_from(msg_type) {
                 self.on_svc_message(msg, &msg_buf)?;
             } else if let Ok(msg) = EBaseUserMessages::try_from(msg_type) {
                 self.on_base_user_message(msg, &msg_buf)?;
