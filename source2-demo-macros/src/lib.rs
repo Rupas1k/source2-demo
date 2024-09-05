@@ -34,392 +34,309 @@ pub fn observer(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     for item in &input.items {
         if let syn::ImplItem::Fn(method) = item {
-            let method_name = &method.sig.ident;
             for attr in &method.attrs {
-                if attr.path().is_ident("on_message") {
-                    check_second_arg_is_context(method);
-                    if let Some((arg_type, is_reference)) = get_message_type(method) {
-                        let enum_type = get_enum_from_struct(&arg_type.to_token_stream().to_string());
-                        let call_message = if is_reference {
-                            quote! { self.#method_name(ctx, &message)?; }
-                        } else {
-                            quote! { self.#method_name(ctx, message)?; }
-                        };
-                        match enum_type.to_token_stream().to_string().split("::").collect::<Vec<_>>()[0].trim() {
-                            #[cfg(feature = "dota")]
-                            "EDotaUserMessages" => {
-                                on_dota_user_message_body = quote! {
-                                    #on_dota_user_message_body
-                                    if msg_type == #enum_type {
-                                        if let Ok(message) = #arg_type::decode(msg) {
-                                            #call_message
-                                        }
-                                    }
-                                };
-                            }
-                            #[cfg(feature = "citadel")]
-                            "CitadelUserMessageIds" => {
-                                on_citadel_user_message_body = quote! {
-                                    #on_citadel_user_message_body
-                                    if msg_type == #enum_type {
-                                        if let Ok(message) = #arg_type::decode(msg) {
-                                            #call_message
-                                        }
-                                    }
-                                };
-                            }
-                            #[cfg(feature = "citadel")]
-                            "ECitadelGameEvents" => {
-                                on_citadel_game_event_body = quote! {
-                                    #on_citadel_game_event_body
-                                    if msg_type == #enum_type {
-                                        if let Ok(message) = #arg_type::decode(msg) {
-                                            #call_message
-                                        }
-                                    }
-                                };
-                            }
-                            "EBaseUserMessages" => {
-                                on_base_user_message_body = quote! {
-                                    #on_base_user_message_body
-                                    if msg_type == #enum_type {
-                                        if let Ok(message) = #arg_type::decode(msg) {
-                                            #call_message
-                                        }
-                                    }
-                                };
-                            }
-                            "SvcMessages" => {
-                                on_svc_message_body = quote! {
-                                    #on_svc_message_body
-                                    if msg_type == #enum_type {
-                                        if let Ok(message) = #arg_type::decode(msg) {
-                                            #call_message
-                                        }
-                                    }
-                                };
-                            }
-                            "EBaseGameEvents" => {
-                                on_base_game_event_body = quote! {
-                                    #on_base_game_event_body
-                                    if msg_type == #enum_type {
-                                        if let Ok(message) = #arg_type::decode(msg) {
-                                            #call_message
-                                        }
-                                    }
-                                };
-                            }
-                            "NetMessages" => {
-                                on_net_message_body = quote! {
-                                    #on_net_message_body
-                                    if msg_type == #enum_type {
-                                        if let Ok(message) = #arg_type::decode(msg) {
-                                            #call_message
-                                        }
-                                    }
-                                };
-                            }
-                            "EDemoCommands" => {
-                                on_demo_command_body = quote! {
-                                    #on_demo_command_body
-                                    if msg_type == #enum_type {
-                                        if let Ok(message) = #arg_type::decode(msg) {
-                                            #call_message
-                                        }
-                                    }
-                                };
-                            }
-                            x => unreachable!("{}", x),
+                let method_name = method.sig.ident.clone();
+                let mut args = vec![];
+
+                let (arg_type, _) = get_arg_type(method, 1);
+                if arg_type.to_token_stream().to_string() == "Context" {
+                    args.push(quote! { ctx })
+                }
+
+                if let Some(ident) = attr.path().get_ident() {
+                    match ident.to_string().as_str() {
+                        "on_tick_start" => on_tick_start_body.extend(quote! {
+                            self.#method_name(#(#args),*)?;
+                        }),
+                        "on_tick_end" => on_tick_end_body.extend(quote! {
+                            self.#method_name(#(#args),*)?;
+                        }),
+                        "on_stop" => {
+                            on_stop_body.extend(quote! {
+                                self.#method_name(#(#args),*)?;
+                            });
                         }
-                    } else {
-                        panic!("Message handler must have a message argument")
+                        #[cfg(feature = "dota")]
+                        "on_combat_log" => {
+                            args.push(quote! { cle });
+
+                            on_combat_log_body.extend(quote! {
+                                self.#method_name(#(#args),*)?;
+                            })
+                        }
+                        "on_entity" => {
+                            let (arg_type, is_ref) = get_arg_type(method, args.len() + 1);
+
+                            if arg_type.to_token_stream().to_string() == "EntityEvents" {
+                                if is_ref {
+                                    args.push(quote! { &event });
+                                } else {
+                                    args.push(quote! { event });
+                                }
+                            }
+
+                            args.push(quote! { entity });
+
+                            on_entity_body.extend(if let Ok(entity_class) = attr.parse_args::<syn::LitStr>() {
+                                quote! {
+                                    if entity.class().name() == #entity_class {
+                                        self.#method_name(#(#args),*)?;
+                                    }
+                                }
+                            } else {
+                                quote! {
+                                    self.#method_name(#(#args),*)?;
+                                }
+                            });
+                        }
+                        "on_game_event" => {
+                            args.push(quote! { ge });
+                            on_game_event_body.extend(if let Ok(event_name) = attr.parse_args::<syn::LitStr>() {
+                                quote! {
+                                    if ge.name() == #event_name {
+                                        self.#method_name(#(#args),*)?;
+                                    }
+                                }
+                            } else {
+                                quote! {
+                                    self.#method_name(#(#args),*)?;
+                                }
+                            });
+                        }
+                        "on_string_table" => {
+                            args.push(quote! { table });
+                            args.push(quote! { modified });
+                            on_string_table_body.extend(if let Ok(table_name) = attr.parse_args::<syn::LitStr>() {
+                                quote! {
+                                    if table.name() == #table_name {
+                                        self.#method_name(#(#args),*)?;
+                                    }
+                                }
+                            } else {
+                                quote! {
+                                    self.#method_name(#(#args),*)?;
+                                }
+                            });
+                        }
+                        "on_message" => {
+                            let (arg_type, is_ref) = get_arg_type(method, args.len() + 1);
+
+                            let enum_type = get_enum_from_struct(arg_type.to_token_stream().to_string().as_str());
+
+                            args.push(if is_ref {
+                                quote! { &message }
+                            } else {
+                                quote! { message }
+                            });
+
+                            macro_rules! extend {
+                                ($body: ident) => {
+                                    $body.extend(quote! {
+                                        if msg_type == #enum_type {
+                                            if let Ok(message) = #arg_type::decode(msg) {
+                                                self.#method_name(#(#args),*)?;
+                                            }
+                                        }
+                                    })
+                                };
+                            }
+
+                            match enum_type.to_token_stream().to_string().split("::").collect::<Vec<_>>()[0].trim() {
+                                "EDemoCommands" => extend!(on_demo_command_body),
+                                "EBaseUserMessages" => extend!(on_base_user_message_body),
+                                "EBaseGameEvents" => extend!(on_base_game_event_body),
+                                "SvcMessages" => extend!(on_svc_message_body),
+                                "NetMessages" => extend!(on_net_message_body),
+
+                                #[cfg(feature = "dota")]
+                                "EDotaUserMessages" => extend!(on_dota_user_message_body),
+                                #[cfg(feature = "citadel")]
+                                "CitadelUserMessageIds" => extend!(on_citadel_user_message_body),
+                                #[cfg(feature = "citadel")]
+                                "ECitadelGameEvents" => extend!(on_citadel_game_event_body),
+                                
+                                x => unreachable!("{}", x),
+                            }
+                        }
+                        _ => {}
                     }
-                }
-
-                if attr.path().is_ident("on_tick_start") {
-                    check_second_arg_is_context(method);
-                    on_tick_start_body = quote! {
-                        #on_tick_start_body
-                        self.#method_name(ctx)?;
-                    };
-                }
-
-                if attr.path().is_ident("on_tick_end") {
-                    check_second_arg_is_context(method);
-                    on_tick_end_body = quote! {
-                        #on_tick_end_body
-                        self.#method_name(ctx)?;
-                    };
-                }
-
-                if attr.path().is_ident("on_entity") {
-                    check_second_arg_is_context(method);
-                    on_entity_body = quote! {
-                        #on_entity_body
-                        self.#method_name(ctx, event, entity)?;
-                    };
-                }
-
-                if attr.path().is_ident("on_game_event") {
-                    check_second_arg_is_context(method);
-
-                    on_game_event_body = if let Some(event_name) = attr.parse_args::<syn::LitStr>().ok() {
-                        quote! {
-                            #on_game_event_body
-                            if ge.name() == #event_name {
-                                self.#method_name(ctx, ge)?;
-                            }
-                        }
-                    } else {
-                        quote! {
-                            #on_game_event_body
-                            self.#method_name(ctx, ge)?;
-                        }
-                    }
-                }
-
-                if attr.path().is_ident("on_string_table") {
-                    check_second_arg_is_context(method);
-
-                    on_string_table_body = if let Some(table_name) = attr.parse_args::<syn::LitStr>().ok() {
-                        quote! {
-                            #on_string_table_body
-                            if table.name() == #table_name {
-                                self.#method_name(ctx, table, modified)?;
-                            }
-                        }
-                    } else {
-                        quote! {
-                            #on_string_table_body
-                            self.#method_name(ctx, table, modified)?;
-                        }
-                    };
-                }
-
-                if attr.path().is_ident("on_stop") {
-                    check_second_arg_is_context(method);
-
-                    on_stop_body = quote! {
-                        #on_stop_body
-                        self.#method_name(ctx)?;
-                    };
-                }
-
-                #[cfg(feature = "dota")]
-                if attr.path().is_ident("on_combat_log") {
-                    check_second_arg_is_context(method);
-                    on_combat_log_body = quote! {
-                        #on_combat_log_body
-                        self.#method_name(ctx, cle)?;
-                    };
                 }
             }
         }
     }
 
-    let specific_methods = {
-        #[allow(unused)]
-        let mut methods = quote! {};
-
-        #[cfg(feature = "dota")]
-        {
-            methods.extend(quote! {
-                fn on_dota_user_message(
-                    &mut self,
-                    ctx: &Context,
-                    msg_type: EDotaUserMessages,
-                    msg: &[u8],
-                ) -> ObserverResult {
-                    #on_dota_user_message_body
-                    Ok(())
-                }
-
-                fn on_combat_log(
-                    &mut self,
-                    ctx: &Context,
-                    cle: &CombatLogEntry,
-                ) -> ObserverResult {
-                    #on_combat_log_body
-                    Ok(())
-                }
-            });
+    let mut obs_body = quote! {
+        fn on_base_user_message(
+            &mut self,
+            ctx: &Context,
+            msg_type: EBaseUserMessages,
+            msg: &[u8],
+        ) -> ObserverResult {
+            #on_base_user_message_body
+            Ok(())
         }
 
-        #[cfg(feature = "citadel")]
-        {
-            methods.extend(quote! {
-                fn on_citadel_user_message(
-                    &mut self,
-                    ctx: &Context,
-                    msg_type: CitadelUserMessageIds,
-                    msg: &[u8],
-                ) -> ObserverResult {
-                    #on_citadel_user_message_body
-                    Ok(())
-                }
-
-                fn on_citadel_game_event(
-                    &mut self,
-                    ctx: &Context,
-                    msg_type: ECitadelGameEvents,
-                    msg: &[u8],
-                ) -> ObserverResult {
-                    #on_citadel_game_event_body
-                    Ok(())
-                }
-            });
+        fn on_svc_message(
+            &mut self,
+            ctx: &Context,
+            msg_type: SvcMessages,
+            msg: &[u8],
+        ) -> ObserverResult {
+            #on_svc_message_body
+            Ok(())
         }
 
-        methods
+        fn on_net_message(
+            &mut self,
+            ctx: &Context,
+            msg_type: NetMessages,
+            msg: &[u8],
+        ) -> ObserverResult {
+            #on_net_message_body
+            Ok(())
+        }
+
+        fn on_base_game_event(
+            &mut self,
+            ctx: &Context,
+            msg_type: EBaseGameEvents,
+            msg: &[u8],
+        ) -> ObserverResult {
+            #on_base_game_event_body
+            Ok(())
+        }
+
+        fn on_demo_command(
+            &mut self,
+            ctx: &Context,
+            msg_type: EDemoCommands,
+            msg: &[u8],
+        ) -> ObserverResult {
+            #on_demo_command_body
+            Ok(())
+        }
+
+        fn on_tick_start(
+            &mut self,
+            ctx: &Context,
+        ) -> ObserverResult {
+            #on_tick_start_body
+            Ok(())
+        }
+
+        fn on_tick_end(
+            &mut self,
+            ctx: &Context,
+        ) -> ObserverResult {
+            #on_tick_end_body
+            Ok(())
+        }
+
+        fn on_entity(
+            &mut self,
+            ctx: &Context,
+            event: EntityEvents,
+            entity: &Entity,
+        ) -> ObserverResult {
+            #on_entity_body
+            Ok(())
+        }
+
+        fn on_game_event(
+            &mut self,
+            ctx: &Context,
+            ge: &GameEvent
+        ) -> ObserverResult {
+            #on_game_event_body
+            Ok(())
+        }
+
+        fn on_string_table(
+            &mut self,
+            ctx: &Context,
+            table: &StringTable,
+            modified: &[i32]
+        ) -> ObserverResult {
+            #on_string_table_body
+            Ok(())
+        }
+
+        fn on_stop(
+            &mut self,
+            ctx: &Context,
+        ) -> ObserverResult {
+            #on_stop_body
+            Ok(())
+        }
     };
 
-    let expanded = quote! {
+    #[cfg(feature = "dota")]
+    obs_body.extend(quote! {
+        fn on_combat_log(
+            &mut self,
+            ctx: &Context,
+            cle: &CombatLogEntry
+        ) -> ObserverResult {
+            #on_combat_log_body
+            Ok(())
+        }
+
+        fn on_dota_user_message(
+            &mut self,
+            ctx: &Context,
+            msg_type: EDotaUserMessages,
+            msg: &[u8],
+        ) -> ObserverResult {
+            #on_dota_user_message_body
+            Ok(())
+        }
+    });
+
+    #[cfg(feature = "citadel")]
+    obs_body.extend(quote! {
+        fn on_citadel_user_message(
+            &mut self,
+            ctx: &Context,
+            msg_type: CitadelUserMessageIds,
+            msg: &[u8],
+        ) -> ObserverResult {
+            #on_citadel_user_message_body
+            Ok(())
+        }
+
+        fn on_citadel_game_event(
+            &mut self,
+            ctx: &Context,
+            msg_type: ECitadelGameEvents,
+            msg: &[u8],
+        ) -> ObserverResult {
+            #on_citadel_game_event_body
+            Ok(())
+        }
+    });
+
+    let ret = quote! {
         impl Observer for #struct_name {
-            #specific_methods
-
-            fn on_base_user_message(
-                &mut self,
-                ctx: &Context,
-                msg_type: EBaseUserMessages,
-                msg: &[u8],
-            ) -> ObserverResult {
-                #on_base_user_message_body
-                Ok(())
-            }
-
-            fn on_svc_message(
-                &mut self,
-                ctx: &Context,
-                msg_type: SvcMessages,
-                msg: &[u8],
-            ) -> ObserverResult {
-                #on_svc_message_body
-                Ok(())
-            }
-
-            fn on_net_message(
-                &mut self,
-                ctx: &Context,
-                msg_type: NetMessages,
-                msg: &[u8],
-            ) -> ObserverResult {
-                #on_net_message_body
-                Ok(())
-            }
-
-            fn on_base_game_event(
-                &mut self,
-                ctx: &Context,
-                msg_type: EBaseGameEvents,
-                msg: &[u8],
-            ) -> ObserverResult {
-                #on_base_game_event_body
-                Ok(())
-            }
-
-            fn on_demo_command(
-                &mut self,
-                ctx: &Context,
-                msg_type: EDemoCommands,
-                msg: &[u8],
-            ) -> ObserverResult {
-                #on_demo_command_body
-                Ok(())
-            }
-
-            fn on_tick_start(
-                &mut self,
-                ctx: &Context,
-            ) -> ObserverResult {
-                #on_tick_start_body
-                Ok(())
-            }
-
-            fn on_tick_end(
-                &mut self,
-                ctx: &Context,
-            ) -> ObserverResult {
-                #on_tick_end_body
-                Ok(())
-            }
-
-            fn on_entity(
-                &mut self,
-                ctx: &Context,
-                event: EntityEvents,
-                entity: &Entity,
-            ) -> ObserverResult {
-                #on_entity_body
-                Ok(())
-            }
-
-            fn on_game_event(
-                &mut self,
-                ctx: &Context,
-                ge: &GameEvent
-            ) -> ObserverResult {
-                #on_game_event_body
-                Ok(())
-            }
-
-            fn on_string_table(
-                &mut self,
-                ctx: &Context,
-                table: &StringTable,
-                modified: &[i32]
-            ) -> ObserverResult {
-                #on_string_table_body
-                Ok(())
-            }
-
-            fn on_stop(
-                &mut self,
-                ctx: &Context,
-            ) -> ObserverResult {
-                #on_stop_body
-                Ok(())
-            }
+            #obs_body
         }
 
         #input
     };
 
-    TokenStream::from(expanded)
+    TokenStream::from(ret)
 }
 
-fn get_message_type(method: &syn::ImplItemFn) -> Option<(Type, bool)> {
-    method.sig.inputs.iter().nth(2).and_then(|arg| {
-        if let syn::FnArg::Typed(pat_type) = arg {
-            if let Type::Reference(x) = pat_type.ty.as_ref() {
-                if x.mutability.is_some() {
-                    panic!("Mutable reference not supported")
-                }
-                Some((*x.elem.clone(), true))
-            } else {
-                Some((*pat_type.ty.clone(), false))
-            }
+fn get_arg_type(method: &syn::ImplItemFn, n: usize) -> (Type, bool) {
+    if let Some(FnArg::Typed(pat_type)) = method.sig.inputs.iter().nth(n) {
+        if let Type::Reference(x) = pat_type.ty.as_ref() {
+            (*x.elem.clone(), true)
         } else {
-            None
+            (*pat_type.ty.clone(), false)
         }
-    })
-}
-
-fn check_second_arg_is_context(method: &syn::ImplItemFn) {
-    if let Some(FnArg::Typed(pat_type)) = method.sig.inputs.iter().nth(1) {
-        if let Type::Reference(type_reference) = pat_type.ty.as_ref() {
-            let elem_type = type_reference.elem.as_ref();
-            if let Type::Path(type_path) = elem_type {
-                if let Some(segment) = type_path.path.segments.first() {
-                    if segment.ident == "Context" && type_reference.mutability.is_none() {
-                        return;
-                    }
-                }
-            }
-        }
+    } else {
+        panic!("Expected argument")
     }
-    panic!("The second argument must be of type &Context");
 }
-
 
 /// A method wrapped with `#[on_message]` macro is called whenever a specified protobuf message appears in replay.
 ///
@@ -428,6 +345,13 @@ fn check_second_arg_is_context(method: &syn::ImplItemFn) {
 /// ```no_compile
 /// #[on_message]
 /// fn message(&mut self, ctx: &Context, message: &CCitadelUserMsgChatMsg) -> ObserverResult {
+///     Ok(())
+/// }
+/// ```
+///
+/// ```no_compile
+/// #[on_message]
+/// fn message(&mut self, message: CCitadelUserMsgChatMsg) -> ObserverResult {
 ///     Ok(())
 /// }
 /// ```
@@ -446,6 +370,13 @@ pub fn on_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///    Ok(())
 /// }
 /// ```
+///
+/// ```no_compile
+/// #[on_tick_start]
+/// fn tick_start(&mut self) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn on_tick_start(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
@@ -457,7 +388,14 @@ pub fn on_tick_start(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// ```no_compile
 /// #[on_tick_end]
-/// fn tick_start(&mut self, ctx: &Context) -> ObserverResult {
+/// fn tick_end(&mut self, ctx: &Context) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
+///
+/// ```no_compile
+/// #[on_tick_end]
+/// fn tick_end(&mut self) -> ObserverResult {
 ///    Ok(())
 /// }
 /// ```
@@ -473,6 +411,20 @@ pub fn on_tick_end(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// ```no_compile
 /// #[on_entity]
 /// fn entity(&mut self, ctx: &Context, event: EntityEvents, entity: &Entity) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
+///
+/// ```no_compile
+/// #[on_entity("CCitadelPlayerPawn")] // Will be called for entities with class "CCitadelPlayerPawn"
+/// fn entity(&mut self, ctx: &Context, entity: &Entity) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
+///
+/// ```no_compile
+/// #[on_entity]
+/// fn entity(&mut self, entity: &Entity) -> ObserverResult {
 ///    Ok(())
 /// }
 /// ```
@@ -498,6 +450,12 @@ pub fn on_entity(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///    Ok(())
 /// }
 /// ```
+///
+/// ```no_compile
+/// #[on_game_event]
+/// fn event(&mut self, ge: &GameEvent) -> ObserverResult {
+///    Ok(())
+/// }
 #[proc_macro_attribute]
 pub fn on_game_event(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
@@ -509,14 +467,21 @@ pub fn on_game_event(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// ```no_compile
 /// #[on_string_table] // Will be called when any string table is updated
-/// fn entity(&mut self, ctx: &Context, table: &StringTable, modified: &[i32]) -> ObserverResult {
+/// fn string_table(&mut self, ctx: &Context, table: &StringTable, modified: &[i32]) -> ObserverResult {
 ///    Ok(())
 /// }
 /// ```
 ///
 /// ```no_compile
 /// #[on_string_table("EntityNames")] // Will be called when "EntityNames" table is updated
-/// fn entity(&mut self, ctx: &Context, table: &StringTable, modified: &[i32]) -> ObserverResult {
+/// fn string_table(&mut self, ctx: &Context, table: &StringTable, modified: &[i32]) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
+///
+/// ```no_compile
+/// #[on_string_table]
+/// fn string_table(&mut self, table: &StringTable, modified: &[i32]) -> ObserverResult {
 ///    Ok(())
 /// }
 /// ```
@@ -535,6 +500,13 @@ pub fn on_string_table(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///    Ok(())
 /// }
 /// ```
+///
+/// ```no_compile
+/// #[on_stop]
+/// fn stop(&mut self) -> ObserverResult {
+///    Ok(())
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn on_stop(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
@@ -547,6 +519,12 @@ pub fn on_stop(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// ```no_compile
 /// #[on_combat_log]
 /// fn combat_log(&mut self, ctx: &Context, cle: &CombatLogEntry) -> ObserverResult {
+///    Ok(())
+/// }
+///
+/// ```no_compile
+/// #[on_combat_log]
+/// fn combat_log(&mut self, cle: &CombatLogEntry) -> ObserverResult {
 ///    Ok(())
 /// }
 #[cfg(feature = "dota")]

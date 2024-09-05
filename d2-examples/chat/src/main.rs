@@ -35,9 +35,9 @@ fn main() -> anyhow::Result<()> {
     let mut parser = Parser::new(&replay)?;
 
     parser.register_observer::<Chat>();
+
     let start = std::time::Instant::now();
     parser.run_to_end()?;
-
     println!("Elapsed: {:?}", start.elapsed());
 
     Ok(())
