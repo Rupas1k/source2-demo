@@ -26,6 +26,9 @@ impl Serializer {
                         name += &format!(".{:04}", fp.path[i]);
                         break;
                     }
+                    if fp.last + 1 == i {
+                        break;
+                    }
                 }
                 FieldModel::VariableTable(serializer) => {
                     if fp.last + 1 == i {
