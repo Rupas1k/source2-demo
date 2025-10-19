@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dota2 Positions Viewer (CSV)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 16px; }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    label { font-weight: 600; }
+    input[type="number"] { width: 7rem; }
+    #plot { width: 100%; height: 80vh; }
+    small { color: #666; }
+  </style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23222'/%3E%3Ctext x='50' y='58' text-anchor='middle' font-size='54' fill='white' font-family='Arial'%3ED%3C/text%3E%3C/svg%3E">
+  <!-- Plotly -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <!-- PapaParse for CSV parsing -->
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+  <!-- Lodash for grouping helpers -->
+  <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+</head>
+<body>
+  <h2>Dota 2 Positions Viewer</h2>
+  <div class="row">
+    <label>CSV: <input id="file" type="file" accept=".csv" /></label>
+    <label>tick間引き: <input id="stride" type="number" min="1" value="3" /></label>
+    <label>点サイズ: <input id="ptsize" type="number" min="1" value="12" /></label>
+    <label>表示軸:
+      <select id="axis">
+        <option value="xy" selected>X-Y</option>
+        <option value="xz">X-Z</option>
+        <option value="yz">Y-Z</option>
+      </select>
+    </label>
+    <label>速度(ms/フレーム): <input id="msframe" type="number" min="1" value="40" /></label>
+    <label>WebGL: <input id="useWebGL" type="checkbox" /></label>
+  </div>
+  <div class="row">
+    <label>tick開始: <input id="tickStart" type="number" value="" /></label>
+    <label>tick終了: <input id="tickEnd" type="number" value="" /></label>
+    <label>ヒートマップ: <input id="heatmap" type="checkbox" /></label>
+    <label>トレイル（追跡）: 
+      <select id="heroSelect"></select>
+    </label>
+    <label>トレイル長: <input id="trailLen" type="number" min="1" value="30" /></label>
+    <button id="render">描画</button>
+  </div>
+  <small>ヘッダ必須: time_s,tick,entity_index,team,player_id,player_name,side,x,y,z,class</small>
+  <div id="meta"></div>
+  <div id="plot"></div>
+
+  <script>
+    const COLORS = { ally: '#1f77b4', enemy: '#d62728', neutral: '#7f7f7f' };
+
+    const $ = (id) => document.getElementById(id);
+    let rows = [];
+
+    function parseCsv(file) {
+      return new Promise((resolve, reject) => {
+        Papa.parse(file, {
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true,
+          complete: (res) => resolve(res.data),
+          error: reject,
+        });
+      });
+    }
+
+    function sanitize(v) { return (v === undefined || v === null) ? '' : v; }
+
+    function buildFrames(data, stride, axisSel, tickRange, trail, heatmapOn, msPerFrame) {
+      const MAX_FRAMES = 2000; // メモリ対策: フレーム上限
+      // 座標軸選択
+      const ax = axisSel === 'xy' ? ['x','y'] : axisSel === 'xz' ? ['x','z'] : ['y','z'];
+
+      // tickごとにグルーピング
+      const byTick = _.groupBy(data, r => r.tick);
+      let ticksAll = Object.keys(byTick).map(Number).sort((a,b)=>a-b);
+      const [tStart, tEnd] = tickRange || [ticksAll[0], ticksAll[ticksAll.length-1]];
+      let ticks = ticksAll.filter(t => t >= tStart && t <= tEnd).filter((_,i)=> i % stride === 0);
+      // フレーム数が多すぎる場合はさらに間引き
+      if (ticks.length > MAX_FRAMES) {
+        const step = Math.ceil(ticks.length / MAX_FRAMES);
+        ticks = ticks.filter((_, i) => i % step === 0);
+      }
+
+      // 軸範囲（全体）: スプレッド演算子ではなく reduce で堅牢に
+      const xs = data.map(r => Number(r[ax[0]])).filter(Number.isFinite);
+      const ys = data.map(r => Number(r[ax[1]])).filter(Number.isFinite);
+      const xmin = xs.reduce((m,v)=> v<m? v:m, xs.length? xs[0]:0);
+      const xmax = xs.reduce((m,v)=> v>m? v:m, xs.length? xs[0]:1);
+      const ymin = ys.reduce((m,v)=> v<m? v:m, ys.length? ys[0]:0);
+      const ymax = ys.reduce((m,v)=> v>m? v:m, ys.length? ys[0]:1);
+
+      const traceType = $('useWebGL').checked ? 'scattergl' : 'scatter';
+
+      // 初期トレース（heatmap）+ ally/enemy/neutral + trail（順序固定）
+      const baseData = [];
+      if (heatmapOn) {
+        baseData.push({ name: 'heatmap', type: 'histogram2d', x: [], y: [], colorscale: 'YlOrRd', opacity: 0.35, showscale: true });
+      }
+      baseData.push({ name: 'ally',    mode: 'markers', type: traceType, marker: { size: Number($('ptsize').value), color: COLORS.ally },    x: [], y: [], text: [], hovertemplate: '%{text}<extra></extra>' });
+      baseData.push({ name: 'enemy',   mode: 'markers', type: traceType, marker: { size: Number($('ptsize').value), color: COLORS.enemy },   x: [], y: [], text: [], hovertemplate: '%{text}<extra></extra>' });
+      baseData.push({ name: 'neutral', mode: 'markers', type: traceType, marker: { size: Number($('ptsize').value), color: COLORS.neutral }, x: [], y: [], text: [], hovertemplate: '%{text}<extra></extra>' });
+      baseData.push({ name: 'trail',   mode: 'lines+markers', type: traceType, marker: { size: 10, color: '#2ca02c' }, line: { color: '#2ca02c' }, x: [], y: [], text: [], hovertemplate: '%{x}, %{y}<extra>trail</extra>' });
+
+      // ヒートマップ（全体の静的分布）
+      if (heatmapOn) {
+        // 全体ヒートマップは常に固定（初期化後に値設定）
+        baseData[0].x = xs; baseData[0].y = ys;
+      }
+
+      // トレイル用の下ごしらえ（entity_index 単位で軌跡）
+      let trailsByEntity = null;
+      if (trail && trail.entityIndex != null) {
+        trailsByEntity = _.groupBy(
+          data.filter(r => r.entity_index === trail.entityIndex),
+          r => r.tick
+        );
+      }
+
+      const frames = ticks.map(tick => {
+        const rows = byTick[tick] || [];
+        const groups = { ally: {x:[], y:[], text:[]}, enemy: {x:[], y:[], text:[]}, neutral: {x:[], y:[], text:[]} };
+        for (const r of rows) {
+          const side = ['ally','enemy'].includes(r.side) ? r.side : 'neutral';
+          const x = Number(r[ax[0]]); const y = Number(r[ax[1]]);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+          const label = `${sanitize(r.player_name)} (${sanitize(r.class)})\nteam=${sanitize(r.team)} pid=${sanitize(r.player_id)} tick=${tick}`;
+          groups[side].x.push(x);
+          groups[side].y.push(y);
+          groups[side].text.push(label);
+        }
+        const frameData = [];
+        if (heatmapOn) frameData.push({}); // heatmapのプレースホルダ（不変）
+        frameData.push({x: groups.ally.x,    y: groups.ally.y,    text: groups.ally.text});
+        frameData.push({x: groups.enemy.x,   y: groups.enemy.y,   text: groups.enemy.text});
+        frameData.push({x: groups.neutral.x, y: groups.neutral.y, text: groups.neutral.text});
+
+        // trail は常に最後のトレースに対応させる
+        if (trailsByEntity) {
+          const hist = [];
+          const back = Number($('trailLen').value || 30);
+          for (let t = tick - back * stride; t <= tick; t += stride) {
+            const row = trailsByEntity[t];
+            if (row && row.length) {
+              const p = row[0];
+              const x = Number(p[ax[0]]), y = Number(p[ax[1]]);
+              if (Number.isFinite(x) && Number.isFinite(y)) hist.push([x,y]);
+            }
+          }
+          frameData.push({ x: hist.map(v=>v[0]), y: hist.map(v=>v[1]) });
+        } else {
+          frameData.push({ x: [], y: [] });
+        }
+
+        const frame = { name: String(tick), data: frameData, layout: { title: `Tick ${tick}` } };
+
+        // トレイル（選択した1体の直近 N 点を線で表示）
+        if (trailsByEntity) {
+          const hist = [];
+          const back = Number($('trailLen').value || 30);
+          // 直近 back フレームぶん集めて線に
+          for (let t = tick - back * stride; t <= tick; t += stride) {
+            const row = trailsByEntity[t];
+            if (row && row.length) {
+              const p = row[0];
+              const x = Number(p[ax[0]]), y = Number(p[ax[1]]);
+              if (Number.isFinite(x) && Number.isFinite(y)) hist.push([x,y]);
+            }
+          }
+          frame.data.push({
+            name: 'trail', mode: 'lines+markers', type: 'scattergl',
+            marker: { size: 6, color: '#2ca02c' }, line: { color: '#2ca02c' },
+            x: hist.map(v=>v[0]), y: hist.map(v=>v[1]), text: [], hovertemplate: '%{x}, %{y}<extra>trail</extra>'
+          });
+        }
+
+        return frame;
+      });
+
+      const layout = {
+        title: 'Positions',
+        xaxis: { title: ax[0].toUpperCase(), range: [xmin, xmax], scaleratio: 1, scaleanchor: 'y' },
+        yaxis: { title: ax[1].toUpperCase(), range: [ymin, ymax] },
+        legend: { orientation: 'h' },
+        margin: { l: 40, r: 10, t: 50, b: 40 },
+        updatemenus: [{
+          type: 'buttons', showactive: false,
+          buttons: [
+            { label: 'Play', method: 'animate', args: [null, { fromcurrent: true, frame: { duration: msPerFrame, redraw: false }, transition: { duration: 0 } }] },
+            { label: 'Pause', method: 'animate', args: [[null], { mode: 'immediate', frame: { duration: 0, redraw: false }, transition: { duration: 0 } }] }
+          ]
+        }],
+        sliders: [{
+          active: 0,
+          currentvalue: { prefix: 'Tick: ' },
+          steps: frames.map(f => ({ label: f.name, method: 'animate', args: [[f.name], { mode: 'immediate', frame: { duration: 0, redraw: false }, transition: { duration: 0 } }] }))
+        }]
+      };
+
+      return { baseData, frames, layout, ticks };
+    }
+
+    async function render() {
+      const file = $('file').files[0];
+      if (!file) { alert('CSVファイルを選択してください'); return; }
+      const stride = Math.max(1, Number($('stride').value||1));
+      const axisSel = $('axis').value;
+      const msPerFrame = Math.max(1, Number($('msframe').value||40));
+
+      try {
+        rows = await parseCsv(file);
+      } catch (e) {
+        console.error('CSV parse error:', e);
+        alert('CSVの読み込みに失敗しました');
+        return;
+      }
+      // 必須列チェック
+      const needed = ['time_s','tick','entity_index','team','player_id','player_name','side','x','y','z','class'];
+      if (!rows || rows.length === 0) { alert('CSVにデータがありません'); return; }
+      const hasAll = needed.every(k => Object.prototype.hasOwnProperty.call(rows[0], k));
+      if (!hasAll) { alert('CSVヘッダが想定と異なります'); return; }
+
+      // 数値化/前処理
+      rows.forEach(r => {
+        r.tick = Number(r.tick);
+        r.x = Number(r.x); r.y = Number(r.y); r.z = Number(r.z);
+      });
+
+      // UI初期化（tick範囲/ヒーロー選択）
+      const ticksAll = _.uniq(rows.map(r => r.tick)).sort((a,b)=>a-b);
+      $('tickStart').value = $('tickStart').value || ticksAll[0];
+      $('tickEnd').value   = $('tickEnd').value   || ticksAll[ticksAll.length-1];
+      const heroes = _.uniqBy(rows.map(r => ({ key: r.entity_index, label: `${r.player_name||r.class} (pid=${r.player_id}, idx=${r.entity_index})` })), h => h.key);
+      const heroSel = $('heroSelect');
+      if (heroSel.options.length === 0) {
+        heroSel.appendChild(new Option('なし', ''));
+        heroes.forEach(h => heroSel.appendChild(new Option(h.label, String(h.key))));
+      }
+
+      const nPlayers = _.uniqBy(rows, r => r.player_id).length;
+      const nTicks = ticksAll.length;
+      $('meta').textContent = `players ~${nPlayers}, ticks ~${nTicks}, stride=${stride}`;
+
+      const tStart = Number($('tickStart').value);
+      const tEnd = Number($('tickEnd').value);
+      const heatmapOn = $('heatmap').checked;
+      const trailEntityIndex = heroSel.value ? Number(heroSel.value) : null;
+      const trail = trailEntityIndex != null ? { entityIndex: trailEntityIndex } : null;
+
+      const { baseData, frames, layout } = buildFrames(rows, stride, axisSel, [tStart, tEnd], trail, heatmapOn, msPerFrame);
+      try {
+        await Plotly.newPlot('plot', baseData, layout, { responsive: true });
+        if (frames && frames.length) {
+          await Plotly.addFrames('plot', frames);
+        }
+      } catch (e) {
+        console.error('Plotly render error:', e);
+        alert('描画に失敗しました。tick間引きや範囲を調整してください。');
+      }
+    }
+
+    $('render').addEventListener('click', render);
+  </script>
+</body>
+</html>
+
