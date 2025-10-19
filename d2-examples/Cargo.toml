@@ -4,7 +4,8 @@ members = [
     "chat",
     "combatlog",
     "lifestate",
-    "wards"
+    "wards",
+    "positions"
 ]
 
 [profile.dev]
