@@ -5,7 +5,8 @@ members = [
     "combatlog",
     "lifestate",
     "wards",
-    "positions"
+    "positions",
+    "game_stats"
 ]
 
 [profile.dev]
