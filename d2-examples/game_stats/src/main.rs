@@ -1,6 +1,8 @@
 use source2_demo::prelude::*;
 use source2_demo::proto::DotaCombatlogTypes;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufWriter, Write};
 
 /// プレイヤーごとの統計情報
 #[derive(Debug, Default, Clone)]
@@ -29,7 +31,6 @@ impl PlayerStats {
 }
 
 /// 試合全体の統計情報を管理
-#[derive(Default)]
 struct GameStats {
     /// プレイヤーID -> 統計情報
     players: HashMap<String, PlayerStats>,
@@ -39,10 +40,56 @@ struct GameStats {
     roshan_kills: u32,
     /// 試合開始時刻
     match_start_time: Option<f32>,
+    /// イベントログCSV出力
+    events_csv: Option<BufWriter<File>>,
+}
+
+impl Default for GameStats {
+    fn default() -> Self {
+        Self {
+            players: HashMap::default(),
+            buildings_destroyed: (0, 0),
+            roshan_kills: 0,
+            match_start_time: None,
+            events_csv: None,
+        }
+    }
 }
 
 #[observer]
 impl GameStats {
+    /// CSVファイルを初期化
+    fn ensure_csv_initialized(&mut self) -> ObserverResult {
+        if self.events_csv.is_none() {
+            let f = File::create("game_events.csv")?;
+            let mut w = BufWriter::new(f);
+            writeln!(
+                w,
+                "time_s,event_type,player,target,value,details"
+            )?;
+            self.events_csv = Some(w);
+        }
+        Ok(())
+    }
+
+    /// イベントをCSVに記録
+    fn log_event(&mut self, time: f32, event_type: &str, player: &str, target: &str, value: u32, details: &str) -> ObserverResult {
+        self.ensure_csv_initialized()?;
+        if let Some(csv) = &mut self.events_csv {
+            writeln!(
+                csv,
+                "{:.2},{},{},{},{},{}",
+                time,
+                event_type,
+                player.replace(',', " "),
+                target.replace(',', " "),
+                value,
+                details.replace(',', " ")
+            )?;
+        }
+        Ok(())
+    }
+
     /// 戦闘ログを処理
     #[on_combat_log]
     fn handle_combat_log(&mut self, ctx: &Context, log: &CombatLogEntry) -> ObserverResult {
@@ -59,6 +106,9 @@ impl GameStats {
                     "[{:.2}s] {} gained {} XP (reason: {:?})",
                     time, target_name, xp_amount, reason
                 );
+
+                // CSVに記録
+                self.log_event(time, "XP_GAIN", target_name, "", xp_amount, &format!("reason: {:?}", reason))?;
 
                 // プレイヤー統計を更新
                 if let Some(stats) = self.players.get_mut(target_name) {
@@ -81,6 +131,9 @@ impl GameStats {
                     time, target_name, gold_amount, reason
                 );
 
+                // CSVに記録
+                self.log_event(time, "GOLD_GAIN", target_name, "", gold_amount, &format!("reason: {:?}", reason))?;
+
                 // プレイヤー統計を更新
                 if let Some(stats) = self.players.get_mut(target_name) {
                     stats.total_gold += gold_amount;
@@ -100,6 +153,15 @@ impl GameStats {
                     "[{:.2}s] KILL: {} killed by {}",
                     time, victim, killer
                 );
+
+                // CSVに記録
+                let mut details = String::new();
+                if victim.contains("roshan") {
+                    details.push_str("ROSHAN_KILL");
+                } else if victim.contains("tower") || victim.contains("barrack") || victim.contains("fort") {
+                    details.push_str("BUILDING_KILL");
+                }
+                self.log_event(time, "DEATH", killer, victim, 0, &details)?;
 
                 // 被キル側の統計を更新
                 self.players
@@ -167,6 +229,9 @@ impl GameStats {
                     time, buyer, item_name
                 );
 
+                // CSVに記録
+                self.log_event(time, "ITEM_PURCHASE", buyer, item_name, 0, "")?;
+
                 // プレイヤー統計を更新
                 if let Some(stats) = self.players.get_mut(buyer) {
                     stats.items_purchased.push(item_name.to_string());
@@ -182,12 +247,18 @@ impl GameStats {
                     "[{:.2}s] {} leveled up to {}",
                     time, hero, level
                 );
+
+                // CSVに記録
+                self.log_event(time, "LEVEL_UP", hero, "", level, "")?;
             }
 
             // バイバック
             DotaCombatlogTypes::DotaCombatlogBuyback => {
                 let player = log.attacker_name()?;
                 println!("[{:.2}s] {} bought back!", time, player);
+
+                // CSVに記録
+                self.log_event(time, "BUYBACK", player, "", 0, "")?;
             }
 
             // ビルディング破壊
@@ -198,6 +269,9 @@ impl GameStats {
                     "[{:.2}s] BUILDING DESTROYED: {} destroyed by {}",
                     time, building, attacker
                 );
+
+                // CSVに記録
+                self.log_event(time, "BUILDING_DESTROYED", attacker, building, 0, "")?;
             }
 
             // マルチキル
@@ -208,6 +282,9 @@ impl GameStats {
                     "[{:.2}s] {} got a MULTIKILL ({} kills)!",
                     time, player, kills
                 );
+
+                // CSVに記録
+                self.log_event(time, "MULTIKILL", player, "", kills, "")?;
             }
 
             // キルストリーク
@@ -218,6 +295,9 @@ impl GameStats {
                     "[{:.2}s] {} is on a KILLING SPREE ({} streak)!",
                     time, player, streak
                 );
+
+                // CSVに記録
+                self.log_event(time, "KILLSTREAK", player, "", streak, "")?;
             }
 
             // ファーストブラッド
@@ -228,6 +308,9 @@ impl GameStats {
                     "[{:.2}s] FIRST BLOOD! {} killed {}",
                     time, killer, victim
                 );
+
+                // CSVに記録
+                self.log_event(time, "FIRST_BLOOD", killer, victim, 0, "")?;
             }
 
             // ルーン取得
@@ -238,12 +321,18 @@ impl GameStats {
                     "[{:.2}s] {} picked up rune (type: {})",
                     time, player, rune_type
                 );
+
+                // CSVに記録
+                self.log_event(time, "RUNE_PICKUP", player, "", rune_type, "")?;
             }
 
             // イージス取得
             DotaCombatlogTypes::DotaCombatlogAegisTaken => {
                 let player = log.attacker_name()?;
                 println!("[{:.2}s] {} picked up the AEGIS!", time, player);
+
+                // CSVに記録
+                self.log_event(time, "AEGIS_TAKEN", player, "", 0, "")?;
             }
 
             _ => {}
@@ -287,6 +376,68 @@ impl GameStats {
             }
         }
 
+        Ok(())
+    }
+
+    /// CSVファイルをフラッシュ
+    fn flush_csv(&mut self) -> ObserverResult {
+        if let Some(csv) = &mut self.events_csv {
+            csv.flush()?;
+        }
+        Ok(())
+    }
+
+    /// プレイヤー統計をCSVファイルに出力
+    fn export_player_stats_csv(&self) -> ObserverResult {
+        let f = File::create("player_stats.csv")?;
+        let mut w = BufWriter::new(f);
+
+        // ヘッダー
+        writeln!(
+            w,
+            "player_name,hero_name,kills,deaths,assists,level,total_gold,total_xp,damage_dealt,healing_done,items_purchased_count,items_list"
+        )?;
+
+        // プレイヤーをゴールド順にソート
+        let mut players: Vec<_> = self.players.values().collect();
+        players.sort_by(|a, b| b.total_gold.cmp(&a.total_gold));
+
+        // データ行
+        for stats in players {
+            writeln!(
+                w,
+                "{},{},{},{},{},{},{},{},{},{},{},\"{}\"",
+                stats.player_name.replace(',', " "),
+                stats.hero_name.replace(',', " "),
+                stats.kills,
+                stats.deaths,
+                stats.assists,
+                stats.level,
+                stats.total_gold,
+                stats.total_xp,
+                stats.damage_dealt,
+                stats.healing_done,
+                stats.items_purchased.len(),
+                stats.items_purchased.join("; ")
+            )?;
+        }
+
+        w.flush()?;
+        Ok(())
+    }
+
+    /// 試合サマリーをCSVファイルに出力
+    fn export_match_summary_csv(&self) -> ObserverResult {
+        let f = File::create("match_summary.csv")?;
+        let mut w = BufWriter::new(f);
+
+        writeln!(w, "metric,value")?;
+        writeln!(w, "radiant_buildings_destroyed,{}", self.buildings_destroyed.0)?;
+        writeln!(w, "dire_buildings_destroyed,{}", self.buildings_destroyed.1)?;
+        writeln!(w, "roshan_kills,{}", self.roshan_kills)?;
+        writeln!(w, "total_players,{}", self.players.len())?;
+
+        w.flush()?;
         Ok(())
     }
 
@@ -345,8 +496,20 @@ fn main() -> anyhow::Result<()> {
     parser.run_to_end()?;
     let elapsed = start.elapsed();
 
+    // CSVファイルをフラッシュ
+    game_stats.flush_csv()?;
+
     // 統計情報のサマリーを表示
     game_stats.print_summary();
+
+    // CSV出力
+    println!("\nExporting data to CSV files...");
+    game_stats.export_player_stats_csv()?;
+    game_stats.export_match_summary_csv()?;
+
+    println!("  - game_events.csv: All game events log");
+    println!("  - player_stats.csv: Player statistics summary");
+    println!("  - match_summary.csv: Match summary");
 
     println!("\nParsing completed in {:.2?}", elapsed);
 
