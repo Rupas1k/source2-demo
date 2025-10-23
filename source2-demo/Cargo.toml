@@ -11,9 +11,9 @@ keywords = ["dota", "deadlock", "citadel", "replay", "demo"]
 edition = "2021"
 
 [dependencies]
-hashbrown = "0.15"
+hashbrown = "0.16"
 snap = "1.1"
-bitter = "0.7"
+bitter = "0.8"
 thiserror = "2.0"
 anyhow = "1.0"
 prettytable = { version = "0.10", default-features = false }

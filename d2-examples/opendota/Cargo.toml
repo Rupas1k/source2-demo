@@ -1,0 +1,14 @@
+[package]
+name = "opendota"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = "1.0"
+hashbrown = { version = "0.16", features = ["serde"] }
+anyhow = "1.0"
+memmap2 = "0.9"
+serde_with = "3.15"
+serde_json = "1.0"
+
+source2-demo = { path = "../../source2-demo", features = ["dota"] }
