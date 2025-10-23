@@ -47,7 +47,7 @@ impl Positions {
             let mut w = BufWriter::new(f);
             writeln!(
                 w,
-                "time_s,tick,entity_index,team,player_id,player_name,side,x,y,z,class"
+                "time_s,tick,entity_index,team,player_id,player_name,side,x,y,z,class,hp,max_hp,mana,max_mana,level,gold,xp,life_state,is_alive"
             )?;
             self.out = Some(w);
         }
@@ -161,9 +161,68 @@ impl Positions {
                 _ => "neutral",
             };
 
+            // 追加のゲーム状態情報を取得
+            let hp: i32 = e
+                .get_property_by_name("m_iHealth")
+                .ok()
+                .and_then(|p| p.try_into().ok())
+                .unwrap_or(0);
+
+            let max_hp: i32 = e
+                .get_property_by_name("m_iMaxHealth")
+                .ok()
+                .and_then(|p| p.try_into().ok())
+                .unwrap_or(0);
+
+            let mana: f32 = e
+                .get_property_by_name("m_flMana")
+                .ok()
+                .and_then(|p| p.try_into().ok())
+                .unwrap_or(0.0);
+
+            let max_mana: f32 = e
+                .get_property_by_name("m_flMaxMana")
+                .ok()
+                .and_then(|p| p.try_into().ok())
+                .unwrap_or(0.0);
+
+            let level: i32 = e
+                .get_property_by_name("m_iCurrentLevel")
+                .ok()
+                .and_then(|p| p.try_into().ok())
+                .unwrap_or(0);
+
+            // ゴールドの取得（PlayerResourceから）
+            let gold: i32 = if let (Some(pr), Some(pid)) = (player_resource, player_id) {
+                pr.get_property_by_name(&format!("m_vecPlayerData.{:04}.m_iUnreliableGold", pid))
+                    .ok()
+                    .and_then(|p| p.try_into().ok())
+                    .unwrap_or(0)
+                    + pr.get_property_by_name(&format!("m_vecPlayerData.{:04}.m_iReliableGold", pid))
+                        .ok()
+                        .and_then(|p| p.try_into().ok())
+                        .unwrap_or(0)
+            } else {
+                0
+            };
+
+            let xp: i32 = e
+                .get_property_by_name("m_iCurrentXP")
+                .ok()
+                .and_then(|p| p.try_into().ok())
+                .unwrap_or(0);
+
+            let life_state: i32 = e
+                .get_property_by_name("m_lifeState")
+                .ok()
+                .and_then(|p| p.try_into().ok())
+                .unwrap_or(2);
+
+            let is_alive = if life_state == 0 { 1 } else { 0 };
+
             writeln!(
                 out,
-                "{:.3},{},{},{},{},{},{},{:.3},{:.3},{:.3},{}",
+                "{:.3},{},{},{},{},{},{},{:.3},{:.3},{:.3},{},{},{},{:.1},{:.1},{},{},{},{},{}",
                 time_s,
                 tick,
                 idx,
@@ -174,7 +233,16 @@ impl Positions {
                 x.unwrap_or(0.0),
                 y.unwrap_or(0.0),
                 z.unwrap_or(0.0),
-                class
+                class,
+                hp,
+                max_hp,
+                mana,
+                max_mana,
+                level,
+                gold,
+                xp,
+                life_state,
+                is_alive
             )?;
         }
 
