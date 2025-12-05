@@ -32,6 +32,22 @@ impl GameTime {
 
         Ok(time_tick - paused_ticks)
     }
+
+    pub fn game_started(&self) -> bool {
+        self.start_time.is_some()
+    }
+
+    pub fn time(&self, ctx: &Context) -> Result<f32> {
+        if !self.game_started() {
+            bail!("Game has not started yet.");
+        }
+
+        let tick = self.tick(ctx)? as f32;
+
+        let time = tick / 30.0 - self.start_time.unwrap();
+
+        Ok(time)
+    }
 }
 
 #[observer]
@@ -39,7 +55,7 @@ impl GameTime {
 impl GameTime {
     #[on_tick_start]
     fn on_tick_start(&mut self, ctx: &Context) -> ObserverResult {
-        if self.start_time.is_some() {
+        if self.game_started() {
             return Ok(());
         }
 
