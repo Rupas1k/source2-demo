@@ -12,3 +12,4 @@ serde_with = "3.15"
 serde_json = "1.0"
 
 source2-demo = { path = "../../source2-demo", features = ["dota"] }
+source2-demo-observers = { path = "../../source2-demo-observers"}

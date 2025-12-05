@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::VecDeque;
-
+use std::rc::Weak;
 use hashbrown::HashMap;
 
 use source2_demo::prelude::*;
@@ -48,12 +48,12 @@ pub struct Wards {
     pending_events: VecDeque<PendingEvent>,
     current_life_state: HashMap<u32, i32>,
     killers: HashMap<WardClass, VecDeque<Box<str>>>,
-    observers: Vec<Rc<RefCell<dyn WardsObserver + 'static>>>,
+    app: Option<Weak<RefCell<dyn WardsObserver + 'static>>>,
 }
 
 impl Wards {
-    pub fn register_observer<T: WardsObserver + 'static>(&mut self, obs: Rc<RefCell<T>>) {
-        self.observers.push(obs as Rc<RefCell<dyn WardsObserver>>)
+    pub fn register_app(&mut self, obs: Rc<RefCell<dyn WardsObserver + 'static>>) {
+        self.app = Some(Rc::downgrade(&obs));
     }
 }
 
@@ -67,7 +67,7 @@ impl Default for Wards {
             pending_events: Default::default(),
             current_life_state: HashMap::default(),
             killers,
-            observers: Vec::new(),
+            app: None,
         }
     }
 }
@@ -86,9 +86,9 @@ impl Wards {
             let ward_class = WardClass::from_class_name(ctx.entities().get_by_index(ev.entity_idx as usize)?.class().name()).unwrap();
 
             let event = |event: WardEvent| -> ObserverResult {
-                self.observers.iter().try_for_each(|obs| {
-                    obs.borrow_mut()
-                        .on_ward(ctx, ward_class, event.clone(), ctx.entities().get_by_index(ev.entity_idx as usize)?)
+                self.app.as_ref().unwrap().upgrade().map_or(Ok(()), |app_rc| {
+                    let mut app = app_rc.borrow_mut();
+                    app.on_ward(ctx, ward_class, event, ctx.entities().get_by_index(ev.entity_idx as usize)?)
                 })
             };
 

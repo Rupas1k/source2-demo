@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 
 use anyhow::{Result, bail};
@@ -8,15 +8,14 @@ use source2_demo::prelude::*;
 #[derive(Default)]
 pub struct GameTime {
     start_time: Option<f32>,
-    observers: Vec<Rc<RefCell<dyn GameTimeObserver + 'static>>>,
+    app: Option<Weak<RefCell<dyn GameTimeObserver + 'static>>>,
 }
 
 impl GameTime {
-    pub fn register_observer<T: GameTimeObserver + 'static>(&mut self, obs: Rc<RefCell<T>>) {
-        self.observers.push(obs)
+    pub fn register_app(&mut self, obs: Rc<RefCell<dyn GameTimeObserver + 'static>>) {
+        self.app = Some(Rc::downgrade(&obs));
     }
 
-    #[inline(always)]
     pub fn tick(&self, ctx: &Context) -> Result<i32> {
         let Ok(game_rules) = ctx.entities().get_by_class_name("CDOTAGamerulesProxy") else {
             bail!("No CDOTAGamerulesProxy.")
@@ -53,9 +52,10 @@ impl GameTime {
         if start_time > 0.0 {
             self.start_time = Some(start_time);
 
-            self.observers
-                .iter()
-                .try_for_each(|obs| obs.borrow_mut().on_game_started(ctx, start_time))?;
+            self.app.as_ref().unwrap().upgrade().and_then(|app_rc: Rc<RefCell<dyn GameTimeObserver + 'static>>| {
+                let mut app = app_rc.borrow_mut();
+                app.on_game_started(ctx, start_time).ok()
+            });
         }
 
         Ok(())

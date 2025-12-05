@@ -13,11 +13,9 @@ use serde::{Deserialize, Serialize};
 use source2_demo::prelude::*;
 use source2_demo::proto::*;
 
-mod game_time;
-mod wards;
+use source2_demo_observers::game_time::*;
+use source2_demo_observers::wards::*;
 
-use crate::game_time::*;
-use crate::wards::*;
 
 #[serde_with::skip_serializing_none]
 #[derive(Serialize, Deserialize, Default, Debug)]
@@ -685,8 +683,8 @@ fn main() -> anyhow::Result<()> {
 
     app.borrow_mut().game_time = game_time.clone();
 
-    game_time.borrow_mut().register_observer(app.clone());
-    wards.borrow_mut().register_observer(app.clone());
+    game_time.borrow_mut().register_app(app.clone());
+    wards.borrow_mut().register_app(app.clone());
 
     parser.run_to_end()?;
 

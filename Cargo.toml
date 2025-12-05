@@ -2,7 +2,7 @@
 members = [
     "source2-demo",
     "source2-demo-protobufs",
-    "source2-demo-macros",
+    "source2-demo-macros", "source2-demo-observers",
 ]
 
 resolver = "2"

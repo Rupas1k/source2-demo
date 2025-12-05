@@ -1,0 +1,9 @@
+[package]
+name = "source2-demo-observers"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+source2-demo = { path = "../source2-demo" }
+anyhow = "1.0"
+hashbrown = "0.16"

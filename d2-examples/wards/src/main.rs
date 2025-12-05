@@ -1,8 +1,5 @@
 use source2_demo::prelude::*;
-
-mod wards;
-
-use wards::*;
+use source2_demo_observers::wards::*;
 
 #[derive(Default)]
 struct WardEvents;
@@ -41,7 +38,7 @@ fn main() -> anyhow::Result<()> {
 
     let wards = parser.register_observer::<Wards>();
     let ward_events = parser.register_observer::<WardEvents>();
-    wards.borrow_mut().register_observer(ward_events);
+    wards.borrow_mut().register_app(ward_events);
 
     let start = std::time::Instant::now();
     parser.run_to_end()?;
