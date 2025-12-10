@@ -1,5 +1,5 @@
 use source2_demo::prelude::*;
-use source2_demo_observers::wards::*;
+use source2_demo_observers::dota::wards::*;
 
 #[derive(Default)]
 struct WardEvents;

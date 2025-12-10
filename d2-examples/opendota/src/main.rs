@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use source2_demo::prelude::*;
 use source2_demo::proto::*;
 
-use source2_demo_observers::game_time::*;
-use source2_demo_observers::wards::*;
+use source2_demo_observers::dota::game_time::*;
+use source2_demo_observers::dota::wards::*;
 
 
 #[serde_with::skip_serializing_none]

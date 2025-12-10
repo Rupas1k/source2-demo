@@ -3,7 +3,7 @@ I used it to estimate(!) fantasy points for TI 2025
 **/
 
 use source2_demo::prelude::*;
-use source2_demo_observers::game_time::*;
+use source2_demo_observers::dota::game_time::*;
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
