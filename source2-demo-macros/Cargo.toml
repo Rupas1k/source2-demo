@@ -1,9 +1,14 @@
 [package]
 name = "source2-demo-macros"
 description = "Procedural macros for Source 2 replay parser"
-repository = "https://github.com/Rupas1k/source2-demo"
-version = "0.1.0"
-edition = "2021"
+categories = ["parsing"]
+keywords = ["dota", "deadlock", "cs2", "replay", "demo"]
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [lib]
 proc-macro = true

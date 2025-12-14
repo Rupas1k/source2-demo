@@ -1,14 +1,15 @@
 [package]
 name = "source2-demo"
-description = "Dota 2 / Deadlock replay parser written in Rust"
-version = "0.1.0"
-repository = "https://github.com/Rupas1k/source2-demo"
-authors = ["Artem Rupasov <artemrupasov125@gmail.com>"]
-license = "MIT OR Apache-2.0"
+description = "Dota 2 / Deadlock / CS2 replay parser written in Rust"
 readme = "../README.md"
 categories = ["parsing"]
-keywords = ["dota", "deadlock", "citadel", "replay", "demo"]
-edition = "2021"
+keywords = ["dota", "deadlock", "cs2", "replay", "demo"]
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 hashbrown = "0.16"
@@ -20,8 +21,8 @@ anyhow = "1.0"
 prettytable = { version = "0.10", default-features = false }
 bitflags = "2.10"
 mimalloc = { version = "0.1", optional = true }
-source2-demo-protobufs = { path = "../source2-demo-protobufs" }
-source2-demo-macros = { path = "../source2-demo-macros" }
+source2-demo-protobufs = { path = "../source2-demo-protobufs", version = "0.3.0" }
+source2-demo-macros = { path = "../source2-demo-macros", version = "0.3.0" }
 
 [features]
 default = ["mimalloc"]

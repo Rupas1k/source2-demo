@@ -1,12 +1,15 @@
 [package]
 name = "source2-demo-protobufs"
-description = "Dota 2 and Deadlock Protobufs"
-version = "0.1.0"
-edition = "2021"
-repository = "https://github.com/Rupas1k/source2-demo"
-authors = ["Artem Rupasov <artemrupasov125@gmail.com>"]
-license = "MIT OR Apache-2.0"
+description = "Dota 2, Deadlock, and CS2 Protobufs"
+categories = ["parsing"]
+keywords = ["dota", "deadlock", "cs2", "replay", "demo"]
 exclude = ["protos/*", "build.rs"]
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [lib]
 path = "./lib.rs"
