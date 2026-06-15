@@ -25,7 +25,9 @@ use crate::writer::{
 use crate::CombatLogEntry;
 use crate::{Entity, EntityEvents, FieldValue, GameEvent, StringTable};
 use bitter::{BitReader, LittleEndianReader};
-use source2_demo_macros::{observer, on_message, rewrite_field, rewrite_packet_message, rewriter};
+use source2_demo_macros::{
+    observer, on_message, rewrite_demo_message, rewrite_field, rewrite_packet_message, rewriter,
+};
 use std::io::Cursor;
 
 fn read_var_u64_from_bytes(bytes: &[u8]) -> u64 {
@@ -352,6 +354,42 @@ fn demo_writer_demo_message_rewriter_can_drop_outer_messages() {
             EDemoCommands::DemStop,
         ]
     );
+}
+
+#[derive(Default)]
+struct TypedDemoMessageRewriter {
+    file_info_seen: bool,
+}
+
+#[rewriter]
+impl TypedDemoMessageRewriter {
+    #[rewrite_demo_message]
+    fn rewrite_file_info(
+        &mut self,
+        _msg: &mut CDemoFileInfo,
+    ) -> Result<MessageRewrite, ParserError> {
+        self.file_info_seen = true;
+        Ok(MessageRewrite::Keep)
+    }
+}
+
+#[test]
+fn demo_writer_demo_message_rewriter_supports_typed_handlers() {
+    let replay = replay_with_playback_ticks(
+        20,
+        &[
+            (EDemoCommands::DemSyncTick, 0, sync_payload()),
+            (EDemoCommands::DemStop, 10, Vec::new()),
+        ],
+    );
+    let parser = Parser::from_slice(&replay).unwrap();
+    let output = Cursor::new(Vec::new());
+    let mut writer = DemoWriter::new(parser, output);
+    let rc = writer.register_rewriter::<TypedDemoMessageRewriter>();
+
+    writer.run().unwrap();
+
+    assert!(rc.borrow().file_info_seen);
 }
 
 #[derive(Default)]

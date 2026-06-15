@@ -49,13 +49,33 @@ pub(crate) fn expand_rewriter(item: TokenStream) -> TokenStream {
             match segment.ident.to_string().as_str() {
                 "rewrite_demo_message" => {
                     add_flag!(DEMO_MESSAGE);
-                    let args = writer_callback_method_args(method, quote! {});
-                    rewrite_demo_message_body.extend(quote! {
-                        match self.#method_name(#args)? {
-                            ::source2_demo::writer::MessageRewrite::Keep => {}
-                            rewrite => return Ok(rewrite),
+                    if packet_message_method_is_raw(method) {
+                        let args = writer_callback_method_args(method, quote! {});
+                        rewrite_demo_message_body.extend(quote! {
+                            match self.#method_name(#args)? {
+                                ::source2_demo::writer::MessageRewrite::Keep => {}
+                                rewrite => return Ok(rewrite),
+                            }
+                        });
+                    } else {
+                        match packet_message_method_type(method) {
+                            Ok((arg_type, is_ref, is_mut_ref)) => {
+                                if let Err(error) = extend_rewrite_demo_message_body(
+                                    &mut rewrite_demo_message_body,
+                                    method,
+                                    &method_name,
+                                    &arg_type,
+                                    is_ref,
+                                    is_mut_ref,
+                                ) {
+                                    rewrite_demo_message_body.extend(error.to_compile_error());
+                                }
+                            }
+                            Err(error) => {
+                                rewrite_demo_message_body.extend(error.to_compile_error());
+                            }
                         }
-                    });
+                    }
                 }
                 "rewrite_packet_message" => {
                     add_flag!(PACKET_MESSAGE);
@@ -678,6 +698,57 @@ fn extend_rewrite_packet_message_body(
     } else {
         body.extend(quote! {
             if msg_type == #enum_type as i32 {
+                let message = <#arg_type as ::source2_demo::proto::Message>::decode(payload)?;
+                match self.#method_name(#method_args)? {
+                    ::source2_demo::writer::MessageRewrite::Keep
+                    | ::source2_demo::writer::MessageRewrite::Rewrite => {}
+                    rewrite => return Ok(rewrite),
+                }
+            }
+        });
+    }
+    Ok(())
+}
+
+fn extend_rewrite_demo_message_body(
+    body: &mut proc_macro2::TokenStream,
+    method: &syn::ImplItemFn,
+    method_name: &Ident,
+    arg_type: &Type,
+    is_ref: bool,
+    is_mut_ref: bool,
+) -> syn::Result<()> {
+    let enum_type = get_enum_from_struct(arg_type.to_token_stream().to_string().as_str())
+        .map_err(|error| syn::Error::new_spanned(arg_type, error.to_string()))?;
+    let message_arg = if is_ref {
+        if is_mut_ref {
+            quote! { &mut message }
+        } else {
+            quote! { &message }
+        }
+    } else {
+        quote! { message }
+    };
+    let method_args = writer_callback_method_args(method, message_arg);
+
+    if is_ref {
+        body.extend(quote! {
+            if msg_type == ::source2_demo::proto::#enum_type {
+                let mut message = <#arg_type as ::source2_demo::proto::Message>::decode(payload)?;
+                match self.#method_name(#method_args)? {
+                    ::source2_demo::writer::MessageRewrite::Keep => {}
+                    ::source2_demo::writer::MessageRewrite::Rewrite => {
+                        return Ok(::source2_demo::writer::MessageRewrite::Replace(
+                            ::source2_demo::proto::Message::encode_to_vec(&message),
+                        ));
+                    }
+                    rewrite => return Ok(rewrite),
+                }
+            }
+        });
+    } else {
+        body.extend(quote! {
+            if msg_type == ::source2_demo::proto::#enum_type {
                 let message = <#arg_type as ::source2_demo::proto::Message>::decode(payload)?;
                 match self.#method_name(#method_args)? {
                     ::source2_demo::writer::MessageRewrite::Keep
