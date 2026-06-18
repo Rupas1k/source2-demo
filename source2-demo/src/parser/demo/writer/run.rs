@@ -1,5 +1,6 @@
 use super::packet::PacketDataRewrite;
-use super::*;
+use super::{DemoWriter, MessageRewrite, RewriteInterests};
+use crate::error::ParserError;
 use crate::parser::demo::DemoCommands;
 use crate::proto::{
     CDemoClassInfo, CDemoFullPacket, CDemoPacket, CDemoSendTables, CDemoStringTables,

@@ -1,10 +1,13 @@
-use super::*;
+use super::{DemoWriter, INSTANCE_BASELINE_TABLE};
 use crate::entity::field::{Decode, Encode, FieldPath};
+use crate::entity::{Entity, EntityEvents};
+use crate::error::ParserError;
 use crate::proto::{c_demo_string_tables::ItemsT, CDemoStringTables};
-use crate::reader::SliceReader;
+use crate::reader::{BitsReader, MessageReader, SliceReader};
 use crate::stream::copy::{bit_position, copy_original_bits, copy_remaining_bits};
 use crate::stream::field_path::FieldOp;
 use crate::writer::{BitsWriter, BitstreamWriter};
+use std::io::{Seek, Write};
 use std::rc::Rc;
 
 impl<'a, R, W> DemoWriter<'a, R, W>
@@ -26,7 +29,7 @@ where
         Ok(changed)
     }
 
-    pub(crate) fn rewrite_instance_baseline_items(
+    fn rewrite_instance_baseline_items(
         &mut self,
         items: &mut [ItemsT],
     ) -> Result<bool, ParserError> {

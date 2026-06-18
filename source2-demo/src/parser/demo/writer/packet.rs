@@ -1,8 +1,10 @@
-use super::*;
+use super::{DemoWriter, MessageRewrite, PacketMessage, RewriteInterests};
+use crate::error::ParserError;
 use crate::proto::{CSvcMsgCreateStringTable, CSvcMsgUpdateStringTable, Message, SvcMessages};
-use crate::reader::{BitsReader, SliceReader};
+use crate::reader::{BitsReader, MessageReader, SliceReader};
 use crate::stream::copy::{bit_position, copy_original_bits};
 use crate::writer::{BitsWriter, BitstreamWriter};
+use std::io::{Seek, Write};
 
 pub(crate) enum PacketDataRewrite {
     Unchanged,

@@ -127,10 +127,8 @@ where
                     }
                 }
             }
-            SvcMessages::SvcPacketEntities => {
-                if self.anyone_interested(Interests::ENTITY_STATE) {
-                    self.packet_entities(CSvcMsgPacketEntities::decode(msg)?)?
-                }
+            SvcMessages::SvcPacketEntities if self.anyone_interested(Interests::ENTITY_STATE) => {
+                self.packet_entities(CSvcMsgPacketEntities::decode(msg)?)?
             }
             _ => {}
         }

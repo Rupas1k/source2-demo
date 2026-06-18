@@ -1,11 +1,14 @@
-use super::*;
+use super::{DemoWriter, MessageRewrite, RewriteInterests, INSTANCE_BASELINE_TABLE};
+use crate::error::ParserError;
 use crate::proto::{
     CDemoStringTables, CSvcMsgCreateStringTable, CSvcMsgUpdateStringTable, Message,
 };
+use crate::reader::{BitsReader, MessageReader};
 use crate::string_table::{
     rewrite_create_string_table, rewrite_demo_string_table_items, rewrite_update_string_table,
     PackedStringTableFormat, PackedStringTableState, StringTableEntryUpdate,
 };
+use std::io::{Seek, Write};
 
 impl<'a, R, W> DemoWriter<'a, R, W>
 where

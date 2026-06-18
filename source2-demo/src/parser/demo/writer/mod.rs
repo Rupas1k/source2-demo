@@ -8,7 +8,7 @@ mod rewriter;
 mod run;
 mod string_table;
 
-use crate::entity::field::{FieldPath, FieldValue};
+use crate::entity::field::{FieldPath, FieldValue, Serializer};
 use crate::entity::{Entity, EntityEvents};
 use crate::error::ParserError;
 use crate::parser::Parser;
@@ -24,6 +24,22 @@ pub use rewriter::{
 };
 
 const INSTANCE_BASELINE_TABLE: &str = "instancebaseline";
+const ENTITY_REWRITE_BUFFER_CAPACITY: usize = 8192;
+
+struct FieldReplacement {
+    serializer: Rc<Serializer>,
+    fp: FieldPath,
+    value: FieldValue,
+    value_start: usize,
+    value_end: usize,
+}
+
+struct DecodedEntityField {
+    fp: FieldPath,
+    name: Rc<str>,
+    value_start: usize,
+    value_end: usize,
+}
 
 /// Demo writer that reads demo messages and writes a rewritten stream.
 ///
@@ -43,8 +59,8 @@ where
     rewriter_interests: RewriteInterests,
     field_path_codec: FieldPathCodec,
     entity_rewrite_paths: Vec<FieldPath>,
-    entity_decoded_fields: Vec<entity::DecodedEntityField>,
-    entity_replacements: Vec<entity::FieldReplacement>,
+    entity_decoded_fields: Vec<DecodedEntityField>,
+    entity_replacements: Vec<FieldReplacement>,
     bytes_written: u64,
     file_info_offset: Option<u64>,
 }
@@ -63,9 +79,9 @@ where
             rewriters: Vec::new(),
             rewriter_interests: RewriteInterests::empty(),
             field_path_codec: FieldPathCodec::default(),
-            entity_rewrite_paths: Vec::with_capacity(entity::ENTITY_REWRITE_BUFFER_LEN),
-            entity_decoded_fields: Vec::with_capacity(entity::ENTITY_REWRITE_BUFFER_LEN),
-            entity_replacements: Vec::with_capacity(entity::ENTITY_REWRITE_BUFFER_LEN),
+            entity_rewrite_paths: Vec::with_capacity(ENTITY_REWRITE_BUFFER_CAPACITY),
+            entity_decoded_fields: Vec::with_capacity(ENTITY_REWRITE_BUFFER_CAPACITY),
+            entity_replacements: Vec::with_capacity(ENTITY_REWRITE_BUFFER_CAPACITY),
             bytes_written: 0,
             file_info_offset: None,
         }
@@ -131,7 +147,7 @@ where
         self.add_rewriter(T::default())
     }
 
-    pub(crate) fn should_rewrite_entity(&mut self, event: EntityEvents, entity: &Entity) -> bool {
+    fn should_rewrite_entity(&mut self, event: EntityEvents, entity: &Entity) -> bool {
         let ctx = &self.parser.context;
         self.rewriters
             .iter_mut()
@@ -143,7 +159,7 @@ where
             .all(|rewriter| rewriter.should_rewrite_entity(ctx, event, entity))
     }
 
-    pub(crate) fn should_track_entity(&mut self, event: EntityEvents, entity: &Entity) -> bool {
+    fn should_track_entity(&mut self, event: EntityEvents, entity: &Entity) -> bool {
         let ctx = &self.parser.context;
         self.rewriters
             .iter_mut()
@@ -155,7 +171,7 @@ where
             .all(|rewriter| rewriter.should_track_entity(ctx, event, entity))
     }
 
-    pub(crate) fn replace_entity_field(
+    fn replace_entity_field(
         &mut self,
         event: EntityEvents,
         entity: &Entity,

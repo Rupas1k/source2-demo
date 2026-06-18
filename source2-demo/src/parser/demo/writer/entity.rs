@@ -1,28 +1,13 @@
-use super::*;
-use crate::entity::field::{Decode, Encode, FieldPath, FieldState, FieldValue, Skip};
+use super::{DecodedEntityField, DemoWriter, FieldReplacement};
+use crate::entity::field::{Decode, Encode, FieldPath, FieldState, Serializer, Skip};
+use crate::entity::{Entity, EntityEvents};
+use crate::error::ParserError;
 use crate::proto::{CSvcMsgPacketEntities, Message};
-use crate::reader::{FieldPathCodec, SliceReader};
+use crate::reader::{BitsReader, FieldPathCodec, MessageReader, SliceReader};
 use crate::stream::copy::{bit_position, copy_original_bits};
 use crate::stream::field_path::FieldOp;
 use crate::writer::{BitsWriter, BitstreamWriter};
-use std::rc::Rc;
-
-pub(super) const ENTITY_REWRITE_BUFFER_LEN: usize = 8192;
-
-pub(super) struct FieldReplacement {
-    serializer: Rc<crate::entity::field::Serializer>,
-    fp: FieldPath,
-    value: FieldValue,
-    value_start: usize,
-    value_end: usize,
-}
-
-pub(super) struct DecodedEntityField {
-    fp: FieldPath,
-    name: Rc<str>,
-    value_start: usize,
-    value_end: usize,
-}
+use std::io::{Seek, Write};
 
 impl<'a, R, W> DemoWriter<'a, R, W>
 where
@@ -255,8 +240,8 @@ where
             self.push_entity_path(fp);
         }
 
-        for fp in self.entity_paths().iter().copied() {
-            entity.class.serializer.get_decoder(&fp).skip(reader);
+        for fp in self.entity_paths() {
+            entity.class.serializer.get_decoder(fp).skip(reader);
         }
     }
 
@@ -358,11 +343,7 @@ where
         Ok(())
     }
 
-    fn entity_baseline_state(
-        &mut self,
-        class_id: i32,
-        serializer: &crate::entity::field::Serializer,
-    ) -> FieldState {
+    fn entity_baseline_state(&mut self, class_id: i32, serializer: &Serializer) -> FieldState {
         self.parser
             .context
             .baselines
