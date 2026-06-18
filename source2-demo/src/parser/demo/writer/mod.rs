@@ -16,7 +16,6 @@ use crate::reader::{BitsReader, FieldPathCodec, MessageReader, SeekableReader, S
 use crate::string_table::PackedStringTableState;
 use std::cell::RefCell;
 use std::io::{Seek, Write};
-use std::mem::MaybeUninit;
 use std::rc::Rc;
 
 use input::RawDemoMessage;
@@ -25,10 +24,6 @@ pub use rewriter::{
 };
 
 const INSTANCE_BASELINE_TABLE: &str = "instancebaseline";
-
-fn uninit_array_box<T, const N: usize>() -> Box<[MaybeUninit<T>; N]> {
-    unsafe { Box::<[MaybeUninit<T>; N]>::new_uninit().assume_init() }
-}
 
 /// Demo writer that reads demo messages and writes a rewritten stream.
 ///
@@ -47,14 +42,9 @@ where
     rewriters: Vec<Box<dyn DemoRewriter + 'a>>,
     rewriter_interests: RewriteInterests,
     field_path_codec: FieldPathCodec,
-    entity_rewrite_paths: Box<[MaybeUninit<FieldPath>; entity::ENTITY_REWRITE_BUFFER_LEN]>,
-    entity_rewrite_paths_len: usize,
-    entity_decoded_fields:
-        Box<[MaybeUninit<entity::DecodedEntityField>; entity::ENTITY_REWRITE_BUFFER_LEN]>,
-    entity_decoded_fields_len: usize,
-    entity_replacements:
-        Box<[MaybeUninit<entity::FieldReplacement>; entity::ENTITY_REWRITE_BUFFER_LEN]>,
-    entity_replacements_len: usize,
+    entity_rewrite_paths: Vec<FieldPath>,
+    entity_decoded_fields: Vec<entity::DecodedEntityField>,
+    entity_replacements: Vec<entity::FieldReplacement>,
     bytes_written: u64,
     file_info_offset: Option<u64>,
 }
@@ -73,12 +63,9 @@ where
             rewriters: Vec::new(),
             rewriter_interests: RewriteInterests::empty(),
             field_path_codec: FieldPathCodec::default(),
-            entity_rewrite_paths: uninit_array_box(),
-            entity_rewrite_paths_len: 0,
-            entity_decoded_fields: uninit_array_box(),
-            entity_decoded_fields_len: 0,
-            entity_replacements: uninit_array_box(),
-            entity_replacements_len: 0,
+            entity_rewrite_paths: Vec::with_capacity(entity::ENTITY_REWRITE_BUFFER_LEN),
+            entity_decoded_fields: Vec::with_capacity(entity::ENTITY_REWRITE_BUFFER_LEN),
+            entity_replacements: Vec::with_capacity(entity::ENTITY_REWRITE_BUFFER_LEN),
             bytes_written: 0,
             file_info_offset: None,
         }

@@ -12,7 +12,7 @@ pub struct SeekableReader<R: Read + Seek> {
     bytes_read_total: usize,
     lookahead_buffer: u64,
     lookahead_bit_count: u32,
-    string_buffer: [u8; 4096],
+    string_buffer: [u8; 512],
 }
 
 const BUFFER_SIZE: usize = 65536;
@@ -30,7 +30,7 @@ impl<R: Read + Seek> SeekableReader<R> {
             bytes_read_total: 0,
             lookahead_buffer: 0,
             lookahead_bit_count: 0,
-            string_buffer: [0; 4096],
+            string_buffer: [0; 512],
         };
 
         reader.refill();

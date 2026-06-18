@@ -10,7 +10,7 @@ const COORDINATE_RESOLUTION_FACTOR: f32 = 1.0 / (1 << 5) as f32;
 pub struct SliceReader<'a> {
     pub(crate) source_buffer: &'a [u8],
     pub(crate) bit_reader: bitter::LittleEndianReader<'a>,
-    pub(crate) string_buffer: [u8; 4096],
+    pub(crate) string_buffer: [u8; 512],
     pub(crate) source_offset: usize,
 }
 
@@ -19,7 +19,7 @@ impl<'a> SliceReader<'a> {
         SliceReader {
             source_buffer: data,
             bit_reader: bitter::LittleEndianReader::new(data),
-            string_buffer: [0; 4096],
+            string_buffer: [0; 512],
             source_offset: 0,
         }
     }
