@@ -203,6 +203,10 @@ cargo run --release -p example input.dem
 cargo run --release -p example input.dem output.dem
 ```
 
+## Projects Using source2-demo
+
+- [Dota 2 Replay Anonymizer](https://github.com/Rupas1k/dota2-replay-anonymizer) - CLI and browser app for anonymizing Dota 2 replays.
+
 ## Features
 
 The crate supports the following cargo features:
