@@ -22,6 +22,7 @@ use std::rc::Rc;
 
 pub(crate) struct Field {
     pub(crate) var_name: Box<str>,
+    pub(crate) send_node: Option<Rc<str>>,
     pub(crate) field_type: Rc<FieldType>,
     pub(crate) model: FieldModel,
 
@@ -29,6 +30,44 @@ pub(crate) struct Field {
 }
 
 impl Field {
+    pub(crate) fn append_name(&self, name: &mut String) {
+        if let Some(send_node) = self
+            .send_node
+            .as_deref()
+            .filter(|send_node| !send_node.is_empty())
+        {
+            name.push_str(send_node);
+            name.push('.');
+        }
+        name.push_str(&self.var_name);
+    }
+
+    pub(crate) fn name_match_len(&self, name: &str, offset: usize) -> Option<usize> {
+        if let Some(send_node) = self
+            .send_node
+            .as_deref()
+            .filter(|send_node| !send_node.is_empty())
+        {
+            let mut len = 0;
+            if name[offset..].starts_with(send_node) {
+                len += send_node.len();
+                if name.as_bytes().get(offset + len) == Some(&b'.') {
+                    len += 1;
+
+                    if name[offset + len..].starts_with(self.var_name.as_ref()) {
+                        return Some(len + self.var_name.len());
+                    }
+                }
+            }
+        }
+
+        if name[offset..].starts_with(self.var_name.as_ref()) {
+            return Some(self.var_name.len());
+        }
+
+        None
+    }
+
     pub(crate) fn get_paths(&self, fp: &mut FieldPath, st: &FieldState) -> Vec<FieldPath> {
         let mut field_paths: Vec<FieldPath> = vec![];
         match &self.model {

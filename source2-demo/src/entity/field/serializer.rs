@@ -46,7 +46,7 @@ impl Serializer {
         let mut current_field = &current_serializer.fields[fp.path[i] as usize];
         let mut name = String::new();
         loop {
-            name += &current_field.var_name;
+            current_field.append_name(&mut name);
             i += 1;
             match &current_field.model {
                 FieldModel::Array | FieldModel::ValueVector(_) => {
@@ -172,18 +172,19 @@ impl Serializer {
         let mut offset = 0;
         'outer: loop {
             for (i, f) in current_serializer.fields.iter().enumerate() {
-                if &name[offset..] == f.var_name.as_ref() {
+                let Some(field_name_len) = f.name_match_len(name, offset) else {
+                    continue;
+                };
+
+                if name.len() == offset + field_name_len {
                     fp.path[fp.last] = i as u16;
                     break 'outer;
                 }
-                if name.as_bytes()[offset..]
-                    .get(f.var_name.len())
-                    .is_some_and(|&b| b == b'.')
-                    && &name[offset..(offset + f.var_name.len())] == f.var_name.as_ref()
-                {
+
+                if name.as_bytes().get(offset + field_name_len) == Some(&b'.') {
                     fp.path[fp.last] = i as u16;
                     fp.last += 1;
-                    offset += f.var_name.len() + 1;
+                    offset += field_name_len + 1;
                     match &f.model {
                         FieldModel::Array | FieldModel::ValueVector(_) => {
                             fp.path[fp.last] = name[offset..].parse::<u16>().unwrap();

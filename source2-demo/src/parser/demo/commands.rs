@@ -47,6 +47,7 @@ where
 
         let mut fields: Vec<Rc<Field>> = vec![];
         let mut field_types: HashMap<&str, Rc<FieldType>> = HashMap::default();
+        let mut symbols: HashMap<i32, Rc<str>> = HashMap::default();
 
         for s in fs.serializers.iter() {
             let ser_name = resolve(s.serializer_name_sym);
@@ -59,6 +60,18 @@ where
                 if i >= fields.len() {
                     let var_type_str = resolve(current_field.var_type_sym);
                     let var_name = resolve(current_field.var_name_sym);
+                    let send_node = current_field.send_node_sym.and_then(|symbol| {
+                        let value = fs.symbols[symbol as usize].as_str();
+                        if value.is_empty() {
+                            return None;
+                        }
+
+                        symbols
+                            .entry(symbol)
+                            .or_insert_with(|| value.into())
+                            .clone()
+                            .into()
+                    });
 
                     let current_field_serializer = serializers.get(field_serializer_name);
 
@@ -115,6 +128,7 @@ where
 
                     let field = Field {
                         var_name: var_name.into(),
+                        send_node,
                         field_type,
                         model,
                         decoder,
