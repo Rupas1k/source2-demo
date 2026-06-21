@@ -62,7 +62,7 @@ where
                     let var_name = resolve(current_field.var_name_sym);
                     let send_node = current_field.send_node_sym.and_then(|symbol| {
                         let value = fs.symbols[symbol as usize].as_str();
-                        if value.is_empty() {
+                        if value.is_empty() || value == "(root)" {
                             return None;
                         }
 
