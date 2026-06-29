@@ -149,7 +149,7 @@ where
         for _ in 0..packet_entities.updated_entries() {
             index = index.wrapping_add((reader.read_ubit_var() + 1) as usize);
 
-            let cmd = reader.read_bits_unchecked(2);
+            let cmd = reader.read_bits(2);
 
             if cmd == 1 {
                 continue;
