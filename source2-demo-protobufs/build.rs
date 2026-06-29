@@ -245,6 +245,7 @@ fn fetch_protobufs_from_github() -> std::io::Result<()> {
                 "dota_modifiers.proto",
                 "dota_shared_enums.proto",
                 "dota_usermessages.proto",
+                "events.proto",
             ],
         ),
         (

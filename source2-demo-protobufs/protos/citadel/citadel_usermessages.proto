@@ -56,7 +56,6 @@ enum CitadelUserMessageIds {
 	k_EUserMsg_MeleeHit = 355;
 	k_EUserMsg_FlexSlotUnlocked = 356;
 	k_EUserMsg_SeasonalKill = 357;
-	k_EUserMsg_MusicQueue = 358;
 	k_EUserMsg_AG2ParamTrigger = 359;
 	k_EUserMsg_ItemPurchaseNotification = 360;
 	k_EUserMsg_EntityPortalled = 361;
@@ -645,11 +644,6 @@ message CCitadelUserMessage_ItemPurchaseNotification {
 message CCitadelUserMsg_SeasonalKill {
 	optional uint32 killer = 1 [default = 16777215];
 	optional uint32 victim = 2 [default = 16777215];
-}
-
-message CCitadelUserMsg_MusicQueue {
-	optional int32 music_state = 1;
-	optional bool override = 2;
 }
 
 message CCitadelUserMsg_AG2ParamTrigger {

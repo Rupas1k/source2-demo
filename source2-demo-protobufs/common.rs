@@ -132,8 +132,6 @@ pub enum EgcPlatform {
     KEGcPlatformPc = 1,
     KEGcPlatformMac = 2,
     KEGcPlatformLinux = 3,
-    KEGcPlatformAndroid = 4,
-    KEGcPlatformIOs = 5,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -2940,6 +2938,8 @@ pub struct CMsgPlaceDecalEvent {
     pub sequence_name: ::core::option::Option<u32>,
     #[prost(message, optional, tag = "14")]
     pub position_objectspace: ::core::option::Option<CMsgVector>,
+    #[prost(message, optional, tag = "15")]
+    pub normal_objectspace: ::core::option::Option<CMsgVector>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CMsgClearWorldDecalsEvent {
@@ -3382,6 +3382,8 @@ pub struct CMsgSource2PlayStatsPackedRecordList {
     pub steamidtrustbucket_vals: ::prost::alloc::vec::Vec<u64>,
     #[prost(message, repeated, tag = "19")]
     pub trustbucket_vals: ::prost::alloc::vec::Vec<c_msg_source2_play_stats_packed_record_list::SteamIdList>,
+    #[prost(uint64, repeated, tag = "20")]
+    pub steamid_vals: ::prost::alloc::vec::Vec<u64>,
 }
 pub mod c_msg_source2_play_stats_packed_record_list {
     #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -3440,6 +3442,23 @@ pub mod c_source2_metrics_fetch_map_data_response {
         pub data: ::core::option::Option<::prost::alloc::string::String>,
     }
 }
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CUserMessageUserSentBugBug {
+    #[prost(string, optional, tag = "1")]
+    pub command_line: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "2")]
+    pub autoexec_cfg: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(message, optional, tag = "3")]
+    pub system_specs: ::core::option::Option<CMsgSource2SystemSpecs>,
+    #[prost(uint32, optional, tag = "4")]
+    pub build_id: ::core::option::Option<u32>,
+    #[prost(int32, optional, tag = "5")]
+    pub osversion: ::core::option::Option<i32>,
+    #[prost(string, optional, tag = "6")]
+    pub command_logs: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(int32, optional, tag = "7")]
+    pub bugbug_no: ::core::option::Option<i32>,
+}
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum ESource2PlayStatsFieldType {
@@ -3460,6 +3479,7 @@ pub enum ESource2PlayStatsFieldType {
     Source2PlayStatsUtcDateTime = 14,
     Source2PlayStatsSteamIdTrustBucket = 15,
     Source2PlayStatsSteamIdTrustBucketMin = 16,
+    Source2PlayStatsSteamId = 17,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CclcMsgClientInfo {
@@ -3948,7 +3968,7 @@ pub struct CSvcMsgVoiceData {
     #[prost(message, optional, tag = "1")]
     pub audio: ::core::option::Option<CMsgVoiceAudio>,
     #[prost(int32, optional, tag = "2", default = "-1")]
-    pub client: ::core::option::Option<i32>,
+    pub client_deprecated: ::core::option::Option<i32>,
     #[prost(bool, optional, tag = "3")]
     pub proximity: ::core::option::Option<bool>,
     #[prost(fixed64, optional, tag = "4")]
@@ -3959,6 +3979,8 @@ pub struct CSvcMsgVoiceData {
     pub tick: ::core::option::Option<u32>,
     #[prost(int32, optional, tag = "7")]
     pub passthrough: ::core::option::Option<i32>,
+    #[prost(int32, optional, tag = "8", default = "-1")]
+    pub entity: ::core::option::Option<i32>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CSvcMsgPacketReliable {
@@ -4292,6 +4314,8 @@ pub struct CMsgServerUserCmd {
     pub server_tick_executed: ::core::option::Option<i32>,
     #[prost(int32, optional, tag = "5")]
     pub client_tick: ::core::option::Option<i32>,
+    #[prost(bytes = "vec", optional, tag = "6")]
+    pub delta_data: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct CSvcMsgUserCommands {
@@ -4426,28 +4450,6 @@ pub enum ReplayEventTypeT {
 pub struct CUserMessageAchievementEvent {
     #[prost(uint32, optional, tag = "1")]
     pub achievement: ::core::option::Option<u32>,
-}
-#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, ::prost::Message)]
-pub struct CUserMessageCloseCaption {
-    #[prost(fixed32, optional, tag = "1")]
-    pub hash: ::core::option::Option<u32>,
-    #[prost(float, optional, tag = "2")]
-    pub duration: ::core::option::Option<f32>,
-    #[prost(bool, optional, tag = "3")]
-    pub from_player: ::core::option::Option<bool>,
-    #[prost(int32, optional, tag = "4", default = "-1")]
-    pub ent_index: ::core::option::Option<i32>,
-}
-#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, ::prost::Message)]
-pub struct CUserMessageCloseCaptionDirect {
-    #[prost(fixed32, optional, tag = "1")]
-    pub hash: ::core::option::Option<u32>,
-    #[prost(float, optional, tag = "2")]
-    pub duration: ::core::option::Option<f32>,
-    #[prost(bool, optional, tag = "3")]
-    pub from_player: ::core::option::Option<bool>,
-    #[prost(int32, optional, tag = "4", default = "-1")]
-    pub ent_index: ::core::option::Option<i32>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct CUserMessageCloseCaptionPlaceholder {
@@ -4687,13 +4689,6 @@ pub struct CEntityMessagePlayJingle {
 pub struct CEntityMessageScreenOverlay {
     #[prost(bool, optional, tag = "1")]
     pub start_effect: ::core::option::Option<bool>,
-    #[prost(message, optional, tag = "2")]
-    pub entity_msg: ::core::option::Option<CEntityMsg>,
-}
-#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct CEntityMessageRemoveAllDecals {
-    #[prost(bool, optional, tag = "1")]
-    pub remove_decals: ::core::option::Option<bool>,
     #[prost(message, optional, tag = "2")]
     pub entity_msg: ::core::option::Option<CEntityMsg>,
 }
@@ -5599,12 +5594,15 @@ pub struct CUserMessagePlayResponseConditional {
     #[prost(int32, optional, tag = "6")]
     pub mix_priority: ::core::option::Option<i32>,
 }
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CUserMessageUsageReport {
+    #[prost(string, optional, tag = "1")]
+    pub usage: ::core::option::Option<::prost::alloc::string::String>,
+}
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum EBaseUserMessages {
     UmAchievementEvent = 101,
-    UmCloseCaption = 102,
-    UmCloseCaptionDirect = 103,
     UmCurrentTimescale = 104,
     UmDesiredTimescale = 105,
     UmFade = 106,
@@ -5652,6 +5650,8 @@ pub enum EBaseUserMessages {
     UmExtraUserData = 164,
     UmNotifyResponseFound = 165,
     UmPlayResponseConditional = 166,
+    UmUserSentBugBug = 167,
+    UmUsageReport = 168,
     UmMaxBase = 200,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -5659,7 +5659,6 @@ pub enum EBaseUserMessages {
 pub enum EBaseEntityMessages {
     EmPlayJingle = 136,
     EmScreenOverlay = 137,
-    EmRemoveAllDecals = 138,
     EmPropagateForce = 139,
     EmDoSpark = 140,
     EmFixAngle = 141,

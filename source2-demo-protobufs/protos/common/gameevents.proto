@@ -38,6 +38,7 @@ message CMsgPlaceDecalEvent {
 	optional uint64 material_id = 11;
 	optional uint32 sequence_name = 12;
 	optional .CMsgVector position_objectspace = 14;
+	optional .CMsgVector normal_objectspace = 15;
 }
 
 message CMsgClearWorldDecalsEvent {

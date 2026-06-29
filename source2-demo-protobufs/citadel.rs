@@ -509,14 +509,6 @@ pub struct CCitadelUserMsgMapPing {
 pub struct CCitadelUserMsgMidBossSpawned {}
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct CCitadelUserMsgMusicQueue {
-    #[prost(int32, optional, tag = "1")]
-    pub music_state: ::core::option::Option<i32>,
-    #[prost(bool, optional, tag = "2")]
-    pub r#override: ::core::option::Option<bool>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CCitadelUserMsgObstructedShotFired {}
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -1530,7 +1522,6 @@ pub enum CitadelUserMessageIds {
     KEUserMsgMeleeHit = 355,
     KEUserMsgFlexSlotUnlocked = 356,
     KEUserMsgSeasonalKill = 357,
-    KEUserMsgMusicQueue = 358,
     KEUserMsgAg2ParamTrigger = 359,
     KEUserMsgItemPurchaseNotification = 360,
     KEUserMsgEntityPortalled = 361,

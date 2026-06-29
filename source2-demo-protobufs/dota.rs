@@ -112,6 +112,10 @@ pub struct CDotaModifierBuffTableEntry {
     pub has_scepter: ::core::option::Option<bool>,
     #[prost(bool, optional, tag = "42")]
     pub has_shard: ::core::option::Option<bool>,
+    #[prost(int32, repeated, packed = "false", tag = "43")]
+    pub custom_int_values: ::prost::alloc::vec::Vec<i32>,
+    #[prost(float, repeated, packed = "false", tag = "44")]
+    pub custom_float_values: ::prost::alloc::vec::Vec<f32>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -2706,6 +2710,7 @@ pub enum DotaChatMessage {
     ChatMessageRoshanRoar = 123,
     ChatMessageStoneOfRecallUsed = 124,
     ChatMessageDeityBlessing = 125,
+    ChatMessageSmokeActivated = 126,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -3135,6 +3140,11 @@ pub enum EBadgeType {
     KEBadgeTypeTi14FinalsDay3 = 24,
     KEBadgeTypeTi14FinalsDay4 = 25,
     KEBadgeTypeTi14Special = 26,
+    KEBadgeTypeTi15FinalsDay1 = 27,
+    KEBadgeTypeTi15FinalsDay2 = 28,
+    KEBadgeTypeTi15FinalsDay3 = 29,
+    KEBadgeTypeTi15FinalsDay4 = 30,
+    KEBadgeTypeTi15Special = 31,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -3396,11 +3406,13 @@ pub enum EEvent {
     EventIdMonsterHunter = 51,
     EventIdInternational2025 = 52,
     EventIdFall2025 = 53,
+    EventIdDarkCarnival = 54,
     EventIdWinter2025 = 55,
     EventIdSpring2026 = 56,
     EventIdSummer2026 = 57,
     EventIdFall2026 = 58,
     EventIdWinter2026 = 59,
+    EventIdInternational2026 = 60,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]

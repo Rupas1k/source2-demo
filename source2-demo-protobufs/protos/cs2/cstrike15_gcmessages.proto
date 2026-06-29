@@ -110,6 +110,7 @@ enum ECsgoGCMsg {
 	k_EMsgGCCStrike15_v2_RequestRecurringMissionSchedule = 9225;
 	k_EMsgGCCStrike15_v2_RecurringMissionSchema = 9226;
 	k_EMsgGCCStrike15_v2_VolatileItemClaimReward = 9227;
+	k_EMsgGCCStrike15_v2_VolatileShopSubscribe = 9228;
 }
 
 enum ECsgoSteamUserStat {
@@ -770,6 +771,8 @@ message CMsgGCCstrike15_v2_ClientRedeemMissionReward {
 	optional uint32 redeemable_balance = 3;
 	optional uint32 expected_cost = 4;
 	optional int32 bid_control = 5;
+	repeated uint64 volatile_shop = 6;
+	optional uint64 souvenir_matchid = 7;
 }
 
 message CMsgGCCstrike15_v2_ClientRedeemFreeReward {
@@ -1196,6 +1199,14 @@ message CSOVolatileItemClaimedRewards {
 	optional uint32 defidx = 1 [(key_field) = true];
 	repeated uint32 reward = 2;
 	repeated uint32 generation_time = 3;
+}
+
+message CMsgGCCStrike15_v2_VolatileShopSubscribe {
+	optional uint32 defidx = 1;
+	optional uint64 psid = 2;
+	optional uint32 upnext = 3;
+	optional uint32 gctime = 4;
+	optional bytes payload = 5;
 }
 
 message CSOAccountKeychainRemoveToolCharges {

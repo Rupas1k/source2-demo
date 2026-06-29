@@ -80,7 +80,7 @@ pub(crate) fn get_enum_from_struct(struct_name: &str) -> syn::Result<proc_macro2
         "CCitadelUserMsgFlexSlotUnlocked" => quote! { CitadelUserMessageIds::KEUserMsgFlexSlotUnlocked },
         "CCitadelUserMsgSeasonalKill" => quote! { CitadelUserMessageIds::KEUserMsgSeasonalKill },
         "CCitadelUserMsgSeasonalAchievementUnlocked" => quote! { CitadelUserMessageIds::KEUserMsgSeasonalAchievementUnlocked },
-        "CCitadelUserMsgMusicQueue" => quote! { CitadelUserMessageIds::KEUserMsgMusicQueue },
+        // "CCitadelUserMsgMusicQueue" => quote! { CitadelUserMessageIds::KEUserMsgMusicQueue },
         "CCitadelUserMsgAg2ParamTrigger" => quote! { CitadelUserMessageIds::KEUserMsgAg2ParamTrigger },
         "CCitadelUserMessageItemPurchaseNotification" => quote! { CitadelUserMessageIds::KEUserMsgItemPurchaseNotification },
         "CCitadelUserMsgEntityPortalled" => quote! { CitadelUserMessageIds::KEUserMsgEntityPortalled },
@@ -312,8 +312,8 @@ pub(crate) fn get_enum_from_struct(struct_name: &str) -> syn::Result<proc_macro2
 
         // EBaseUserMessages
         "CUserMessageAchievementEvent" => quote! { EBaseUserMessages::UmAchievementEvent },
-        "CUserMessageCloseCaption" => quote! { EBaseUserMessages::UmCloseCaption },
-        "CUserMessageCloseCaptionDirect" => quote! { EBaseUserMessages::UmCloseCaptionDirect },
+        // "CUserMessageCloseCaption" => quote! { EBaseUserMessages::UmCloseCaption },
+        // "CUserMessageCloseCaptionDirect" => quote! { EBaseUserMessages::UmCloseCaptionDirect },
         "CUserMessageCurrentTimescale" => quote! { EBaseUserMessages::UmCurrentTimescale },
         "CUserMessageDesiredTimescale" => quote! { EBaseUserMessages::UmDesiredTimescale },
         "CUserMessageFade" => quote! { EBaseUserMessages::UmFade },
@@ -358,6 +358,8 @@ pub(crate) fn get_enum_from_struct(struct_name: &str) -> syn::Result<proc_macro2
         "CUserMessageExtraUserData" => quote! { EBaseUserMessages::UmExtraUserData },
         "CUserMessageNotifyResponseFound" => quote! { EBaseUserMessages::UmNotifyResponseFound },
         "CUserMessagePlayResponseConditional" => quote! { EBaseUserMessages::UmPlayResponseConditional },
+        "CUserMessageUserSentBugBug" => quote! { EBaseUserMessages::UmUserSentBugBug },
+        "CUserMessageUsageReport" => quote! { EBaseUserMessages::UmUsageReport },
         // "CUserMessageAnimGraphUpdate" => quote! { EBaseUserMessages::UmAnimGraphUpdate },
         // "CUserMessageUtilActionResponse" => quote! { EBaseUserMessages::UmUtilActionResponse },
         // "CUserMessageDllStatusResponse" => quote! { EBaseUserMessages::UmDllStatusResponse },

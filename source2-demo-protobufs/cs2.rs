@@ -948,7 +948,7 @@ pub struct CMsgGcCstrike15V2ClientRedeemFreeReward {
     pub items: ::prost::alloc::vec::Vec<u64>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CMsgGcCstrike15V2ClientRedeemMissionReward {
     #[prost(uint32, optional, tag = "1")]
     pub campaign_id: ::core::option::Option<u32>,
@@ -960,6 +960,10 @@ pub struct CMsgGcCstrike15V2ClientRedeemMissionReward {
     pub expected_cost: ::core::option::Option<u32>,
     #[prost(int32, optional, tag = "5")]
     pub bid_control: ::core::option::Option<i32>,
+    #[prost(uint64, repeated, packed = "false", tag = "6")]
+    pub volatile_shop: ::prost::alloc::vec::Vec<u64>,
+    #[prost(uint64, optional, tag = "7")]
+    pub souvenir_matchid: ::core::option::Option<u64>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
@@ -2167,6 +2171,20 @@ pub struct CMsgGccStrike15V2SetPlayerLeaderboardSafeName {
     pub leaderboard_safe_name: ::core::option::Option<::prost::alloc::string::String>,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CMsgGccStrike15V2VolatileShopSubscribe {
+    #[prost(uint32, optional, tag = "1")]
+    pub defidx: ::core::option::Option<u32>,
+    #[prost(uint64, optional, tag = "2")]
+    pub psid: ::core::option::Option<u64>,
+    #[prost(uint32, optional, tag = "3")]
+    pub upnext: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "4")]
+    pub gctime: ::core::option::Option<u32>,
+    #[prost(bytes = "vec", optional, tag = "5")]
+    pub payload: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct CMsgGccStrike15V2WatchInfoUsers {
     #[prost(uint32, optional, tag = "1")]
@@ -2693,6 +2711,7 @@ pub enum ECsgoGcMsg {
     KEMsgGccStrike15V2RequestRecurringMissionSchedule = 9225,
     KEMsgGccStrike15V2RecurringMissionSchema = 9226,
     KEMsgGccStrike15V2VolatileItemClaimReward = 9227,
+    KEMsgGccStrike15V2VolatileShopSubscribe = 9228,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
