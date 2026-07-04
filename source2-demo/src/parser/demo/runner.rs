@@ -176,7 +176,9 @@ where
         let observers = mem::take(&mut self.observers);
 
         let mut first_fp_checked = self.context.last_full_packet_tick != u32::MAX;
-        let mut last_fp_checked = false;
+        let mut last_fp_checked = first_fp_checked
+            && self.context.last_full_packet_tick < target_tick
+            && (target_tick - self.context.last_full_packet_tick) <= fp_delta;
 
         while let Some(mut message) = self.reader.read_next_message()? {
             self.context.previous_tick = self.context.tick;

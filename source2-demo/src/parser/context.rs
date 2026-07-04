@@ -182,6 +182,13 @@ impl Context {
         self.tick
     }
 
+    /// Returns the previous tick number.
+    ///
+    /// This is the last tick observed before the current tick advanced.
+    pub fn previous_tick(&self) -> u32 {
+        self.previous_tick
+    }
+
     /// Returns the current network tick.
     ///
     /// The network tick from the last processed packet.
