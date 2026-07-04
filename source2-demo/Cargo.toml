@@ -21,8 +21,8 @@ anyhow = "1.0"
 prettytable = { version = "0.10", default-features = false }
 bitflags = "2.10"
 mimalloc = { version = "0.1", optional = true }
-source2-demo-protobufs = { path = "../source2-demo-protobufs", version = "0.5.6" }
-source2-demo-macros = { path = "../source2-demo-macros", version = "0.5.6" }
+source2-demo-protobufs = { path = "../source2-demo-protobufs", version = "0.5.7" }
+source2-demo-macros = { path = "../source2-demo-macros", version = "0.5.7" }
 
 [features]
 default = ["mimalloc"]
