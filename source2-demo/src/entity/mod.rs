@@ -58,7 +58,7 @@ pub use class::*;
 pub use container::*;
 
 use crate::error::EntityError;
-use crate::field::{FieldPath, FieldState, Serializer};
+use crate::field::{FieldPath, FieldState};
 use crate::FieldValue;
 use std::rc::Rc;
 
@@ -116,7 +116,7 @@ pub struct EntityField<'a> {
     /// Source 2 field type reported by the serializer.
     pub field_type: String,
     /// Decoded value type used by `source2-demo`.
-    pub decoded_type: &'static str,
+    pub decoded_type: Option<&'static str>,
     /// Current field value, if the field is present in the state.
     pub value: Option<&'a FieldValue>,
 }
@@ -138,45 +138,6 @@ impl EntityEvents {
             3 => EntityEvents::Deleted,
             _ => unreachable!(),
         }
-    }
-}
-
-pub(crate) fn collect_entity_fields<'a>(
-    serializer: &Serializer,
-    state: &'a FieldState,
-) -> Vec<EntityField<'a>> {
-    serializer
-        .get_paths(&mut FieldPath::default(), state)
-        .into_iter()
-        .map(|fp| {
-            let value = state.get_value(&fp);
-            EntityField {
-                path: (0..=fp.last).map(|idx| fp.path[idx]).collect(),
-                name: serializer.get_name(&fp).to_string(),
-                field_type: serializer.get_type(&fp).to_string(),
-                decoded_type: value.map(field_value_type).unwrap_or("None"),
-                value,
-            }
-        })
-        .collect()
-}
-
-fn field_value_type(value: &FieldValue) -> &'static str {
-    match value {
-        FieldValue::Boolean(_) => "Boolean",
-        FieldValue::String(_) => "String",
-        FieldValue::Float(_) => "Float",
-        FieldValue::Vector2D(_) => "Vector2D",
-        FieldValue::Vector3D(_) => "Vector3D",
-        FieldValue::Vector4D(_) => "Vector4D",
-        FieldValue::Signed8(_) => "Signed8",
-        FieldValue::Signed16(_) => "Signed16",
-        FieldValue::Signed32(_) => "Signed32",
-        FieldValue::Signed64(_) => "Signed64",
-        FieldValue::Unsigned8(_) => "Unsigned8",
-        FieldValue::Unsigned16(_) => "Unsigned16",
-        FieldValue::Unsigned32(_) => "Unsigned32",
-        FieldValue::Unsigned64(_) => "Unsigned64",
     }
 }
 
@@ -301,7 +262,21 @@ impl Entity {
     /// This is intended for generic inspection tools that need to enumerate an
     /// entity without knowing property names ahead of time.
     pub fn fields(&self) -> Vec<EntityField<'_>> {
-        collect_entity_fields(&self.class.serializer, &self.state)
+        self.class
+            .serializer
+            .get_paths(&mut FieldPath::default(), &self.state)
+            .into_iter()
+            .map(|fp| {
+                let value = self.state.get_value(&fp);
+                EntityField {
+                    path: (0..=fp.last).map(|idx| fp.path[idx]).collect(),
+                    name: self.class.serializer.get_name(&fp).to_string(),
+                    field_type: self.class.serializer.get_type(&fp).to_string(),
+                    decoded_type: value.map(FieldValue::type_name),
+                    value,
+                }
+            })
+            .collect()
     }
 
     /// Returns a reference to the entity's class.

@@ -80,6 +80,28 @@ pub enum FieldValue {
     Unsigned64(u64),
 }
 
+impl FieldValue {
+    /// Returns the decoded value type name.
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            FieldValue::Boolean(_) => "Boolean",
+            FieldValue::String(_) => "String",
+            FieldValue::Float(_) => "Float",
+            FieldValue::Vector2D(_) => "Vector2D",
+            FieldValue::Vector3D(_) => "Vector3D",
+            FieldValue::Vector4D(_) => "Vector4D",
+            FieldValue::Signed8(_) => "Signed8",
+            FieldValue::Signed16(_) => "Signed16",
+            FieldValue::Signed32(_) => "Signed32",
+            FieldValue::Signed64(_) => "Signed64",
+            FieldValue::Unsigned8(_) => "Unsigned8",
+            FieldValue::Unsigned16(_) => "Unsigned16",
+            FieldValue::Unsigned32(_) => "Unsigned32",
+            FieldValue::Unsigned64(_) => "Unsigned64",
+        }
+    }
+}
+
 /// Converts ordinary Rust values into [`FieldValue`] replacements.
 pub trait IntoFieldValue {
     /// Converts this value into a [`FieldValue`].
