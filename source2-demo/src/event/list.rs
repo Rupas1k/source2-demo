@@ -41,6 +41,7 @@ impl GameEventList {
                         Rc::new(GameEventKey {
                             id: i as i32,
                             name: key.name().into(),
+                            type_id: key.r#type(),
                         })
                     })
                     .collect::<Vec<_>>();
@@ -57,5 +58,12 @@ impl GameEventList {
             .collect::<HashMap<_, _>>();
 
         Self { list }
+    }
+
+    /// Returns an iterator over all game event definitions by event ID.
+    pub fn iter(&self) -> impl Iterator<Item = (i32, &GameEventDefinition)> {
+        self.list
+            .iter()
+            .map(|(event_id, definition)| (*event_id, definition.as_ref()))
     }
 }

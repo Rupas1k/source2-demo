@@ -50,7 +50,7 @@ mod value;
 
 #[cfg(feature = "dota")]
 pub use combat_log::*;
-use definition::*;
+pub use definition::*;
 pub use list::*;
 pub use value::*;
 
