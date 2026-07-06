@@ -1,10 +1,8 @@
-// https://github.com/odota/parser/blob/5c3ac03bc5a8fb84a3b4873b788155988e9d1176/src/main/java/opendota/Parse.java
-// slightly outdated
+// https://github.com/odota/parser/blob/master/src/main/java/opendota/Parse.java
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::fmt::{Display, Formatter};
-use std::io::BufReader;
+use std::io::{BufReader, BufWriter, Write};
 use std::rc::Rc;
 
 use anyhow::{Result, bail};
@@ -49,9 +47,9 @@ pub struct Entry {
     pub gold: Option<u32>,
     pub lh: Option<u16>,
     pub xp: Option<u16>,
-    pub x: Option<u8>,
-    pub y: Option<u8>,
-    pub z: Option<u8>,
+    pub x: Option<f32>,
+    pub y: Option<f32>,
+    pub z: Option<f32>,
     pub stuns: Option<f32>,
     pub hero_id: Option<i32>,
     pub itemslot: Option<u8>,
@@ -78,7 +76,7 @@ pub struct Entry {
     pub tracked_death: Option<bool>,
     pub greevils_greed_stack: Option<u8>,
     pub tracked_sourcename: Option<String>,
-    pub firstblood_claimed: Option<bool>,
+    pub firstblood_claimed: Option<i32>,
     pub teamfight_participation: Option<f32>,
     pub towers_killed: Option<u8>,
     pub roshans_killed: Option<u8>,
@@ -90,12 +88,13 @@ pub struct Entry {
     pub draft_extime1: Option<u16>,
     pub networth: Option<u32>,
     pub stage: Option<u8>,
-}
-
-impl Display for Entry {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", serde_json::to_string(&self).unwrap())
-    }
+    pub variant: Option<i32>,
+    pub facet_hero_id: Option<i32>,
+    pub hero_inventory: Option<Vec<Item>>,
+    #[serde(rename = "isNeutralActiveDrop")]
+    pub is_neutral_active_drop: Option<bool>,
+    #[serde(rename = "isNeutralPassiveDrop")]
+    pub is_neutral_passive_drop: Option<bool>,
 }
 
 impl Entry {
@@ -104,12 +103,42 @@ impl Entry {
     }
 }
 
-#[derive(Default)]
-struct Item {
+fn upper_camel_to_screaming_snake(name: &str) -> String {
+    let mut out = String::with_capacity(name.len() + 8);
+    let mut prev: Option<char> = None;
+    let mut chars = name.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch.is_ascii_uppercase() {
+            let next_is_lower = chars.peek().is_some_and(|next| next.is_ascii_lowercase());
+            let needs_separator =
+                prev.is_some_and(|prev| prev.is_ascii_lowercase() || prev.is_ascii_digit() || (prev.is_ascii_uppercase() && next_is_lower));
+
+            if needs_separator {
+                out.push('_');
+            }
+            out.push(ch);
+        } else {
+            out.push(ch.to_ascii_uppercase());
+        }
+        prev = Some(ch);
+    }
+
+    out
+}
+
+fn debug_name_to_screaming_snake(value: impl std::fmt::Debug) -> String {
+    upper_camel_to_screaming_snake(&format!("{value:?}"))
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct Item {
     id: String,
     slot: u8,
-    num_charges: u8,
-    num_secondary_charges: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    num_charges: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    num_secondary_charges: Option<u8>,
 }
 
 #[derive(Default)]
@@ -120,8 +149,9 @@ struct Ability {
 
 #[derive(Default)]
 struct App {
-    output: Vec<Entry>,
+    output: Option<BufWriter<std::io::Stdout>>,
     game_time: Rc<RefCell<GameTime>>,
+    time: i32,
     next_interval: i32,
     valid_indices: [i32; 10],
     init: bool,
@@ -141,6 +171,9 @@ struct App {
     is_player_starting_items_written: [bool; 10],
     class_to_combat_log: HashMap<String, String>,
     log_buffer: VecDeque<Entry>,
+    was_paused: bool,
+    pause_start_time: i32,
+    pause_start_game_time: i32,
 }
 
 impl App {
@@ -149,7 +182,9 @@ impl App {
             self.log_buffer.push_back(e);
         } else {
             e.time = (e.time - self.start_time).floor();
-            self.output.push(e);
+            let output = self.output.as_mut().ok_or_else(|| anyhow::anyhow!("output writer not initialized"))?;
+            serde_json::to_writer(&mut *output, &e)?;
+            output.write_all(b"\n")?;
         }
         Ok(())
     }
@@ -161,14 +196,33 @@ impl App {
         Ok(())
     }
 
-    pub fn time(&self, ctx: &Context) -> Result<f32> {
-        Ok(self.game_time.borrow().tick(ctx)? as f32 / 30.0)
+    pub fn flush_writer(&mut self) -> ObserverResult {
+        if let Some(output) = self.output.as_mut() {
+            output.flush()?;
+        }
+        Ok(())
+    }
+
+    pub fn time(&self, _ctx: &Context) -> Result<f32> {
+        Ok(self.time as f32)
+    }
+
+    fn update_time(&mut self, ctx: &Context) {
+        if let Ok(tick) = self.game_time.borrow().tick(ctx) {
+            self.time = (tick as f32 / 30.0).round() as i32;
+        }
+    }
+
+    fn precise_location(cell: u8, vec: Option<f32>) -> f32 {
+        (cell as f32 * 128.0 + vec.unwrap_or_default()) / 128.0
     }
 
     fn get_player_slot(&self, e: &Entity) -> Result<i32> {
-        let player_slot: i32 = if let Some(x) = try_property!(e, "m_iPlayerID") {
+        let player_slot: i32 = if let Some(x) = try_property!(e, "m_nPlayerID") {
             x
-        } else if let Some(x) = try_property!(e, "m_nPlayerID") {
+        } else if let Some(x) = try_property!(e, "m_iPlayerID") {
+            x
+        } else if let Some(x) = try_property!(e, "m_iPlayerOwnerID") {
             x
         } else {
             bail!("No player ID found.");
@@ -185,13 +239,18 @@ impl App {
         }
 
         let item_entity = ctx.entities().get_by_handle(item_handle)?;
-        let item_name = entity_names.get_row(property!(item_entity, "m_pEntity.m_nameStringableIndex"))?.key();
+        let item_name_idx: usize = try_property!(item_entity, "m_pEntity.m_nameStringTableIndex")
+            .or_else(|| try_property!(item_entity, "m_pEntity.m_nameStringableIndex"))
+            .ok_or_else(|| anyhow::anyhow!("No item name string table index for {}", item_entity.class().name()))?;
+        let item_name = entity_names.get_row(item_name_idx)?.key();
+        let num_charges = property!(item_entity, u8, "m_iCurrentCharges");
+        let num_secondary_charges = property!(item_entity, u8, "m_iSecondaryCharges");
 
         Ok(Item {
             id: item_name.into(),
             slot: idx,
-            num_charges: property!(item_entity, "m_iCurrentCharges"),
-            num_secondary_charges: property!(item_entity, "m_iSecondaryCharges"),
+            num_charges: (num_charges != 0).then_some(num_charges),
+            num_secondary_charges: (num_secondary_charges != 0).then_some(num_secondary_charges),
         })
     }
 
@@ -217,14 +276,19 @@ impl App {
 
     fn get_hero_ability(&self, ctx: &Context, hero: &Entity, idx: i32) -> Result<Ability> {
         let entity_names = ctx.string_tables().get_by_name("EntityNames")?;
-        let ability_handle: usize = property!(hero, "m_hAbilities.{idx:04}");
+        let ability_handle: usize = try_property!(hero, "m_hAbilities.{idx:04}")
+            .or_else(|| try_property!(hero, "m_vecAbilities.{idx:04}"))
+            .unwrap_or(0xFFFFFF);
 
         if ability_handle == 0xFFFFFF {
             bail!("{} ability doesn't exist for {}", idx, hero.class().name());
         }
 
         let ability_entity = ctx.entities().get_by_handle(ability_handle)?;
-        let ability_name = entity_names.get_row(property!(ability_entity, "m_pEntity.m_nameStringableIndex"))?.key();
+        let ability_name_idx: usize = try_property!(ability_entity, "m_pEntity.m_nameStringTableIndex")
+            .or_else(|| try_property!(ability_entity, "m_pEntity.m_nameStringableIndex"))
+            .ok_or_else(|| anyhow::anyhow!("No ability name string table index for {}", ability_entity.class().name()))?;
+        let ability_name = entity_names.get_row(ability_name_idx)?.key();
 
         Ok(Ability {
             id: ability_name.into(),
@@ -278,7 +342,7 @@ impl App {
     #[on_message]
     fn handle_ping(&mut self, ctx: &Context, location_ping: CDotaUserMsgLocationPing) -> ObserverResult {
         self.ping_count += 1;
-        if self.ping_count > 100000 {
+        if self.ping_count > 10000 {
             return Ok(());
         }
 
@@ -296,6 +360,7 @@ impl App {
         let Ok(grp) = ctx.entities().get_by_class_name("CDOTAGamerulesProxy") else {
             return Ok(());
         };
+        self.update_time(ctx);
 
         let draft_stage: i32 = property!(grp, "m_pGameRules.m_nGameState");
         if draft_stage == 2 {
@@ -366,9 +431,36 @@ impl App {
 
     #[on_tick_start]
     fn tick_start(&mut self, ctx: &Context) -> ObserverResult {
+        self.update_time(ctx);
+
         let Ok(pr) = ctx.entities().get_by_class_name("CDOTA_PlayerResource") else {
             return Ok(());
         };
+
+        if let Ok(game_rules) = ctx.entities().get_by_class_name("CDOTAGamerulesProxy") {
+            let is_paused: bool = property!(game_rules, "m_pGameRules.m_bGamePaused");
+            let time_tick: i32 = if is_paused {
+                property!(game_rules, "m_pGameRules.m_nPauseStartTick")
+            } else {
+                ctx.net_tick() as i32
+            };
+
+            if is_paused && !self.was_paused {
+                self.pause_start_time = time_tick;
+                self.pause_start_game_time = self.time(ctx)? as i32;
+                self.was_paused = true;
+            } else if !is_paused && self.was_paused {
+                let pause_duration = ((time_tick - self.pause_start_time) as f32 / 30.0).round() as u32;
+                if pause_duration > 0 {
+                    let mut entry = Entry::new(self.pause_start_game_time as f32);
+                    entry.r#type = "game_paused".to_string().into();
+                    entry.key = "pause_duration".to_string().into();
+                    entry.value = pause_duration.into();
+                    self.output(entry)?;
+                }
+                self.was_paused = false;
+            }
+        }
 
         if !self.init {
             let mut added = 0;
@@ -376,9 +468,18 @@ impl App {
             let mut waiting_for_draft_players = false;
             let mut player_entries = VecDeque::<Entry>::new();
             while added < 10 && i < 30 {
-                let player_team: i32 = property!(pr, "m_vecPlayerData.{i:04}.m_iPlayerTeam");
-                let team_slot: i32 = property!(pr, "m_vecPlayerTeamData.{i:04}.m_iTeamSlot");
-                let steam_id: u64 = property!(pr, "m_vecPlayerData.{i:04}.m_iPlayerSteamID");
+                let Some(player_team) = try_property!(pr, i32, "m_vecPlayerData.{i:04}.m_iPlayerTeam") else {
+                    i += 1;
+                    continue;
+                };
+                let Some(team_slot) = try_property!(pr, i32, "m_vecPlayerTeamData.{i:04}.m_iTeamSlot") else {
+                    i += 1;
+                    continue;
+                };
+                let Some(steam_id) = try_property!(pr, u64, "m_vecPlayerData.{i:04}.m_iPlayerSteamID") else {
+                    i += 1;
+                    continue;
+                };
                 if player_team == 2 || player_team == 3 {
                     let mut entry = Entry::new(self.time(ctx)?);
                     entry.r#type = "player_slot".to_string().into();
@@ -407,10 +508,13 @@ impl App {
 
         if self.init && !self.post_game && self.time(ctx)? as i32 >= self.next_interval {
             for i in 0..10 {
-                let hero_id: i32 = property!(pr, "m_vecPlayerTeamData.{i:04}.m_nSelectedHeroID");
-                let hero_handle: usize = property!(pr, "m_vecPlayerTeamData.{i:04}.m_hSelectedHero");
-                let player_team: i32 = property!(pr, "m_vecPlayerData.{i:04}.m_iPlayerTeam");
-                let team_slot: i32 = property!(pr, "m_vecPlayerTeamData.{i:04}.m_iTeamSlot");
+                let valid_index = self.valid_indices[i as usize];
+                let hero_id: i32 = property!(pr, "m_vecPlayerTeamData.{valid_index:04}.m_nSelectedHeroID");
+                let hero_handle: usize = property!(pr, "m_vecPlayerTeamData.{valid_index:04}.m_hSelectedHero");
+                let player_team: i32 = property!(pr, "m_vecPlayerData.{valid_index:04}.m_iPlayerTeam");
+                let team_slot: i32 = property!(pr, "m_vecPlayerTeamData.{valid_index:04}.m_iTeamSlot");
+                let mut variant: Option<i32> = try_property!(pr, "m_vecPlayerTeamData.{valid_index:04}.m_nSelectedHeroVariant");
+                let mut facet_hero_id = None;
 
                 let data_team = if player_team == 2 {
                     ctx.entities().get_by_class_name("CDOTA_DataRadiant")?
@@ -421,17 +525,19 @@ impl App {
                 let mut entry = Entry::new(self.time(ctx)?);
                 entry.r#type = "interval".to_string().into();
                 entry.slot = i.into();
-                entry.repicked = try_property!(pr, "m_vecPlayerTeamData.{i:04}.m_bHasRepicked");
-                entry.randomed = try_property!(pr, "m_vecPlayerTeamData.{i:04}.m_bHasRandomed");
-                entry.pred_vict = try_property!(pr, "m_vecPlayerTeamData.{i:04}.m_bHasPredictedVictory");
-                entry.firstblood_claimed = try_property!(pr, "m_vecPlayerTeamData.{i:04}.m_bFirstBloodClaimed");
-                entry.teamfight_participation = try_property!(pr, "m_vecPlayerTeamData.{i:04}.m_flTeamFightParticipation");
-                entry.level = try_property!(pr, "m_vecPlayerTeamData.{i:04}.m_iLevel");
-                entry.kills = try_property!(pr, "m_vecPlayerTeamData.{i:04}.m_iKills");
-                entry.deaths = try_property!(pr, "m_vecPlayerTeamData.{i:04}.m_iDeaths");
-                entry.assists = try_property!(pr, "m_vecPlayerTeamData.{i:04}.m_iAssists");
+                entry.repicked = try_property!(pr, "m_vecPlayerTeamData.{valid_index:04}.m_bHasRepicked");
+                entry.randomed = try_property!(pr, "m_vecPlayerTeamData.{valid_index:04}.m_bHasRandomed");
+                entry.pred_vict = try_property!(pr, "m_vecPlayerTeamData.{valid_index:04}.m_bHasPredictedVictory");
+                entry.firstblood_claimed = try_property!(pr, "m_vecPlayerTeamData.{valid_index:04}.m_iFirstBloodClaimed");
+                entry.teamfight_participation =
+                    try_property!(pr, f32, "m_vecPlayerTeamData.{valid_index:04}.m_flTeamFightParticipation").filter(|x| x.is_finite());
+                entry.level = try_property!(pr, "m_vecPlayerTeamData.{valid_index:04}.m_iLevel");
+                entry.kills = try_property!(pr, "m_vecPlayerTeamData.{valid_index:04}.m_iKills");
+                entry.deaths = try_property!(pr, "m_vecPlayerTeamData.{valid_index:04}.m_iDeaths");
+                entry.assists = try_property!(pr, "m_vecPlayerTeamData.{valid_index:04}.m_iAssists");
                 entry.denies = try_property!(data_team, "m_vecDataTeam.{team_slot:04}.m_iDenyCount");
                 entry.obs_placed = try_property!(data_team, "m_vecDataTeam.{team_slot:04}.m_iObserverWardsPlaced");
+                entry.observers_placed = entry.obs_placed;
                 entry.sen_placed = try_property!(data_team, "m_vecDataTeam.{team_slot:04}.m_iSentryWardsPlaced");
                 entry.creeps_stacked = try_property!(data_team, "m_vecDataTeam.{team_slot:04}.m_iCreepsStacked");
                 entry.camps_stacked = try_property!(data_team, "m_vecDataTeam.{team_slot:04}.m_iCampsStacked");
@@ -448,10 +554,22 @@ impl App {
                     entry.stuns = try_property!(data_team, "m_vecDataTeam.{team_slot:04}.m_fStuns");
 
                     if let Ok(hero) = ctx.entities().get_by_handle(hero_handle) {
-                        entry.x = try_property!(hero, "CBodyComponent.m_cellX");
-                        entry.y = try_property!(hero, "CBodyComponent.m_cellY");
+                        let cell_x = try_property!(hero, u8, "CBodyComponent.m_cellX");
+                        let cell_y = try_property!(hero, u8, "CBodyComponent.m_cellY");
+                        let vec_x = try_property!(hero, f32, "CBodyComponent.m_vecX");
+                        let vec_y = try_property!(hero, f32, "CBodyComponent.m_vecY");
+                        if let (Some(x), Some(y)) = (cell_x, cell_y) {
+                            entry.x = Some(Self::precise_location(x, vec_x));
+                            entry.y = Some(Self::precise_location(y, vec_y));
+                        }
+                        if let Some(facet_key) = try_property!(hero, u64, "m_iHeroFacetKey") {
+                            facet_hero_id = ((facet_key >> 32) as i32).into();
+                            variant = ((facet_key & 0xFF) as i32).into();
+                        }
                         entry.unit = hero.class().name().to_string().into();
                         entry.hero_id = hero_id.into();
+                        entry.variant = variant;
+                        entry.facet_hero_id = facet_hero_id;
                         entry.life_state = try_property!(hero, "m_lifeState");
                         if hero_id > 0 {
                             let class = hero.class().name();
@@ -481,7 +599,7 @@ impl App {
                                 let key = hero_name.clone() + ability.id.as_str();
                                 if !self.abilities_tracking.contains_key(&key) || self.abilities_tracking[&key] != ability.level {
                                     let mut entry = Entry::new(self.time(ctx)?);
-                                    entry.r#type = "DotaAbilityLevel".to_string().into();
+                                    entry.r#type = upper_camel_to_screaming_snake("DotaAbilityLevel").into();
                                     entry.targetname = hero_name.clone().into();
                                     entry.valuename = ability.id.clone().into();
                                     entry.abilitylevel = ability.level.into();
@@ -490,34 +608,36 @@ impl App {
                                 }
                             }
 
+                            let hero_inventory = self.get_hero_inventory(ctx, hero);
                             if self.time(ctx)? as i32 - self.start_time as i32 == 1 {
-                                for item in self.get_hero_inventory(ctx, hero) {
+                                for item in &hero_inventory {
                                     let mut starting_items = Entry::new(self.time(ctx)?);
-                                    starting_items.r#type = "StartingItems".to_string().into();
+                                    starting_items.r#type = "STARTING_ITEM".to_string().into();
                                     starting_items.targetname = hero_name.clone().into();
                                     starting_items.valuename = item.id.clone().into();
                                     starting_items.slot = entry.slot;
                                     starting_items.value = (if entry.slot.unwrap() < 5 { 0 } else { 123 } + entry.slot.unwrap() as u32).into();
                                     starting_items.itemslot = item.slot.into();
-                                    starting_items.charges = item.num_charges.into();
-                                    starting_items.secondary_charges = item.num_secondary_charges.into();
+                                    starting_items.charges = item.num_charges;
+                                    starting_items.secondary_charges = item.num_secondary_charges;
                                     self.output(starting_items)?;
                                 }
                             }
 
                             if !self.is_player_starting_items_written[entry.slot.unwrap() as usize] {
                                 self.is_player_starting_items_written[entry.slot.unwrap() as usize] = true;
-                                for item in self.get_hero_inventory(ctx, hero) {
+                                for item in &hero_inventory {
                                     let mut starting_items = Entry::new(self.time(ctx)?);
-                                    starting_items.r#type = "DotaCombatlogPurchase".to_string().into();
+                                    starting_items.r#type = "DOTA_COMBATLOG_PURCHASE".to_string().into();
                                     starting_items.targetname = hero_name.clone().into();
                                     starting_items.valuename = item.id.clone().into();
                                     starting_items.slot = entry.slot;
                                     starting_items.value = (if entry.slot.unwrap() < 5 { 0 } else { 123 } + entry.slot.unwrap() as u32).into();
-                                    starting_items.charges = item.num_charges.into();
+                                    starting_items.charges = item.num_charges;
                                     self.output(starting_items)?;
                                 }
                             }
+                            entry.hero_inventory = hero_inventory.into();
                         }
                     }
                 }
@@ -540,15 +660,37 @@ impl App {
         Ok(())
     }
 
-    #[on_entity("CDOTAWearableItem")]
-    fn on_entity(&mut self, event: EntityEvents, entity: &Entity) -> ObserverResult {
+    #[on_entity]
+    fn on_entity(&mut self, ctx: &Context, event: EntityEvents, entity: &Entity) -> ObserverResult {
         if event == EntityEvents::Created {
-            let account_id: u64 = property!(entity, "m_iAccountID");
-            let item_definition_idx: i32 = property!(entity, "m_iItemDefinitionIndex");
-            if account_id > 0 {
-                let account_id64: u64 = 76561197960265728 + account_id;
-                let player_slot: i32 = *self.steam_id_to_player_slot.get(&account_id64).unwrap_or(&0);
-                self.cosmetics_map.insert(item_definition_idx, player_slot);
+            let entity_name = entity.class().name();
+            if entity_name == "CDOTAWearableItem" {
+                let account_id: u64 = property!(entity, "m_iAccountID");
+                let item_definition_idx: i32 = property!(entity, "m_iItemDefinitionIndex");
+                if account_id > 0 {
+                    let account_id64: u64 = 76561197960265728 + account_id;
+                    let player_slot: i32 = *self.steam_id_to_player_slot.get(&account_id64).unwrap_or(&0);
+                    self.cosmetics_map.insert(item_definition_idx, player_slot);
+                }
+            } else if entity_name.starts_with("CDOTA_Item_Tier") && entity_name.ends_with("Token") {
+                let mut entry = Entry::new(self.time(ctx)?);
+                entry.r#type = "neutral_token".to_string().into();
+                entry.slot = self.get_player_slot(entity).ok();
+                entry.key = entity_name.strip_prefix("CDOTA_Item_").unwrap_or(entity_name).to_string().into();
+                self.output(entry)?;
+            } else if entity_name.starts_with("CDOTA_Item_") {
+                let is_neutral_active_drop = try_property!(entity, bool, "m_bIsNeutralActiveDrop");
+                let is_neutral_passive_drop = try_property!(entity, bool, "m_bIsNeutralPassiveDrop");
+                let neutral_drop_team = try_property!(entity, i32, "m_nNeutralDropTeam").unwrap_or_default();
+                if neutral_drop_team != 0 && (is_neutral_active_drop.unwrap_or_default() || is_neutral_passive_drop.unwrap_or_default()) {
+                    let mut entry = Entry::new(self.time(ctx)?);
+                    entry.r#type = "neutral_item_history".to_string().into();
+                    entry.slot = self.get_player_slot(entity).ok();
+                    entry.key = entity_name.strip_prefix("CDOTA_Item_").unwrap_or(entity_name).to_string().into();
+                    entry.is_neutral_active_drop = is_neutral_active_drop;
+                    entry.is_neutral_passive_drop = is_neutral_passive_drop;
+                    self.output(entry)?;
+                }
             }
         }
         Ok(())
@@ -556,18 +698,20 @@ impl App {
 
     #[on_combat_log]
     fn handle_cle(&mut self, cle: &CombatLogEntry) -> ObserverResult {
-        let time = cle.timestamp()?;
+        let time = cle.timestamp()?.round();
+        self.time = time as i32;
         let mut entry = Entry::new(time);
-        entry.r#type = format!("{:?}", cle.r#type()).into();
-        entry.attackername = cle.attacker_name().ok().map(|x| x.into());
-        entry.targetname = cle.target_name().ok().map(|x| x.into());
-        entry.sourcename = cle.damage_source_name().ok().map(|x| x.into());
-        entry.targetsourcename = cle.target_source_name().ok().map(|x| x.into());
-        entry.inflictor = cle.inflictor_name().ok().map(|x| x.into());
-        entry.attackerhero = cle.is_attacker_hero().ok();
-        entry.targethero = cle.is_target_hero().ok();
-        entry.attackerillusion = cle.is_attacker_illusion().ok();
-        entry.value = cle.value().ok();
+        entry.r#type = debug_name_to_screaming_snake(cle.r#type()).into();
+        entry.attackername = cle.attacker_name().unwrap_or("dota_unknown").to_string().into();
+        entry.targetname = cle.target_name().unwrap_or("dota_unknown").to_string().into();
+        entry.sourcename = cle.damage_source_name().unwrap_or("dota_unknown").to_string().into();
+        entry.targetsourcename = cle.target_source_name().unwrap_or("dota_unknown").to_string().into();
+        entry.inflictor = cle.inflictor_name().unwrap_or("dota_unknown").to_string().into();
+        entry.attackerhero = cle.is_attacker_hero().unwrap_or(false).into();
+        entry.targethero = cle.is_target_hero().unwrap_or(false).into();
+        entry.attackerillusion = cle.is_attacker_illusion().unwrap_or(false).into();
+        entry.targetillusion = cle.is_target_illusion().unwrap_or(false).into();
+        entry.value = cle.value().unwrap_or_default().into();
         entry.stun_duration = cle.stun_duration().ok().filter(|&stun| stun > 0.0);
         entry.slow_duration = cle.slow_duration().ok().filter(|&slow| slow > 0.0);
 
@@ -585,7 +729,7 @@ impl App {
             self.post_game = true;
         }
 
-        if cle.r#type() as u32 <= 19 {
+        if (cle.r#type() as i32) <= (DotaCombatlogTypes::DotaCombatlogFirstBlood as i32) {
             self.output(entry)?;
         }
 
@@ -595,7 +739,7 @@ impl App {
     #[on_message]
     fn on_chat_event(&mut self, ctx: &Context, event: CDotaUserMsgChatEvent) -> ObserverResult {
         let mut entry = Entry::new(self.time(ctx)?);
-        entry.r#type = format!("{:?}", event.r#type()).into();
+        entry.r#type = debug_name_to_screaming_snake(event.r#type()).into();
         entry.player1 = event.playerid_1().into();
         entry.player2 = event.playerid_2().into();
         entry.value = event.value().into();
@@ -627,7 +771,7 @@ impl App {
 
 impl GameTimeObserver for App {
     fn on_game_started(&mut self, _ctx: &Context, start_time: f32) -> ObserverResult {
-        self.start_time = start_time;
+        self.start_time = start_time.round();
         self.flush_log_buffer()
     }
 }
@@ -640,13 +784,16 @@ impl WardsObserver for App {
         let x: u8 = property!(ward, "CBodyComponent.m_cellX");
         let y: u8 = property!(ward, "CBodyComponent.m_cellY");
         let z: u8 = property!(ward, "CBodyComponent.m_cellZ");
+        let vec_x = try_property!(ward, f32, "CBodyComponent.m_vecX");
+        let vec_y = try_property!(ward, f32, "CBodyComponent.m_vecY");
+        let vec_z = try_property!(ward, f32, "CBodyComponent.m_vecZ");
 
         entry.r#type = (if is_obs { "obs".to_string() } else { "sen".to_string() } + if event != WardEvent::Placed { "_left" } else { "" }).into();
         entry.entityleft = (event != WardEvent::Placed).into();
         entry.ehandle = ward.handle().into();
-        entry.x = x.into();
-        entry.y = y.into();
-        entry.z = z.into();
+        entry.x = Some(Self::precise_location(x, vec_x));
+        entry.y = Some(Self::precise_location(y, vec_y));
+        entry.z = Some(Self::precise_location(z, vec_z));
 
         let owner_handle: usize = property!(ward, "m_hOwnerEntity");
         if let Ok(owner) = ctx.entities().get_by_handle(owner_handle) {
@@ -680,17 +827,14 @@ fn main() -> anyhow::Result<()> {
     let app = parser.register_observer::<App>();
 
     app.borrow_mut().game_time = game_time.clone();
+    app.borrow_mut().output = Some(BufWriter::new(std::io::stdout()));
 
     game_time.borrow_mut().register_observer(app.clone());
     wards.borrow_mut().register_observer(app.clone());
 
     parser.run_to_end()?;
-
-    for e in &app.borrow().output {
-        println!("{}", e);
-    }
-    println!("Total entries: {}", app.borrow().output.len());
-    println!("Elapsed: {:?}", start.elapsed());
+    app.borrow_mut().flush_writer()?;
+    eprintln!("Elapsed: {:?}", start.elapsed());
 
     Ok(())
 }

@@ -121,7 +121,10 @@ impl Wards {
 
         match event {
             EntityEvents::Created => {
-                self.current_life_state.insert(entity.index(), property!(entity, "m_lifeState"));
+                self.pending_events.push_back(PendingEvent {
+                    entity_idx: entity.index(),
+                    life_state: property!(entity, "m_lifeState"),
+                });
             }
             EntityEvents::Updated => {
                 self.pending_events.push_back(PendingEvent {
@@ -167,17 +170,6 @@ impl Wards {
             }
         }
         Ok(())
-    }
-
-    #[on_stop]
-    fn on_stop(&mut self, ctx: &Context) -> ObserverResult {
-        self.current_life_state.iter().for_each(|state| {
-            self.pending_events.push_back(PendingEvent {
-                entity_idx: *state.0,
-                life_state: 1,
-            })
-        });
-        self.on_tick_end(ctx)
     }
 }
 
