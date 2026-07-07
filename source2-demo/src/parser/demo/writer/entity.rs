@@ -1,49 +1,13 @@
-use super::{DecodedEntityField, DemoWriter, FieldReplacement};
 use crate::entity::field::{Decode, Encode, FieldPath, FieldState, Serializer, Skip};
 use crate::entity::{Entity, EntityEvents};
 use crate::error::ParserError;
+use crate::parser::demo::writer::{DecodedEntityField, DemoWriter, FieldReplacement};
 use crate::proto::{CSvcMsgPacketEntities, Message};
 use crate::reader::{BitsReader, FieldPathCodec, MessageReader, SliceReader};
 use crate::stream::copy::{bit_position, copy_original_bits};
 use crate::stream::field_path::FieldOp;
 use crate::writer::{BitsWriter, BitstreamWriter};
 use std::io::{Seek, Write};
-
-impl<'a, R, W> DemoWriter<'a, R, W>
-where
-    R: BitsReader + MessageReader,
-    W: Write + Seek,
-{
-    #[inline]
-    fn clear_entity_paths(&mut self) {
-        self.entity_rewrite_paths.clear();
-    }
-
-    #[inline]
-    fn push_entity_path(&mut self, fp: FieldPath) {
-        self.entity_rewrite_paths.push(fp);
-    }
-
-    #[inline]
-    fn entity_paths(&self) -> &[FieldPath] {
-        &self.entity_rewrite_paths
-    }
-
-    #[inline]
-    fn clear_decoded_fields(&mut self) {
-        self.entity_decoded_fields.clear();
-    }
-
-    #[inline]
-    fn push_decoded_field(&mut self, field: DecodedEntityField) {
-        self.entity_decoded_fields.push(field);
-    }
-
-    #[inline]
-    fn push_field_replacement(&mut self, replacement: FieldReplacement) {
-        self.entity_replacements.push(replacement);
-    }
-}
 
 impl<'a, R, W> DemoWriter<'a, R, W>
 where
@@ -76,9 +40,9 @@ where
         updated_entries: i32,
     ) -> Result<(Vec<u8>, bool), ParserError> {
         let mut reader = SliceReader::new(entity_data);
-        self.entity_replacements.clear();
+        self.entity_rewrite.replacements.clear();
         let mut index = usize::MAX;
-        let path_reader = self.field_path_codec.clone();
+        let path_reader = self.entity_rewrite.field_path_codec.clone();
 
         for _ in 0..updated_entries {
             let delta = reader.read_ubit_var();
@@ -103,14 +67,14 @@ where
             }
         }
 
-        if self.entity_replacements.is_empty() {
+        if self.entity_rewrite.replacements.is_empty() {
             return Ok((Vec::new(), false));
         }
 
         let mut out = Vec::with_capacity(entity_data.len());
         let mut writer = BitstreamWriter::new(&mut out);
         let mut copy_start = 0;
-        let mut replacements = std::mem::take(&mut self.entity_replacements);
+        let mut replacements = std::mem::take(&mut self.entity_rewrite.replacements);
         for replacement in replacements.drain(..) {
             copy_original_bits(
                 entity_data,
@@ -124,7 +88,7 @@ where
                 .encode(&mut writer, &replacement.value)?;
             copy_start = replacement.value_end;
         }
-        self.entity_replacements = replacements;
+        self.entity_rewrite.replacements = replacements;
         copy_original_bits(
             entity_data,
             copy_start,
@@ -227,7 +191,7 @@ where
         path_reader: &FieldPathCodec,
         entity: &Entity,
     ) {
-        self.clear_entity_paths();
+        self.entity_rewrite.rewrite_paths.clear();
         let mut fp = FieldPath::default();
 
         loop {
@@ -237,10 +201,10 @@ where
                 break;
             }
             op.execute(reader, &mut fp);
-            self.push_entity_path(fp);
+            self.entity_rewrite.rewrite_paths.push(fp);
         }
 
-        for fp in self.entity_paths() {
+        for fp in &self.entity_rewrite.rewrite_paths {
             entity.class.serializer.get_decoder(fp).skip(reader);
         }
     }
@@ -254,7 +218,7 @@ where
         track: bool,
         rewrite: bool,
     ) -> Result<(), ParserError> {
-        self.clear_entity_paths();
+        self.entity_rewrite.rewrite_paths.clear();
         let mut fp = FieldPath::default();
 
         loop {
@@ -264,11 +228,11 @@ where
                 break;
             }
             op.execute(reader, &mut fp);
-            self.push_entity_path(fp);
+            self.entity_rewrite.rewrite_paths.push(fp);
         }
 
         if !rewrite {
-            for fp in self.entity_paths().iter() {
+            for fp in self.entity_rewrite.rewrite_paths.iter() {
                 let decoder = entity.class.serializer.get_decoder(fp);
                 let value = decoder.decode(reader);
                 entity.state.set(fp, value);
@@ -277,7 +241,7 @@ where
         }
 
         if !track {
-            let mut paths = std::mem::take(&mut self.entity_rewrite_paths);
+            let mut paths = std::mem::take(&mut self.entity_rewrite.rewrite_paths);
             for fp in paths.iter().copied() {
                 let name = entity.class.serializer.get_name(&fp);
                 let decoder = entity.class.serializer.get_decoder(&fp);
@@ -287,7 +251,7 @@ where
 
                 if let Some(next_value) = self.replace_entity_field(event, entity, &name, &value) {
                     entity.state.set(&fp, next_value.clone());
-                    self.push_field_replacement(FieldReplacement {
+                    self.entity_rewrite.replacements.push(FieldReplacement {
                         serializer: entity.class.serializer.clone(),
                         fp,
                         value: next_value,
@@ -297,12 +261,12 @@ where
                 }
             }
             paths.clear();
-            self.entity_rewrite_paths = paths;
+            self.entity_rewrite.rewrite_paths = paths;
             return Ok(());
         }
 
-        self.clear_decoded_fields();
-        let mut paths = std::mem::take(&mut self.entity_rewrite_paths);
+        self.entity_rewrite.decoded_fields.clear();
+        let mut paths = std::mem::take(&mut self.entity_rewrite.rewrite_paths);
         for fp in paths.iter().copied() {
             let name = entity.class.serializer.get_name(&fp);
             let decoder = entity.class.serializer.get_decoder(&fp);
@@ -310,7 +274,7 @@ where
             let value = decoder.decode(reader);
             let value_end = bit_position(reader);
             entity.state.set(&fp, value);
-            self.push_decoded_field(DecodedEntityField {
+            self.entity_rewrite.decoded_fields.push(DecodedEntityField {
                 fp,
                 name,
                 value_start,
@@ -318,9 +282,9 @@ where
             });
         }
         paths.clear();
-        self.entity_rewrite_paths = paths;
+        self.entity_rewrite.rewrite_paths = paths;
 
-        let mut decoded_fields = std::mem::take(&mut self.entity_decoded_fields);
+        let mut decoded_fields = std::mem::take(&mut self.entity_rewrite.decoded_fields);
         for field in decoded_fields.drain(..) {
             let Some(value) = entity.state.get_value(&field.fp) else {
                 continue;
@@ -329,7 +293,7 @@ where
 
             if let Some(next_value) = replacement {
                 entity.state.set(&field.fp, next_value.clone());
-                self.push_field_replacement(FieldReplacement {
+                self.entity_rewrite.replacements.push(FieldReplacement {
                     serializer: entity.class.serializer.clone(),
                     fp: field.fp,
                     value: next_value,
@@ -338,7 +302,7 @@ where
                 });
             }
         }
-        self.entity_decoded_fields = decoded_fields;
+        self.entity_rewrite.decoded_fields = decoded_fields;
 
         Ok(())
     }

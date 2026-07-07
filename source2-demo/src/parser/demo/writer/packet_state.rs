@@ -1,5 +1,5 @@
-use super::{DemoWriter, INSTANCE_BASELINE_TABLE};
 use crate::error::ParserError;
+use crate::parser::demo::writer::{DemoWriter, INSTANCE_BASELINE_TABLE};
 use crate::proto::{
     CSvcMsgCreateStringTable, CSvcMsgServerInfo, CSvcMsgUpdateStringTable, Message, SvcMessages,
 };

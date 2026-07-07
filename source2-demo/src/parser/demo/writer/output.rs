@@ -1,5 +1,5 @@
-use super::{DemoWriter, RawDemoMessage};
 use crate::error::ParserError;
+use crate::parser::demo::writer::{DemoWriter, RawDemoMessage};
 use crate::proto::EDemoCommands;
 use crate::reader::{BitsReader, MessageReader};
 use crate::writer::{write_var_u32_to_buf, MessageWriter};

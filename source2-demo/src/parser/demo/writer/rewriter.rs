@@ -14,7 +14,7 @@ bitflags::bitflags! {
     ///
     /// Use these flags in [`DemoRewriter::interests`] to specify which rewrite
     /// callbacks your rewriter wants to receive. This lets
-    /// [`DemoWriter`](super::DemoWriter) skip expensive decoding paths no
+    /// [`DemoWriter`](crate::writer::DemoWriter) skip expensive decoding paths no
     /// registered rewriter needs.
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub struct RewriteInterests: u32 {

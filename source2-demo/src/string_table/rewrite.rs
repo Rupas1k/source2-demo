@@ -10,6 +10,7 @@ pub struct StringTableEntryUpdate {
     key: Option<String>,
     value: Option<Vec<u8>>,
     value_compressed: bool,
+    changed: bool,
 }
 
 impl StringTableEntryUpdate {
@@ -19,6 +20,7 @@ impl StringTableEntryUpdate {
             key,
             value,
             value_compressed: false,
+            changed: false,
         }
     }
 
@@ -33,6 +35,7 @@ impl StringTableEntryUpdate {
             key,
             value,
             value_compressed,
+            changed: false,
         }
     }
 
@@ -53,11 +56,13 @@ impl StringTableEntryUpdate {
     /// Replaces the entry key.
     pub fn set_key(&mut self, key: impl Into<String>) {
         self.key = Some(key.into());
+        self.changed = true;
     }
 
     /// Clears the entry key from this update.
     pub fn clear_key(&mut self) {
         self.key = None;
+        self.changed = true;
     }
 
     /// Returns the entry value bytes, if present.
@@ -67,17 +72,22 @@ impl StringTableEntryUpdate {
 
     /// Returns mutable entry value bytes, if present.
     pub fn value_mut(&mut self) -> Option<&mut Vec<u8>> {
+        if self.value.is_some() {
+            self.changed = true;
+        }
         self.value.as_mut()
     }
 
     /// Replaces the entry value bytes.
     pub fn set_value(&mut self, value: impl Into<Vec<u8>>) {
         self.value = Some(value.into());
+        self.changed = true;
     }
 
     /// Clears the entry value from this update.
     pub fn clear_value(&mut self) {
         self.value = None;
+        self.changed = true;
     }
 }
 
@@ -143,12 +153,9 @@ impl PackedStringTableState {
         let mut changed = false;
         let mut rewritten = Vec::with_capacity(entries.len());
 
-        for entry in entries {
-            let before_key = entry.key.clone();
-            let before_value = entry.value.clone();
-            let mut entry = entry;
+        for mut entry in entries {
             rewrite(&mut entry)?;
-            changed |= entry.key != before_key || entry.value != before_value;
+            changed |= entry.changed;
             rewritten.push(entry);
         }
 
@@ -290,11 +297,9 @@ where
     for (index, item) in items.iter_mut().enumerate() {
         let mut entry =
             StringTableEntryUpdate::new(index as i32, item.str.clone(), item.data.clone());
-        let before_key = entry.key.clone();
-        let before_value = entry.value.clone();
         rewrite(&mut entry)?;
 
-        if entry.key != before_key || entry.value != before_value {
+        if entry.changed {
             let (_, key, value) = entry.into_parts();
             item.str = key;
             item.data = value;

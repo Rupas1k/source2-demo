@@ -1,5 +1,7 @@
-use super::{DemoWriter, MessageRewrite, RewriteInterests, INSTANCE_BASELINE_TABLE};
 use crate::error::ParserError;
+use crate::parser::demo::writer::{
+    DemoWriter, MessageRewrite, RewriteInterests, INSTANCE_BASELINE_TABLE,
+};
 use crate::proto::{
     CDemoStringTables, CSvcMsgCreateStringTable, CSvcMsgUpdateStringTable, Message,
 };
@@ -56,7 +58,7 @@ where
             return Ok(false);
         }
 
-        let table_id = self.string_table_rewrite_states.len();
+        let table_id = self.string_table_rewrite.len();
         let mut state =
             PackedStringTableState::new(PackedStringTableFormat::from_create_message(msg));
 
@@ -71,7 +73,7 @@ where
         let changed = changed?;
 
         self.ensure_string_table_rewrite_state(table_id);
-        self.string_table_rewrite_states[table_id] = Some(state);
+        self.string_table_rewrite.set(table_id, state);
         Ok(changed)
     }
 
@@ -101,11 +103,11 @@ where
         let state_from_context = PackedStringTableState::from_table(table);
 
         self.ensure_string_table_rewrite_state(table_id);
-        if self.string_table_rewrite_states[table_id].is_none() {
-            self.string_table_rewrite_states[table_id] = Some(state_from_context);
+        if self.string_table_rewrite.is_missing(table_id) {
+            self.string_table_rewrite.set(table_id, state_from_context);
         }
 
-        let Some(mut state) = self.string_table_rewrite_states[table_id].take() else {
+        let Some(mut state) = self.string_table_rewrite.take(table_id) else {
             return Err(ParserError::MissingStringTableRewriteState { table_id });
         };
 
@@ -121,7 +123,7 @@ where
             Ok(())
         });
 
-        self.string_table_rewrite_states[table_id] = Some(state);
+        self.string_table_rewrite.set(table_id, state);
         changed
     }
 
@@ -148,10 +150,7 @@ where
     }
 
     fn ensure_string_table_rewrite_state(&mut self, table_id: usize) {
-        if self.string_table_rewrite_states.len() <= table_id {
-            self.string_table_rewrite_states
-                .resize_with(table_id + 1, || None);
-        }
+        self.string_table_rewrite.ensure(table_id);
     }
 
     fn rewrite_instance_baseline_entry_update(

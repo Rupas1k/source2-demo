@@ -1,5 +1,5 @@
-use super::DemoWriter;
 use crate::error::ParserError;
+use crate::parser::demo::writer::DemoWriter;
 use crate::proto::EDemoCommands;
 use crate::reader::{BitsReader, MessageReader};
 use std::io::{Seek, Write};

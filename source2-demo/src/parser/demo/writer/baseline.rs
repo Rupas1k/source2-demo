@@ -1,7 +1,7 @@
-use super::{DemoWriter, INSTANCE_BASELINE_TABLE};
 use crate::entity::field::{Decode, Encode, FieldPath};
 use crate::entity::{Entity, EntityEvents};
 use crate::error::ParserError;
+use crate::parser::demo::writer::{DemoWriter, INSTANCE_BASELINE_TABLE};
 use crate::proto::{c_demo_string_tables::ItemsT, CDemoStringTables};
 use crate::reader::{BitsReader, MessageReader, SliceReader};
 use crate::stream::copy::{bit_position, copy_original_bits, copy_remaining_bits};
@@ -42,17 +42,21 @@ where
             else {
                 continue;
             };
+
             if class_id < 0 {
                 continue;
             }
+
             let Some(data) = item.data.as_deref() else {
                 continue;
             };
+
             if let Some(rewritten) = self.rewrite_instance_baseline_data(class_id, data)? {
                 item.data = Some(rewritten);
                 changed = true;
             }
         }
+
         Ok(changed)
     }
 
@@ -71,8 +75,8 @@ where
         else {
             return Ok(None);
         };
-        let mut entity = Entity::new(0, 0, class, Default::default());
 
+        let mut entity = Entity::new(0, 0, class, Default::default());
         if !self.should_rewrite_entity(EntityEvents::Created, &entity) {
             return Ok(None);
         }
@@ -80,7 +84,7 @@ where
         let mut reader = SliceReader::new(data);
         let mut out = Vec::with_capacity(data.len());
         let mut writer = BitstreamWriter::new(&mut out);
-        let path_reader = self.field_path_codec.clone();
+        let path_reader = self.entity_rewrite.field_path_codec.clone();
 
         let paths_start = bit_position(&reader);
         let mut paths = Vec::new();

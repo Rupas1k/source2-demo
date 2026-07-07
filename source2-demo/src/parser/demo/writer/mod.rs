@@ -1,11 +1,12 @@
 mod baseline;
+mod commands;
 mod entity;
 mod input;
 mod output;
 mod packet;
 mod packet_state;
 mod rewriter;
-mod run;
+mod runner;
 mod string_table;
 
 use crate::entity::field::{FieldPath, FieldValue, Serializer};
@@ -18,7 +19,7 @@ use std::cell::RefCell;
 use std::io::{Seek, Write};
 use std::rc::Rc;
 
-use input::RawDemoMessage;
+pub(crate) use input::RawDemoMessage;
 pub use rewriter::{
     rewrite_protobuf_message, DemoRewriter, MessageRewrite, PacketMessage, RewriteInterests,
 };
@@ -41,6 +42,53 @@ struct DecodedEntityField {
     value_end: usize,
 }
 
+struct EntityRewriteState {
+    field_path_codec: FieldPathCodec,
+    rewrite_paths: Vec<FieldPath>,
+    decoded_fields: Vec<DecodedEntityField>,
+    replacements: Vec<FieldReplacement>,
+}
+
+impl EntityRewriteState {
+    fn new() -> Self {
+        Self {
+            field_path_codec: FieldPathCodec::default(),
+            rewrite_paths: Vec::with_capacity(ENTITY_REWRITE_BUFFER_CAPACITY),
+            decoded_fields: Vec::with_capacity(ENTITY_REWRITE_BUFFER_CAPACITY),
+            replacements: Vec::with_capacity(ENTITY_REWRITE_BUFFER_CAPACITY),
+        }
+    }
+}
+
+#[derive(Default)]
+struct StringTableRewriteState {
+    tables: Vec<Option<PackedStringTableState>>,
+}
+
+impl StringTableRewriteState {
+    fn len(&self) -> usize {
+        self.tables.len()
+    }
+
+    fn ensure(&mut self, table_id: usize) {
+        if self.tables.len() <= table_id {
+            self.tables.resize_with(table_id + 1, || None);
+        }
+    }
+
+    fn set(&mut self, table_id: usize, state: PackedStringTableState) {
+        self.tables[table_id] = Some(state);
+    }
+
+    fn is_missing(&self, table_id: usize) -> bool {
+        self.tables[table_id].is_none()
+    }
+
+    fn take(&mut self, table_id: usize) -> Option<PackedStringTableState> {
+        self.tables[table_id].take()
+    }
+}
+
 /// Demo writer that reads demo messages and writes a rewritten stream.
 ///
 /// The writer maintains the parser metadata needed for the registered
@@ -54,13 +102,10 @@ where
 {
     parser: Parser<'a, R>,
     writer: W,
-    string_table_rewrite_states: Vec<Option<PackedStringTableState>>,
+    string_table_rewrite: StringTableRewriteState,
     rewriters: Vec<Box<dyn DemoRewriter + 'a>>,
     rewriter_interests: RewriteInterests,
-    field_path_codec: FieldPathCodec,
-    entity_rewrite_paths: Vec<FieldPath>,
-    entity_decoded_fields: Vec<DecodedEntityField>,
-    entity_replacements: Vec<FieldReplacement>,
+    entity_rewrite: EntityRewriteState,
     bytes_written: u64,
     file_info_offset: Option<u64>,
 }
@@ -75,13 +120,10 @@ where
         Self {
             parser,
             writer,
-            string_table_rewrite_states: Vec::new(),
+            string_table_rewrite: StringTableRewriteState::default(),
             rewriters: Vec::new(),
             rewriter_interests: RewriteInterests::empty(),
-            field_path_codec: FieldPathCodec::default(),
-            entity_rewrite_paths: Vec::with_capacity(ENTITY_REWRITE_BUFFER_CAPACITY),
-            entity_decoded_fields: Vec::with_capacity(ENTITY_REWRITE_BUFFER_CAPACITY),
-            entity_replacements: Vec::with_capacity(ENTITY_REWRITE_BUFFER_CAPACITY),
+            entity_rewrite: EntityRewriteState::new(),
             bytes_written: 0,
             file_info_offset: None,
         }

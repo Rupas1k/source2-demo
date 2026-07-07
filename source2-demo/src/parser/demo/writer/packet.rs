@@ -1,5 +1,5 @@
-use super::{DemoWriter, MessageRewrite, PacketMessage, RewriteInterests};
 use crate::error::ParserError;
+use crate::parser::demo::writer::{DemoWriter, MessageRewrite, PacketMessage, RewriteInterests};
 use crate::proto::{CSvcMsgCreateStringTable, CSvcMsgUpdateStringTable, Message, SvcMessages};
 use crate::reader::{BitsReader, MessageReader, SliceReader};
 use crate::stream::copy::{bit_position, copy_original_bits};
