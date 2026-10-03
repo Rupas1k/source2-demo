@@ -205,8 +205,11 @@ cargo run --release -p example input.dem output.dem
 
 ## Projects Using source2-demo
 
-- [Dota 2 Replay Anonymizer](https://github.com/Rupas1k/dota2-replay-anonymizer) - CLI and browser app for anonymizing Dota 2 replays.
+- [dota2-replay-anonymizer](https://github.com/Rupas1k/dota2-replay-anonymizer) - CLI and browser app for anonymizing Dota 2 replays.
 - [cs2analyzer.whiskeyo.pl](https://github.com/whiskeyo/cs2analyzer) - Web app for analyzing CS2 demos & making notes
+- [wardmap](https://github.com/Rupas1k/wardmap) - Web app for analyzing Dota 2 warding patterns.
+- [haste-inspector](https://github.com/Rupas1k/haste-inspector) - Browser-based demo inspector for Dota 2, Deadlock, and CS2.
+- [opendota-rs](https://github.com/Rupas1k/source2-demo/tree/master/d2-examples/opendota/src) - Dota 2 replay parser producing OpenDota-style JSON logs.
 
 ## Features
 
