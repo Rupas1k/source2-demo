@@ -1068,8 +1068,6 @@ pub struct CMsgClientHello {
     pub client_session_need: ::core::option::Option<u32>,
     #[prost(enumeration = "PartnerAccountType", optional, tag = "4", default = "PartnerNone")]
     pub client_launcher: ::core::option::Option<i32>,
-    #[prost(string, optional, tag = "5")]
-    pub secret_key: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(uint32, optional, tag = "6")]
     pub client_language: ::core::option::Option<u32>,
     #[prost(enumeration = "ESourceEngine", optional, tag = "7", default = "KEseSource1")]
@@ -1571,8 +1569,8 @@ pub struct CMsgClientPingData {
     pub region_codes: ::prost::alloc::vec::Vec<u32>,
     #[prost(uint32, repeated, tag = "9")]
     pub region_pings: ::prost::alloc::vec::Vec<u32>,
-    #[prost(uint32, optional, tag = "10")]
-    pub region_ping_failed_bitmask: ::core::option::Option<u32>,
+    #[prost(uint64, optional, tag = "10")]
+    pub region_ping_failed_bitmask: ::core::option::Option<u64>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CMsgInviteToParty {
@@ -1657,6 +1655,8 @@ pub struct CMsgServerAvailable {
 pub struct CMsgLanServerAvailable {
     #[prost(fixed64, optional, tag = "1")]
     pub lobby_id: ::core::option::Option<u64>,
+    #[prost(fixed64, optional, tag = "2")]
+    pub nonce: ::core::option::Option<u64>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CSoEconGameAccountClient {
@@ -3223,6 +3223,22 @@ pub struct CMsgSource2NetworkFlowQuality {
     pub netframes_size_p95: ::core::option::Option<u32>,
     #[prost(uint32, optional, tag = "36")]
     pub netframes_size_p99: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "12")]
+    pub netframes_size_uncompressed_p50: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "13")]
+    pub netframes_size_uncompressed_p95: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "14")]
+    pub netframes_size_uncompressed_p99: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "15")]
+    pub netframes_size_uncompressed_max: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "16")]
+    pub netframes_msgs_p50: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "17")]
+    pub netframes_msgs_p95: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "18")]
+    pub netframes_msgs_p99: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "19")]
+    pub netframes_msgs_max: ::core::option::Option<u32>,
     #[prost(uint32, optional, tag = "40")]
     pub ticks_total: ::core::option::Option<u32>,
     #[prost(uint32, optional, tag = "41")]
@@ -3281,6 +3297,30 @@ pub struct CMsgSource2NetworkFlowQuality {
     pub net_ping_p50: ::core::option::Option<u32>,
     #[prost(uint32, optional, tag = "82")]
     pub net_ping_p95: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "90")]
+    pub msgproc_usec_p50: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "91")]
+    pub msgproc_usec_p95: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "92")]
+    pub msgproc_usec_p99: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "93")]
+    pub msgproc_usec_max: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "94")]
+    pub msgproc_usec_avg_p50: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "95")]
+    pub msgproc_usec_avg_p95: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "96")]
+    pub msgproc_usec_avg_p99: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "97")]
+    pub msgproc_usec_avg_max: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "100")]
+    pub queuedmsgs_p50: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "101")]
+    pub queuedmsgs_p95: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "102")]
+    pub queuedmsgs_p99: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "103")]
+    pub queuedmsgs_max: ::core::option::Option<u32>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct CMsgSource2PerfIntervalSample {

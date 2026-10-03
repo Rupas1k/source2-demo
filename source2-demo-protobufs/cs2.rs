@@ -110,6 +110,14 @@ pub struct CCsUsrMsgCurrentTimescale {
     pub cur_timescale: ::core::option::Option<f32>,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CCsUsrMsgCustomHudClicked {
+    #[prost(uint32, optional, tag = "1", default = "16777215")]
+    pub custom_hud_layout: ::core::option::Option<u32>,
+    #[prost(string, optional, tag = "2")]
+    pub button_id: ::core::option::Option<::prost::alloc::string::String>,
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, ::prost::Message)]
 pub struct CCsUsrMsgDamage {
     #[prost(int32, optional, tag = "1")]
@@ -858,8 +866,8 @@ pub struct CEconItemPreviewDataBlock {
     pub killeaterscoretype: ::core::option::Option<u32>,
     #[prost(uint32, optional, tag = "10")]
     pub killeatervalue: ::core::option::Option<u32>,
-    #[prost(string, optional, tag = "11")]
-    pub customname: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, repeated, tag = "11")]
+    pub customnames: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(message, repeated, tag = "12")]
     pub stickers: ::prost::alloc::vec::Vec<c_econ_item_preview_data_block::Sticker>,
     #[prost(uint32, optional, tag = "13")]
@@ -884,6 +892,10 @@ pub struct CEconItemPreviewDataBlock {
     pub variations: ::prost::alloc::vec::Vec<c_econ_item_preview_data_block::Sticker>,
     #[prost(uint32, optional, tag = "23")]
     pub upgrade_level: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "24")]
+    pub pet_food_expiration_date: ::core::option::Option<u32>,
+    #[prost(bytes = "vec", optional, tag = "25")]
+    pub blobdata: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, ::prost::Message)]
@@ -1399,52 +1411,6 @@ pub struct CMsgGccStrike15V2Fantasy {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct CMsgGccStrike15V2Gc2ClientInitSystem {
-    #[prost(bool, optional, tag = "1")]
-    pub load: ::core::option::Option<bool>,
-    #[prost(string, optional, tag = "2")]
-    pub name: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(string, optional, tag = "3")]
-    pub outputname: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(bytes = "vec", optional, tag = "4")]
-    pub key_data: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
-    #[prost(bytes = "vec", optional, tag = "5")]
-    pub sha_hash: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
-    #[prost(int32, optional, tag = "6")]
-    pub cookie: ::core::option::Option<i32>,
-    #[prost(string, optional, tag = "7")]
-    pub manifest: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(bytes = "vec", optional, tag = "8")]
-    pub system_package: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
-    #[prost(bool, optional, tag = "9")]
-    pub load_system: ::core::option::Option<bool>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct CMsgGccStrike15V2Gc2ClientInitSystemResponse {
-    #[prost(bool, optional, tag = "1")]
-    pub success: ::core::option::Option<bool>,
-    #[prost(string, optional, tag = "2")]
-    pub diagnostic: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(bytes = "vec", optional, tag = "3")]
-    pub sha_hash: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
-    #[prost(int32, optional, tag = "4")]
-    pub response: ::core::option::Option<i32>,
-    #[prost(int32, optional, tag = "5")]
-    pub error_code1: ::core::option::Option<i32>,
-    #[prost(int32, optional, tag = "6")]
-    pub error_code2: ::core::option::Option<i32>,
-    #[prost(int64, optional, tag = "7")]
-    pub handle: ::core::option::Option<i64>,
-    #[prost(enumeration = "EInitSystemResult", optional, tag = "8", default = "KEInitSystemResultInvalid")]
-    pub einit_result: ::core::option::Option<i32>,
-    #[prost(int32, optional, tag = "9")]
-    pub aux_system1: ::core::option::Option<i32>,
-    #[prost(int32, optional, tag = "10")]
-    pub aux_system2: ::core::option::Option<i32>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CMsgGccStrike15V2Gc2ClientNotifyXpShop {
     #[prost(message, optional, tag = "1")]
     pub prematch: ::core::option::Option<CSoAccountXpShop>,
@@ -1454,36 +1420,6 @@ pub struct CMsgGccStrike15V2Gc2ClientNotifyXpShop {
     pub current_xp: ::core::option::Option<u32>,
     #[prost(uint32, optional, tag = "4")]
     pub current_level: ::core::option::Option<u32>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct CMsgGccStrike15V2Gc2ClientRefuseSecureMode {
-    #[prost(string, optional, tag = "1")]
-    pub file_report: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(bool, optional, tag = "2")]
-    pub offer_insecure_mode: ::core::option::Option<bool>,
-    #[prost(bool, optional, tag = "3")]
-    pub offer_secure_mode: ::core::option::Option<bool>,
-    #[prost(bool, optional, tag = "4")]
-    pub show_unsigned_ui: ::core::option::Option<bool>,
-    #[prost(bool, optional, tag = "5")]
-    pub kick_user: ::core::option::Option<bool>,
-    #[prost(bool, optional, tag = "6")]
-    pub show_trusted_ui: ::core::option::Option<bool>,
-    #[prost(bool, optional, tag = "7")]
-    pub show_warning_not_trusted: ::core::option::Option<bool>,
-    #[prost(bool, optional, tag = "8")]
-    pub show_warning_not_trusted_2: ::core::option::Option<bool>,
-    #[prost(string, optional, tag = "9")]
-    pub files_prevented_trusted: ::core::option::Option<::prost::alloc::string::String>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct CMsgGccStrike15V2Gc2ClientRequestValidation {
-    #[prost(bool, optional, tag = "1")]
-    pub full_report: ::core::option::Option<bool>,
-    #[prost(string, optional, tag = "2")]
-    pub module: ::core::option::Option<::prost::alloc::string::String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -1849,6 +1785,8 @@ pub struct CMsgGccStrike15V2MatchmakingGc2ServerReserve {
     pub teammate_colors: ::prost::alloc::vec::Vec<i32>,
     #[prost(uint32, optional, tag = "22")]
     pub match_id_additional: ::core::option::Option<u32>,
+    #[prost(string, repeated, tag = "23")]
+    pub clan_tags: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -2143,6 +2081,8 @@ pub struct CMsgGccStrike15V2ServerNotificationForUserPenalty {
     pub seconds: ::core::option::Option<u32>,
     #[prost(bool, optional, tag = "4")]
     pub communication_cooldown: ::core::option::Option<bool>,
+    #[prost(uint32, optional, tag = "5")]
+    pub cheating_penalty_level: ::core::option::Option<u32>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -2155,6 +2095,12 @@ pub struct CMsgGccStrike15V2ServerVarValueNotificationInfo {
     pub r#type: ::core::option::Option<u32>,
     #[prost(uint32, repeated, packed = "false", tag = "4")]
     pub userdata: ::prost::alloc::vec::Vec<u32>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CMsgGccStrike15V2SetClanId {
+    #[prost(uint32, optional, tag = "1")]
+    pub clan_id: ::core::option::Option<u32>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
@@ -2418,7 +2364,7 @@ pub struct CSoGameAccountSteamChina {
     pub time_play_ban: ::core::option::Option<u32>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CSoPersonaDataPublic {
     #[prost(int32, optional, tag = "1")]
     pub player_level: ::core::option::Option<i32>,
@@ -2430,6 +2376,10 @@ pub struct CSoPersonaDataPublic {
     pub xp_trail_timestamp_refresh: ::core::option::Option<u32>,
     #[prost(uint32, optional, tag = "5")]
     pub xp_trail_level: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "6")]
+    pub clan_id: ::core::option::Option<u32>,
+    #[prost(string, optional, tag = "7")]
+    pub clan_tag: ::core::option::Option<::prost::alloc::string::String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
@@ -2460,6 +2410,24 @@ pub struct CSoVolatileItemOffer {
     pub faux_itemid: ::prost::alloc::vec::Vec<u64>,
     #[prost(uint32, repeated, packed = "false", tag = "3")]
     pub generation_time: ::prost::alloc::vec::Vec<u32>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CVacNetGetReviewerInfoRequest {
+    #[prost(uint32, optional, tag = "1")]
+    pub appid: ::core::option::Option<u32>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CVacNetGetReviewerInfoResponse {
+    #[prost(message, optional, tag = "1")]
+    pub reviewer_info: ::core::option::Option<CVacnetReviewerInfo>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CVacnetReviewerInfo {
+    #[prost(string, repeated, tag = "1")]
+    pub permissions: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -2691,13 +2659,9 @@ pub enum ECsgoGcMsg {
     KEMsgGccStrike15V2ClientPerfReport = 9202,
     KEMsgGccStrike15V2GetEventFavoritesResponse = 9203,
     KEMsgGccStrike15V2ClientRequestSouvenir = 9204,
-    KEMsgGccStrike15V2Gc2ClientRefuseSecureMode = 9206,
-    KEMsgGccStrike15V2Gc2ClientRequestValidation = 9207,
     KEMsgGccStrike15V2ClientRedeemMissionReward = 9209,
     KEMsgGccStrike15ClientDeepStats = 9210,
     KEMsgGccStrike15StartAgreementSessionInGame = 9211,
-    KEMsgGccStrike15V2Gc2ClientInitSystem = 9212,
-    KEMsgGccStrike15V2Gc2ClientInitSystemResponse = 9213,
     KEMsgGccStrike15V2PrivateQueues = 9214,
     KEMsgGccStrike15V2MatchListTournamentOperatorMgmt = 9215,
     KEMsgGccStrike15V2BetaEnrollment = 9217,
@@ -2712,6 +2676,7 @@ pub enum ECsgoGcMsg {
     KEMsgGccStrike15V2RecurringMissionSchema = 9226,
     KEMsgGccStrike15V2VolatileItemClaimReward = 9227,
     KEMsgGccStrike15V2VolatileShopSubscribe = 9228,
+    KEMsgGccStrike15V2SetClanId = 9229,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -2729,9 +2694,9 @@ pub enum ECstrike15UserMessages {
     CsUmGeiger = 302,
     CsUmTrain = 303,
     CsUmHudText = 304,
-    CsUmSayText = 305,
-    CsUmSayText2 = 306,
-    CsUmTextMsg = 307,
+    CsUmSayTextCsgoLegacy = 305,
+    CsUmSayText2CsgoLegacy = 306,
+    CsUmTextMsgCsgoLegacy = 307,
     CsUmHudMsg = 308,
     CsUmResetHud = 309,
     CsUmGameTitle = 310,
@@ -2751,7 +2716,7 @@ pub enum ECstrike15UserMessages {
     CsUmProcessSpottedEntityUpdate = 325,
     CsUmReloadEffect = 326,
     CsUmAdjustMoney = 327,
-    CsUmUpdateTeamMoney = 328,
+    CsUmUpdateTeamMoneyCsgoLegacy = 328,
     CsUmStopSpectatorMode = 329,
     CsUmKillCam = 330,
     CsUmDesiredTimescale = 331,
@@ -2803,20 +2768,7 @@ pub enum ECstrike15UserMessages {
     CsUmRecurringMissionSchema = 387,
     CsUmSendPlayerLoadout = 388,
     CsUmWeaponMagDrop = 389,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum EInitSystemResult {
-    KEInitSystemResultInvalid = 0,
-    KEInitSystemResultSuccess = 1,
-    KEInitSystemResultNone = 2,
-    KEInitSystemResultNotFound = 3,
-    KEInitSystemResultExisting = 4,
-    KEInitSystemResultFailedOpen = 5,
-    KEInitSystemResultMismatch = 6,
-    KEInitSystemResultFailedInit = 7,
-    KEInitSystemResultMax = 8,
+    CsUmCustomHudClicked = 390,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]

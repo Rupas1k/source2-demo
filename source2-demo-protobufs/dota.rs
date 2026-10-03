@@ -869,6 +869,8 @@ pub struct CDotaUserMsgGiveItem {
     pub item_ent_index: ::core::option::Option<u32>,
     #[prost(enumeration = "cdota_user_msg_give_item::EGiveStatus", optional, tag = "4", default = "Start")]
     pub give_status: ::core::option::Option<i32>,
+    #[prost(uint32, optional, tag = "5")]
+    pub id: ::core::option::Option<u32>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, ::prost::Message)]
