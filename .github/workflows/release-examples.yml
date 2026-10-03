@@ -1,0 +1,122 @@
+name: Release examples
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-examples:
+    name: Build examples (${{ matrix.asset }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset: linux-x86_64
+            archive: tar.gz
+            exe: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset: windows-x86_64
+            archive: zip
+            exe: ".exe"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            d2-examples
+            dl-examples
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          archive_name="source2-demo-examples-${version}-${{ matrix.asset }}.${{ matrix.archive }}"
+          package_dir="source2-demo-examples-${version}-${{ matrix.asset }}"
+
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "archive_name=${archive_name}" >> "${GITHUB_OUTPUT}"
+          echo "package_dir=${package_dir}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build Dota 2 examples
+        run: cargo build --release --manifest-path d2-examples/Cargo.toml --workspace --target ${{ matrix.target }}
+
+      - name: Build Deadlock examples
+        run: cargo build --release --manifest-path dl-examples/Cargo.toml --workspace --target ${{ matrix.target }}
+
+      - name: Stage examples
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${{ steps.meta.outputs.version }}"
+          root="${{ steps.meta.outputs.package_dir }}"
+
+          mkdir -p "dist/${root}/d2" "dist/${root}/dl"
+
+          for bin in chat combatlog lifestate opendota remove-chat wards; do
+            cp "d2-examples/target/${{ matrix.target }}/release/${bin}${{ matrix.exe }}" "dist/${root}/d2/"
+          done
+
+          for bin in anonymize-replay chat damage-events death-events lifestate match-details; do
+            cp "dl-examples/target/${{ matrix.target }}/release/${bin}${{ matrix.exe }}" "dist/${root}/dl/"
+          done
+
+          cat > "dist/${root}/README.txt" <<EOF
+          source2-demo examples ${version}
+          Target: ${{ matrix.target }}
+
+          Archive layout:
+          - d2/: Dota 2 examples
+          - dl/: Deadlock examples
+
+          Run examples from a terminal and pass replay paths as arguments.
+          EOF
+
+      - name: Create tar archive
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -C dist -czf "${{ steps.meta.outputs.archive_name }}" "${{ steps.meta.outputs.package_dir }}"
+
+      - name: Create zip archive
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist/${{ steps.meta.outputs.package_dir }}" -DestinationPath "${{ steps.meta.outputs.archive_name }}"
+
+      - name: Create checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${{ steps.meta.outputs.archive_name }}" > "${{ steps.meta.outputs.archive_name }}.sha256"
+          else
+            shasum -a 256 "${{ steps.meta.outputs.archive_name }}" > "${{ steps.meta.outputs.archive_name }}.sha256"
+          fi
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ steps.meta.outputs.archive_name }}
+            ${{ steps.meta.outputs.archive_name }}.sha256
