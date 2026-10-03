@@ -143,7 +143,7 @@
 //! - `#[on_game_event]` - Called for game events
 //! - `#[on_string_table]` - Called for string table updates
 //! - `#[on_stop]` - Called when replay ends
-//! - `#[on_combat_log]` - Called for combat log entries (Dota 2 only)
+//! - `#[on_combat_log]` - Called for Dota 2 or Deadlock combat log entries
 //!
 //! ### Trait Markers
 //!
@@ -153,7 +153,7 @@
 //! - `#[uses_entities]` - Track entities
 //! - `#[uses_string_tables]` - Track string tables
 //! - `#[uses_game_events]` - Track game events
-//! - `#[uses_combat_log]` - Track combat log (Dota 2 only)
+//! - `#[uses_combat_log]` - Track combat log for enabled games
 //!
 //! ## How the Macros Work
 //!
@@ -256,7 +256,7 @@ use proc_macro::TokenStream;
 /// - `#[on_string_table]` - Called when string tables update
 /// - `#[on_string_table("table_name")]` - Only for specific tables
 /// - `#[on_stop]` - Called when replay ends
-/// - `#[on_combat_log]` - Called for combat log entries (Dota 2 only)
+/// - `#[on_combat_log]` - Called for Dota 2 or Deadlock combat log entries
 ///
 /// # Trait Attributes
 ///
@@ -266,7 +266,7 @@ use proc_macro::TokenStream;
 /// - `#[uses_entities]` - Enable entity tracking
 /// - `#[uses_string_tables]` - Enable string table tracking
 /// - `#[uses_game_events]` - Enable game event tracking
-/// - `#[uses_combat_log]` - Enable combat log tracking (Dota 2 only)
+/// - `#[uses_combat_log]` - Enable combat log tracking for enabled games
 ///
 /// # Parameter Guidelines
 ///
@@ -1204,7 +1204,10 @@ pub fn on_stop(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
-/// Marks a method as a combat log handler (Dota 2 only).
+/// Marks a method as a Dota 2 or Deadlock combat log handler.
+///
+/// Use `&CombatLogEntry` for Dota 2 or `&CitadelCombatLogEntry` for Deadlock.
+/// Both handler types can coexist when both game features are enabled.
 ///
 /// This handler is called whenever a combat log entry is generated.
 /// Combat log entries include damage, healing, kills, abilities, items, etc.
@@ -1262,7 +1265,7 @@ pub fn on_stop(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// }
 /// # }
 /// ```
-#[cfg(feature = "dota")]
+#[cfg(any(feature = "dota", feature = "citadel"))]
 #[proc_macro_attribute]
 pub fn on_combat_log(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
@@ -1350,7 +1353,7 @@ pub fn uses_game_events(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
-/// Marks the impl block to enable combat log tracking (Dota 2 only).
+/// Marks the impl block to enable combat log tracking for enabled games.
 ///
 /// When applied to an impl block or individual method, automatically enables
 /// the `COMBAT_LOG_ENTRIES` and `STRING_TABLE_STATE` interest flags for combat
@@ -1358,7 +1361,7 @@ pub fn uses_game_events(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// # Requires Feature
 ///
-/// Only available when the `dota` feature is enabled.
+/// Available when the `dota` or `citadel` macro feature is enabled.
 ///
 /// # Examples
 ///
@@ -1371,7 +1374,7 @@ pub fn uses_game_events(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// # fn dummy(&mut self) -> ObserverResult { Ok(()) }
 /// }
 /// ```
-#[cfg(feature = "dota")]
+#[cfg(any(feature = "dota", feature = "citadel"))]
 #[proc_macro_attribute]
 pub fn uses_combat_log(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item

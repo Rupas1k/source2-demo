@@ -5,8 +5,10 @@ use crate::reader::{BitsReader, MessageReader};
 use crate::{try_observers, GameEvent, GameEventList};
 use crate::{Interests, Parser};
 
+#[cfg(feature = "deadlock")]
+use crate::combat_log::CitadelCombatLogEntry;
 #[cfg(feature = "dota")]
-use crate::event::CombatLogEntry;
+use crate::combat_log::CombatLogEntry;
 
 pub trait DemoMessages {
     fn on_base_user_message(
@@ -185,6 +187,22 @@ where
             }
         }
 
+        #[cfg(feature = "deadlock")]
+        if self.anyone_interested(
+            Interests::STRING_TABLE_STATE | Interests::CITADEL_COMBAT_LOG_ENTRIES,
+        ) {
+            if let Ok(names) = self.context.string_tables.get_by_name("CombatLogNames") {
+                while let Some(log) = self.citadel_combat_log.pop_front() {
+                    let entry = CitadelCombatLogEntry { names, log };
+                    try_observers!(
+                        self,
+                        CITADEL_COMBAT_LOG_ENTRIES,
+                        on_citadel_combat_log(&self.context, &entry)
+                    )?;
+                }
+            }
+        }
+
         try_observers!(self, TICK_END, on_tick_end(&self.context))?;
         Ok(())
     }
@@ -235,6 +253,13 @@ where
         msg_type: CitadelUserMessageIds,
         msg: &[u8],
     ) -> Result<(), ParserError> {
+        if self.anyone_interested(Interests::CITADEL_COMBAT_LOG_ENTRIES)
+            && msg_type == CitadelUserMessageIds::KEUserMsgCombatLogEntry
+        {
+            self.citadel_combat_log
+                .push_back(CMsgCitadelCombatLogEntry::decode(msg)?);
+        }
+
         try_observers!(
             self,
             CITADEL_USER_MESSAGE,

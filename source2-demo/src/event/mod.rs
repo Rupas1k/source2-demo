@@ -42,14 +42,10 @@
 //! }
 //! ```
 
-#[cfg(feature = "dota")]
-mod combat_log;
 mod definition;
 mod list;
 mod value;
 
-#[cfg(feature = "dota")]
-pub use combat_log::*;
 pub use definition::*;
 pub use list::*;
 pub use value::*;

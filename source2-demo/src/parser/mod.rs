@@ -15,7 +15,7 @@ use std::rc::Rc;
 
 use crate::parser::demo::DemoCommands;
 use crate::try_observers;
-#[cfg(feature = "dota")]
+#[cfg(any(feature = "dota", feature = "deadlock"))]
 use std::collections::VecDeque;
 
 /// Main parser for Source 2 demo files.
@@ -95,6 +95,8 @@ where
 
     #[cfg(feature = "dota")]
     pub(crate) combat_log: VecDeque<CMsgDotaCombatLogEntry>,
+    #[cfg(feature = "deadlock")]
+    pub(crate) citadel_combat_log: VecDeque<CMsgCitadelCombatLogEntry>,
 
     pub(crate) prologue_completed: bool,
     pub(crate) skip_deltas: bool,
@@ -165,6 +167,8 @@ impl<'a> Parser<'a, SliceReader<'a>> {
 
             #[cfg(feature = "dota")]
             combat_log: VecDeque::default(),
+            #[cfg(feature = "deadlock")]
+            citadel_combat_log: VecDeque::default(),
 
             prologue_completed: false,
             skip_deltas: false,
@@ -253,6 +257,8 @@ where
 
             #[cfg(feature = "dota")]
             combat_log: VecDeque::default(),
+            #[cfg(feature = "deadlock")]
+            citadel_combat_log: VecDeque::default(),
 
             prologue_completed: false,
             skip_deltas: false,

@@ -1,5 +1,133 @@
 #![allow(clippy::field_reassign_with_default)]
 
+#[cfg(all(feature = "dota", feature = "deadlock"))]
+#[derive(Default)]
+struct BothCombatObserver;
+
+#[cfg(all(feature = "dota", feature = "deadlock"))]
+#[observer]
+impl BothCombatObserver {
+    #[source2_demo_macros::on_combat_log]
+    fn dota(&mut self, _entry: &CombatLogEntry) -> ObserverResult {
+        Ok(())
+    }
+
+    #[source2_demo_macros::on_combat_log]
+    fn citadel(&mut self, _entry: &CitadelCombatLogEntry) -> ObserverResult {
+        Ok(())
+    }
+}
+
+#[cfg(all(feature = "dota", feature = "deadlock"))]
+#[test]
+fn combat_log_macro_infers_both_game_interests() {
+    let interests = BothCombatObserver.interests();
+    assert!(interests.contains(
+        Interests::COMBAT_LOG_ENTRIES
+            | Interests::CITADEL_COMBAT_LOG_ENTRIES
+            | Interests::STRING_TABLE_STATE
+    ));
+}
+
+#[cfg(feature = "deadlock")]
+#[derive(Default)]
+struct CitadelCombatObserver {
+    values: Vec<u32>,
+}
+
+#[cfg(feature = "deadlock")]
+#[observer]
+#[source2_demo_macros::uses_combat_log]
+impl CitadelCombatObserver {
+    #[source2_demo_macros::on_combat_log]
+    fn entry(&mut self, entry: &CitadelCombatLogEntry) -> ObserverResult {
+        assert_eq!(
+            entry.r#type(),
+            crate::proto::ECitadelCombatLogTypes::KECitadelCombatLogDamage
+        );
+        assert!(entry.attacker_name().is_err());
+        self.values.push(entry.value()?);
+        Ok(())
+    }
+}
+
+#[cfg(feature = "deadlock")]
+#[test]
+fn citadel_combat_log_waits_for_name_table() {
+    let entry = crate::proto::CMsgCitadelCombatLogEntry {
+        r#type: Some(crate::proto::ECitadelCombatLogTypes::KECitadelCombatLogDamage as i32),
+        value: Some(123),
+        ..Default::default()
+    };
+
+    let payload = entry.encode_to_vec();
+    let replay = replay_with_playback_ticks(
+        20,
+        &[
+            (
+                EDemoCommands::DemPacket,
+                1,
+                demo_packet_payload(&[(
+                    CitadelUserMessageIds::KEUserMsgCombatLogEntry as i32,
+                    &payload,
+                )]),
+            ),
+            (EDemoCommands::DemSyncTick, 2, sync_payload()),
+            (EDemoCommands::DemSyncTick, 3, sync_payload()),
+        ],
+    );
+    let mut parser = Parser::from_slice(&replay).unwrap();
+    let observer = parser.register_observer::<CitadelCombatObserver>();
+
+    parser.run_to_end().unwrap();
+    assert!(observer.borrow().values.is_empty());
+    assert_eq!(parser.citadel_combat_log.len(), 1);
+}
+
+#[cfg(feature = "deadlock")]
+#[test]
+fn citadel_combat_log_dispatches_at_tick_end_with_names() {
+    let entry = crate::proto::CMsgCitadelCombatLogEntry {
+        r#type: Some(crate::proto::ECitadelCombatLogTypes::KECitadelCombatLogDamage as i32),
+        value: Some(123),
+        ..Default::default()
+    };
+    let payload = entry.encode_to_vec();
+    let replay = replay_with_playback_ticks(
+        20,
+        &[
+            (
+                EDemoCommands::DemPacket,
+                1,
+                demo_packet_payload(&[(
+                    CitadelUserMessageIds::KEUserMsgCombatLogEntry as i32,
+                    &payload,
+                )]),
+            ),
+            (EDemoCommands::DemSyncTick, 2, sync_payload()),
+            (EDemoCommands::DemSyncTick, 3, sync_payload()),
+        ],
+    );
+    let mut parser = Parser::from_slice(&replay).unwrap();
+    parser.context.string_tables.tables.push(StringTable {
+        name: "CombatLogNames".into(),
+        ..Default::default()
+    });
+    parser
+        .context
+        .string_tables
+        .name_to_table
+        .insert("CombatLogNames".into(), 0);
+    let observer = parser.register_observer::<CitadelCombatObserver>();
+
+    parser.run_to_end().unwrap();
+    assert_eq!(observer.borrow().values, vec![123]);
+    assert!(parser.citadel_combat_log.is_empty());
+}
+
+#[cfg(feature = "deadlock")]
+use crate::CitadelCombatLogEntry;
+
 use crate::error::ParserError;
 use crate::parser::{
     Context, DemoRewriter, DemoRunner, DemoWriter, Interests, MessageRewrite, Observer,

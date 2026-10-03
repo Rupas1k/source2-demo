@@ -4,8 +4,10 @@ use crate::{Entity, EntityEvents, GameEvent, StringTable};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+#[cfg(feature = "deadlock")]
+use crate::combat_log::CitadelCombatLogEntry;
 #[cfg(feature = "dota")]
-use crate::event::CombatLogEntry;
+use crate::combat_log::CombatLogEntry;
 
 /// Result type for observer callbacks.
 ///
@@ -126,6 +128,10 @@ bitflags::bitflags! {
         #[cfg(feature = "deadlock")]
         /// Interest in Citadel/Deadlock user messages (`CitadelUserMessageIds`).
         const CITADEL_USER_MESSAGE = 1 << 14;
+
+        #[cfg(feature = "deadlock")]
+        /// Interest in Deadlock combat log entries.
+        const CITADEL_COMBAT_LOG_ENTRIES = 1 << 18;
 
         #[cfg(feature = "deadlock")]
         /// Interest in Citadel/Deadlock game events (`ECitadelGameEvents`).
@@ -408,6 +414,16 @@ pub trait Observer {
         Ok(())
     }
 
+    /// Called for a Deadlock combat log entry at tick end.
+    #[cfg(feature = "deadlock")]
+    fn on_citadel_combat_log(
+        &mut self,
+        ctx: &Context,
+        cle: &CitadelCombatLogEntry,
+    ) -> ObserverResult {
+        Ok(())
+    }
+
     /// Called when a Dota 2 user message is received.
     ///
     /// Dota 2 specific user messages. Only available with the `dota` feature
@@ -583,6 +599,15 @@ where
     #[cfg(feature = "dota")]
     fn on_combat_log(&mut self, ctx: &Context, cle: &CombatLogEntry) -> ObserverResult {
         self.borrow_mut().on_combat_log(ctx, cle)
+    }
+
+    #[cfg(feature = "deadlock")]
+    fn on_citadel_combat_log(
+        &mut self,
+        ctx: &Context,
+        cle: &CitadelCombatLogEntry,
+    ) -> ObserverResult {
+        self.borrow_mut().on_citadel_combat_log(ctx, cle)
     }
 
     #[cfg(feature = "dota")]

@@ -47,7 +47,7 @@ pub(crate) fn is_modified_indices_type(value: &str) -> bool {
     value == "& [i32]"
 }
 
-#[cfg(feature = "dota")]
+#[cfg(any(feature = "dota", feature = "citadel"))]
 pub(crate) fn is_combat_log_type(value: &str) -> bool {
     matches!(
         value,

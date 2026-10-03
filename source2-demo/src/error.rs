@@ -93,8 +93,8 @@ pub enum ParserError {
     #[error("IO error: {0}")]
     IoError(String),
 
-    #[cfg(feature = "dota")]
-    /// Combat log parsing error (Dota 2)
+    #[cfg(any(feature = "dota", feature = "deadlock"))]
+    /// Combat log parsing error
     #[error(transparent)]
     CombatLog(#[from] CombatLogError),
 

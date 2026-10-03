@@ -5,6 +5,8 @@
 #[cfg(test)]
 extern crate self as source2_demo;
 
+#[cfg(any(feature = "dota", feature = "deadlock"))]
+mod combat_log;
 mod display;
 mod entity;
 pub mod error;
@@ -109,10 +111,12 @@ pub mod prelude {
     pub use source2_demo_protobufs::SvcMessages;
 
     #[cfg(feature = "dota")]
-    pub use crate::event::CombatLogEntry;
+    pub use crate::combat_log::CombatLogEntry;
     #[cfg(feature = "dota")]
     pub use crate::proto::EDotaUserMessages;
 
+    #[cfg(feature = "deadlock")]
+    pub use crate::combat_log::CitadelCombatLogEntry;
     #[cfg(feature = "deadlock")]
     pub use crate::proto::CitadelUserMessageIds;
     #[cfg(feature = "deadlock")]
@@ -144,8 +148,10 @@ pub type HashMap<K, V> = hashbrown::HashMap<K, V, rustc_hash::FxBuildHasher>;
 /// compared to the standard library's `HashSet`.
 pub type HashSet<T> = hashbrown::HashSet<T, rustc_hash::FxBuildHasher>;
 
+#[cfg(feature = "deadlock")]
+pub use crate::combat_log::CitadelCombatLogEntry;
 #[cfg(feature = "dota")]
-pub use crate::event::CombatLogEntry;
+pub use crate::combat_log::CombatLogEntry;
 
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
