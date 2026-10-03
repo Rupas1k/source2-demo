@@ -428,6 +428,10 @@ impl Decode for QAngleDecoder {
             ]);
         }
 
+        if self.properties.bit_count == 32 {
+            return FieldValue::Vector3D([reader.read_f32(), reader.read_f32(), reader.read_f32()]);
+        }
+
         if self.properties.encoder == Some(FieldEncoder::QAnglePrecise) {
             let mut v = [0f32; 3];
             let x = reader.read_bool();
@@ -452,10 +456,6 @@ impl Decode for QAngleDecoder {
                 reader.read_angle(n),
                 reader.read_angle(n),
             ]);
-        }
-
-        if self.properties.bit_count == 32 {
-            return FieldValue::Vector3D([reader.read_f32(), reader.read_f32(), reader.read_f32()]);
         }
 
         let mut v = [0f32; 3];
