@@ -20,10 +20,10 @@ pub(crate) enum FieldDecoder {
     Boolean,
     String,
     BinaryBlock,
-    Signed8,
+    Signed8(Signed8Decoder),
     Signed16,
     Signed32,
-    Unsigned8,
+    Unsigned8(Unsigned8Decoder),
     Unsigned16,
     Unsigned32,
 
@@ -68,14 +68,14 @@ impl FieldDecoder {
             }
             "float32" | "GameTime_t" => FieldDecoder::Float32(Float32Decoder { properties }),
 
-            "int8" => FieldDecoder::Signed8,
+            "int8" => FieldDecoder::Signed8(Signed8Decoder { properties }),
             "int16" => FieldDecoder::Signed16,
             "int32" => FieldDecoder::Signed32,
 
             #[cfg(feature = "dota")]
             "HeroID_t" => FieldDecoder::Signed32,
 
-            "uint8" | "BloodType" => FieldDecoder::Unsigned8,
+            "uint8" | "BloodType" => FieldDecoder::Unsigned8(Unsigned8Decoder { properties }),
             "uint16" => FieldDecoder::Unsigned16,
             "uint64" | "CStrongHandle" | "HeroFacetKey_t" | "ResourceId_t" => {
                 FieldDecoder::Unsigned64(Unsigned64Decoder { properties })
@@ -101,11 +101,11 @@ impl Decode for FieldDecoder {
                 String::from_utf8_lossy(&bytes).into_owned()
             }),
 
-            FieldDecoder::Signed8 => FieldValue::Signed8(reader.read_var_i32() as i8),
+            FieldDecoder::Signed8(decoder) => decoder.decode(reader),
             FieldDecoder::Signed16 => FieldValue::Signed16(reader.read_var_i32() as i16),
             FieldDecoder::Signed32 => FieldValue::Signed32(reader.read_var_i32()),
 
-            FieldDecoder::Unsigned8 => FieldValue::Unsigned8(reader.read_var_u32() as u8),
+            FieldDecoder::Unsigned8(decoder) => decoder.decode(reader),
             FieldDecoder::Unsigned16 => FieldValue::Unsigned16(reader.read_var_u32() as u16),
             FieldDecoder::Unsigned32 => FieldValue::Unsigned32(reader.read_var_u32()),
 
@@ -139,10 +139,12 @@ impl Skip for FieldDecoder {
                 reader.skip_bytes(n);
             }
 
-            FieldDecoder::Signed8 | FieldDecoder::Signed16 | FieldDecoder::Signed32 => {
+            FieldDecoder::Signed8(decoder) => decoder.skip(reader),
+            FieldDecoder::Signed16 | FieldDecoder::Signed32 => {
                 reader.read_var_i32();
             }
-            FieldDecoder::Unsigned8 | FieldDecoder::Unsigned16 | FieldDecoder::Unsigned32 => {
+            FieldDecoder::Unsigned8(decoder) => decoder.skip(reader),
+            FieldDecoder::Unsigned16 | FieldDecoder::Unsigned32 => {
                 reader.read_var_u32();
             }
 
@@ -172,10 +174,10 @@ impl Encode for FieldDecoder {
                 writer.write_var_u32(bytes.len() as u32)?;
                 writer.write_bytes(bytes.as_bytes())
             }
-            FieldDecoder::Signed8 => writer.write_var_i32(value.i8() as i32),
+            FieldDecoder::Signed8(decoder) => decoder.encode(writer, value),
             FieldDecoder::Signed16 => writer.write_var_i32(value.i16() as i32),
             FieldDecoder::Signed32 => writer.write_var_i32(value.i32()),
-            FieldDecoder::Unsigned8 => writer.write_var_u32(value.u8() as u32),
+            FieldDecoder::Unsigned8(decoder) => decoder.encode(writer, value),
             FieldDecoder::Unsigned16 => writer.write_var_u32(value.u16() as u32),
             FieldDecoder::Unsigned32 => writer.write_var_u32(value.u32()),
             FieldDecoder::Unsigned64(decoder) => decoder.encode(writer, value),
@@ -304,6 +306,78 @@ impl Encode for VectorDecoder {
                 decoder.encode(writer, &FieldValue::Float(v[3]))
             }
             _ => unreachable!("Invalid vector dimension: {}", self.dimensions),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct Signed8Decoder {
+    pub(crate) properties: FieldProperties,
+}
+
+impl Decode for Signed8Decoder {
+    fn decode(&self, reader: &mut SliceReader) -> FieldValue {
+        if self.properties.encoder == Some(FieldEncoder::Fixed8) {
+            FieldValue::Signed8(reader.read_bits(8) as i8)
+        } else {
+            FieldValue::Signed8(reader.read_var_i32() as i8)
+        }
+    }
+}
+
+impl Skip for Signed8Decoder {
+    fn skip(&self, reader: &mut SliceReader) {
+        if self.properties.encoder == Some(FieldEncoder::Fixed8) {
+            reader.skip_bits(8);
+        } else {
+            reader.read_var_i32();
+        }
+    }
+}
+
+impl Encode for Signed8Decoder {
+    fn encode(&self, writer: &mut BitstreamWriter<'_>, value: &FieldValue) -> io::Result<()> {
+        let v = value.i8();
+        if self.properties.encoder == Some(FieldEncoder::Fixed8) {
+            writer.write_bits(8, v as u8 as u64)
+        } else {
+            writer.write_var_i32(v as i32)
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct Unsigned8Decoder {
+    pub(crate) properties: FieldProperties,
+}
+
+impl Decode for Unsigned8Decoder {
+    fn decode(&self, reader: &mut SliceReader) -> FieldValue {
+        if self.properties.encoder == Some(FieldEncoder::Fixed8) {
+            FieldValue::Unsigned8(reader.read_bits(8) as u8)
+        } else {
+            FieldValue::Unsigned8(reader.read_var_u32() as u8)
+        }
+    }
+}
+
+impl Skip for Unsigned8Decoder {
+    fn skip(&self, reader: &mut SliceReader) {
+        if self.properties.encoder == Some(FieldEncoder::Fixed8) {
+            reader.skip_bits(8);
+        } else {
+            reader.read_var_u32();
+        }
+    }
+}
+
+impl Encode for Unsigned8Decoder {
+    fn encode(&self, writer: &mut BitstreamWriter<'_>, value: &FieldValue) -> io::Result<()> {
+        let v = value.u8();
+        if self.properties.encoder == Some(FieldEncoder::Fixed8) {
+            writer.write_bits(8, v as u64)
+        } else {
+            writer.write_var_u32(v as u32)
         }
     }
 }
