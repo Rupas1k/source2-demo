@@ -146,27 +146,13 @@ impl Wards {
             return Ok(());
         };
 
-        let ward_class = WardClass::from_target_name(target_name);
-        if ward_class.is_none() {
+        let Some(ward_class) = WardClass::from_target_name(target_name) else {
             return Ok(());
-        }
+        };
 
         if combat_log.r#type() == DotaCombatlogTypes::DotaCombatlogDeath {
-            let source_name = combat_log.damage_source_name();
-            let attacker_name = combat_log.attacker_name();
-            if let (Ok(killer), Ok(attacker)) = (source_name, attacker_name) {
-                if WardClass::from_target_name(attacker).is_some() {
-                    return Ok(());
-                }
-                self.killers
-                    .get_mut(&WardClass::from_target_name(combat_log.target_name()?).unwrap())
-                    .unwrap()
-                    .push_back(killer.into());
-            } else {
-                self.killers
-                    .get_mut(&WardClass::from_target_name(combat_log.target_name()?).unwrap())
-                    .unwrap()
-                    .push_back(combat_log.damage_source_name()?.into());
+            if let Ok(killer) = combat_log.damage_source_name() {
+                self.killers.get_mut(&ward_class).unwrap().push_back(killer.into());
             }
         }
         Ok(())

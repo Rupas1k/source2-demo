@@ -22,6 +22,10 @@ impl GameTime {
             bail!("No CDOTAGamerulesProxy.")
         };
 
+        if let Some(time) = try_property!(game_rules, f32, "m_pGameRules.m_fGameTime") {
+            return Ok((time * 30.0).round() as i32);
+        }
+
         let is_paused: bool = property!(game_rules, "m_pGameRules.m_bGamePaused");
 
         let time_tick: i32 = match is_paused {

@@ -1,4 +1,5 @@
 // https://github.com/odota/parser/blob/master/src/main/java/opendota/Parse.java
+// Raw-event behavior checked against upstream e45fd08 (2026-10-01).
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -12,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use source2_demo::prelude::*;
 use source2_demo::proto::*;
 
+mod combat_log;
 mod game_time;
 mod wards;
 
@@ -26,7 +28,7 @@ pub struct Entry {
     pub team: Option<i32>,
     pub unit: Option<String>,
     pub key: Option<String>,
-    pub value: Option<u32>,
+    pub value: Option<i32>,
     pub slot: Option<i32>,
     pub player_slot: Option<i32>,
     pub player1: Option<i32>,
@@ -39,57 +41,58 @@ pub struct Entry {
     pub targethero: Option<bool>,
     pub attackerillusion: Option<bool>,
     pub targetillusion: Option<bool>,
-    pub abilitylevel: Option<u8>,
+    pub abilitylevel: Option<u32>,
     pub inflictor: Option<String>,
     pub gold_reason: Option<u32>,
     pub xp_reason: Option<u32>,
     pub valuename: Option<String>,
     pub gold: Option<u32>,
-    pub lh: Option<u16>,
-    pub xp: Option<u16>,
+    pub lh: Option<u32>,
+    pub xp: Option<u32>,
     pub x: Option<f32>,
     pub y: Option<f32>,
     pub z: Option<f32>,
     pub stuns: Option<f32>,
     pub hero_id: Option<i32>,
-    pub itemslot: Option<u8>,
-    pub charges: Option<u8>,
-    pub secondary_charges: Option<u8>,
-    pub life_state: Option<u8>,
-    pub level: Option<u8>,
-    pub kills: Option<u8>,
-    pub deaths: Option<u8>,
-    pub assists: Option<u8>,
-    pub denies: Option<u8>,
+    pub itemslot: Option<u32>,
+    pub charges: Option<u32>,
+    pub secondary_charges: Option<u32>,
+    pub life_state: Option<u32>,
+    pub level: Option<u32>,
+    pub kills: Option<u32>,
+    pub deaths: Option<u32>,
+    pub assists: Option<u32>,
+    pub denies: Option<u32>,
     pub entityleft: Option<bool>,
     pub ehandle: Option<u32>,
-    pub obs_placed: Option<u8>,
-    pub sen_placed: Option<u8>,
-    pub creeps_stacked: Option<u8>,
-    pub camps_stacked: Option<u8>,
-    pub rune_pickups: Option<u8>,
+    pub obs_placed: Option<u32>,
+    pub sen_placed: Option<u32>,
+    pub creeps_stacked: Option<u32>,
+    pub camps_stacked: Option<u32>,
+    pub rune_pickups: Option<u32>,
     pub repicked: Option<bool>,
     pub randomed: Option<bool>,
     pub pred_vict: Option<bool>,
     pub stun_duration: Option<f32>,
     pub slow_duration: Option<f32>,
     pub tracked_death: Option<bool>,
-    pub greevils_greed_stack: Option<u8>,
+    pub greevils_greed_stack: Option<u32>,
     pub tracked_sourcename: Option<String>,
     pub firstblood_claimed: Option<i32>,
     pub teamfight_participation: Option<f32>,
-    pub towers_killed: Option<u8>,
-    pub roshans_killed: Option<u8>,
-    pub observers_placed: Option<u8>,
-    pub draft_order: Option<u8>,
+    pub towers_killed: Option<u32>,
+    pub roshans_killed: Option<u32>,
+    pub observers_placed: Option<u32>,
+    pub draft_order: Option<u32>,
     pub pick: Option<bool>,
-    pub draft_active_team: Option<u8>,
-    pub draft_extime0: Option<u16>,
-    pub draft_extime1: Option<u16>,
+    pub draft_active_team: Option<u32>,
+    pub draft_extime0: Option<u32>,
+    pub draft_extime1: Option<u32>,
     pub networth: Option<u32>,
-    pub stage: Option<u8>,
+    pub stage: Option<u32>,
     pub variant: Option<i32>,
     pub facet_hero_id: Option<i32>,
+    #[serde(skip_serializing)]
     pub hero_inventory: Option<Vec<Item>>,
     #[serde(rename = "isNeutralActiveDrop")]
     pub is_neutral_active_drop: Option<bool>,
@@ -136,20 +139,22 @@ pub struct Item {
     id: String,
     slot: u8,
     #[serde(skip_serializing_if = "Option::is_none")]
-    num_charges: Option<u8>,
+    num_charges: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    num_secondary_charges: Option<u8>,
+    num_secondary_charges: Option<u32>,
 }
 
 #[derive(Default)]
 struct Ability {
     id: String,
-    level: u8,
+    level: u32,
 }
 
 #[derive(Default)]
 struct App {
     output: Option<BufWriter<std::io::Stdout>>,
+    epilogue: bool,
+    combat_log: combat_log::CombatLogAnnotations,
     game_time: Rc<RefCell<GameTime>>,
     time: i32,
     next_interval: i32,
@@ -157,7 +162,7 @@ struct App {
     init: bool,
     start_time: f32,
     name_to_slot: HashMap<String, i32>,
-    abilities_tracking: HashMap<String, u8>,
+    abilities_tracking: HashMap<String, u32>,
     slot_to_players_slot: HashMap<i32, i32>,
     steam_id_to_player_slot: HashMap<u64, i32>,
     cosmetics_map: HashMap<i32, i32>,
@@ -177,21 +182,26 @@ struct App {
 }
 
 impl App {
-    pub fn output(&mut self, mut e: Entry) -> ObserverResult {
-        if self.start_time == 0.0 {
+    pub fn output(&mut self, e: Entry) -> ObserverResult {
+        if self.start_time == 0.0 && !self.epilogue {
             self.log_buffer.push_back(e);
         } else {
-            e.time = (e.time - self.start_time).floor();
-            let output = self.output.as_mut().ok_or_else(|| anyhow::anyhow!("output writer not initialized"))?;
-            serde_json::to_writer(&mut *output, &e)?;
-            output.write_all(b"\n")?;
+            self.write_entry(e)?;
         }
+        Ok(())
+    }
+
+    fn write_entry(&mut self, mut e: Entry) -> ObserverResult {
+        e.time = (e.time - self.start_time).floor();
+        let output = self.output.as_mut().ok_or_else(|| anyhow::anyhow!("output writer not initialized"))?;
+        serde_json::to_writer(&mut *output, &e)?;
+        output.write_all(b"\n")?;
         Ok(())
     }
 
     pub fn flush_log_buffer(&mut self) -> ObserverResult {
         while let Some(e) = self.log_buffer.pop_front() {
-            self.output(e)?
+            self.write_entry(e)?
         }
         Ok(())
     }
@@ -243,8 +253,8 @@ impl App {
             .or_else(|| try_property!(item_entity, "m_pEntity.m_nameStringableIndex"))
             .ok_or_else(|| anyhow::anyhow!("No item name string table index for {}", item_entity.class().name()))?;
         let item_name = entity_names.get_row(item_name_idx)?.key();
-        let num_charges = property!(item_entity, u8, "m_iCurrentCharges");
-        let num_secondary_charges = property!(item_entity, u8, "m_iSecondaryCharges");
+        let num_charges = property!(item_entity, u32, "m_iCurrentCharges");
+        let num_secondary_charges = property!(item_entity, u32, "m_iSecondaryCharges");
 
         Ok(Item {
             id: item_name.into(),
@@ -318,6 +328,7 @@ impl App {
         epilogue_entry.key = serde_json::to_string(&file_info)?.into();
         self.output(epilogue_entry)?;
 
+        self.epilogue = true;
         self.flush_log_buffer()?;
         Ok(())
     }
@@ -385,7 +396,6 @@ impl App {
             draft_heroes[7] = property!(grp, "m_pGameRules.m_BannedHeroes.0007");
             draft_heroes[8] = property!(grp, "m_pGameRules.m_BannedHeroes.0008");
             draft_heroes[9] = property!(grp, "m_pGameRules.m_BannedHeroes.0009");
-            draft_heroes[9] = property!(grp, "m_pGameRules.m_BannedHeroes.0009");
             draft_heroes[10] = try_property!(grp, "m_pGameRules.m_BannedHeroes.0010").unwrap_or_default();
             draft_heroes[11] = try_property!(grp, "m_pGameRules.m_BannedHeroes.0011").unwrap_or_default();
             draft_heroes[12] = try_property!(grp, "m_pGameRules.m_BannedHeroes.0012").unwrap_or_default();
@@ -408,11 +418,11 @@ impl App {
 
                     let mut entry = Entry::new(self.time(ctx)?);
                     entry.r#type = "draft_timings".to_string().into();
-                    entry.draft_order = self.order.into();
+                    entry.draft_order = u32::from(self.order + 1).into();
                     entry.pick = (i >= 14).into();
                     entry.hero_id = draft_heroes[i].into();
-                    entry.draft_extime0 = (extime0.round() as u16).into();
-                    entry.draft_extime1 = (extime1.round() as u16).into();
+                    entry.draft_extime0 = (extime0.round() as u32).into();
+                    entry.draft_extime1 = (extime1.round() as u32).into();
                     entry.draft_active_team = try_property!(grp, "m_pGameRules.m_iActiveTeam");
                     self.output(entry)?;
 
@@ -455,7 +465,7 @@ impl App {
                     let mut entry = Entry::new(self.pause_start_game_time as f32);
                     entry.r#type = "game_paused".to_string().into();
                     entry.key = "pause_duration".to_string().into();
-                    entry.value = pause_duration.into();
+                    entry.value = (pause_duration as i32).into();
                     self.output(entry)?;
                 }
                 self.was_paused = false;
@@ -484,12 +494,12 @@ impl App {
                     let mut entry = Entry::new(self.time(ctx)?);
                     entry.r#type = "player_slot".to_string().into();
                     entry.key = added.to_string().into();
-                    entry.value = ((if player_team == 2 { 0 } else { 128 } + team_slot) as u32).into();
+                    entry.value = (if player_team == 2 { 0 } else { 128 } + team_slot).into();
 
                     self.valid_indices[added as usize] = i;
                     added += 1;
-                    self.slot_to_players_slot.insert(added, entry.value.unwrap() as i32);
-                    self.steam_id_to_player_slot.insert(steam_id, entry.value.unwrap() as i32);
+                    self.slot_to_players_slot.insert(added - 1, entry.value.unwrap());
+                    self.steam_id_to_player_slot.insert(steam_id, entry.value.unwrap());
                     player_entries.push_back(entry);
                 }
                 if player_team == 14 {
@@ -578,13 +588,12 @@ impl App {
                                 let name1 = "npc_dota_hero_".to_string() + &class["CDOTA_Unit_Hero_".len()..].to_lowercase();
                                 let name2 = "npc_dota_hero".to_string()
                                     + &class["CDOTA_Unit_Hero_".len()..]
-                                        .to_lowercase()
                                         .chars()
                                         .map(|c| {
                                             if c.is_ascii_uppercase() {
                                                 format!("_{}", c.to_lowercase())
                                             } else {
-                                                c.to_string()
+                                                c.to_lowercase().to_string()
                                             }
                                         })
                                         .collect::<String>();
@@ -616,8 +625,8 @@ impl App {
                                     starting_items.targetname = hero_name.clone().into();
                                     starting_items.valuename = item.id.clone().into();
                                     starting_items.slot = entry.slot;
-                                    starting_items.value = (if entry.slot.unwrap() < 5 { 0 } else { 123 } + entry.slot.unwrap() as u32).into();
-                                    starting_items.itemslot = item.slot.into();
+                                    starting_items.value = (if entry.slot.unwrap() < 5 { 0 } else { 123 } + entry.slot.unwrap()).into();
+                                    starting_items.itemslot = u32::from(item.slot).into();
                                     starting_items.charges = item.num_charges;
                                     starting_items.secondary_charges = item.num_secondary_charges;
                                     self.output(starting_items)?;
@@ -632,7 +641,7 @@ impl App {
                                     starting_items.targetname = hero_name.clone().into();
                                     starting_items.valuename = item.id.clone().into();
                                     starting_items.slot = entry.slot;
-                                    starting_items.value = (if entry.slot.unwrap() < 5 { 0 } else { 123 } + entry.slot.unwrap() as u32).into();
+                                    starting_items.value = (if entry.slot.unwrap() < 5 { 0 } else { 123 } + entry.slot.unwrap()).into();
                                     starting_items.charges = item.num_charges;
                                     self.output(starting_items)?;
                                 }
@@ -711,7 +720,7 @@ impl App {
         entry.targethero = cle.is_target_hero().unwrap_or(false).into();
         entry.attackerillusion = cle.is_attacker_illusion().unwrap_or(false).into();
         entry.targetillusion = cle.is_target_illusion().unwrap_or(false).into();
-        entry.value = cle.value().unwrap_or_default().into();
+        entry.value = (cle.value().unwrap_or_default() as i32).into();
         entry.stun_duration = cle.stun_duration().ok().filter(|&stun| stun > 0.0);
         entry.slow_duration = cle.slow_duration().ok().filter(|&slow| slow > 0.0);
 
@@ -723,6 +732,13 @@ impl App {
         }
         if cle.r#type() == DotaCombatlogTypes::DotaCombatlogXp {
             entry.xp_reason = cle.xp_reason().ok();
+        }
+
+        self.combat_log.annotate(&mut entry, &self.name_to_slot);
+
+        if cle.r#type() == DotaCombatlogTypes::DotaCombatlogGameState && cle.value()? == 5 && self.start_time == 0.0 {
+            self.start_time = time;
+            self.flush_log_buffer()?;
         }
 
         if cle.r#type() == DotaCombatlogTypes::DotaCombatlogGameState && cle.value()? == 6 {
@@ -742,7 +758,7 @@ impl App {
         entry.r#type = debug_name_to_screaming_snake(event.r#type()).into();
         entry.player1 = event.playerid_1().into();
         entry.player2 = event.playerid_2().into();
-        entry.value = event.value().into();
+        entry.value = (event.value() as i32).into();
         self.output(entry)
     }
 
@@ -760,6 +776,20 @@ impl App {
     }
 
     #[on_message]
+    fn on_legacy_chat(&mut self, ctx: &Context, message: CUserMessageSayText2) -> ObserverResult {
+        let mut entry = Entry::new(self.time(ctx)?);
+        entry.r#type = Some("chat".into());
+        entry.unit = Some(message.param1().into());
+        entry.key = Some(message.param2().into());
+        entry.slot = ctx
+            .entities()
+            .get_by_index(message.entityindex() as usize)
+            .ok()
+            .and_then(|entity| self.get_player_slot(entity).ok());
+        self.output(entry)
+    }
+
+    #[on_message]
     fn on_chat_wheel(&mut self, ctx: &Context, event: CDotaUserMsgChatWheel) -> ObserverResult {
         let mut entry = Entry::new(self.time(ctx)?);
         entry.r#type = "chatwheel".to_string().into();
@@ -771,8 +801,11 @@ impl App {
 
 impl GameTimeObserver for App {
     fn on_game_started(&mut self, _ctx: &Context, start_time: f32) -> ObserverResult {
-        self.start_time = start_time.round();
-        self.flush_log_buffer()
+        if self.start_time == 0.0 {
+            self.start_time = start_time.round();
+            self.flush_log_buffer()?;
+        }
+        Ok(())
     }
 }
 
