@@ -206,6 +206,7 @@ cargo run --release -p example input.dem output.dem
 ## Projects Using source2-demo
 
 - [Dota 2 Replay Anonymizer](https://github.com/Rupas1k/dota2-replay-anonymizer) - CLI and browser app for anonymizing Dota 2 replays.
+- [cs2analyzer.whiskeyo.pl](https://github.com/whiskeyo/cs2analyzer) - Web app for analyzing CS2 demos & making notes
 
 ## Features
 
