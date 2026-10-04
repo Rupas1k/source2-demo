@@ -81,6 +81,9 @@ impl FieldDecoder {
                 FieldDecoder::Unsigned64(Unsigned64Decoder { properties })
             }
 
+            _ if properties.encoder == Some(FieldEncoder::Fixed8) => {
+                FieldDecoder::Unsigned8(Unsigned8Decoder { properties })
+            }
             _ => FieldDecoder::Unsigned32,
         }
     }
