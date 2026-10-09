@@ -275,6 +275,8 @@ pub(crate) fn get_enum_from_struct(struct_name: &str) -> syn::Result<proc_macro2
         "CDotaUserMsgTormentorTimer" => quote! { EDotaUserMessages::DotaUmTormentorTimer },
         "CDotaUserMsgKillEffect" => quote! { EDotaUserMessages::DotaUmKillEffect },
         "CDotaUserMsgGiveItem" => quote! { EDotaUserMessages::DotaUmGiveItem },
+        "CDotaUserMsgTidehunterArcanaProgressRavages" => quote! { EDotaUserMessages::DotaUmTidehunterArcanaProgressRavages },
+        "CDotaUserMsgTidehunterArcanaProgressFish" => quote! { EDotaUserMessages::DotaUmTidehunterArcanaProgressFish },
         // "CDotaUserMsgAddUnitToSelection" => quote! { EDotaUserMessages::DotaUmAddUnitToSelection },
         // "CDotaUserMsgCombatLogData" => quote! { EDotaUserMessages::DotaUmCombatLogData },
         // "CDotaUserMsgParticleManager" => quote! { EDotaUserMessages::DotaUmParticleManager },
@@ -318,6 +320,7 @@ pub(crate) fn get_enum_from_struct(struct_name: &str) -> syn::Result<proc_macro2
         "CSvcMsgGameEventList" => quote! { EBaseGameEvents::GeSource1LegacyGameEventList },
         "CSvcMsgGameEvent" => quote! { EBaseGameEvents::GeSource1LegacyGameEvent },
         "CSvcMsgNextMsgPredicted" => quote! { EBaseGameEvents::SvcNextMsgPredicted },
+        "CSvcMsgEncryptedData" => quote! { SvcMessages::SvcEncryptedData },
 
         // EBaseUserMessages
         "CUserMessageAchievementEvent" => quote! { EBaseUserMessages::UmAchievementEvent },
@@ -369,6 +372,8 @@ pub(crate) fn get_enum_from_struct(struct_name: &str) -> syn::Result<proc_macro2
         "CUserMessagePlayResponseConditional" => quote! { EBaseUserMessages::UmPlayResponseConditional },
         "CUserMessageUserSentBugBug" => quote! { EBaseUserMessages::UmUserSentBugBug },
         "CUserMessageUsageReport" => quote! { EBaseUserMessages::UmUsageReport },
+        "CUserMessageRemoteServerCommand" => quote! { EBaseUserMessages::UmRemoteServerCommand },
+        "CUserMessageRemoteServerResponse" => quote! { EBaseUserMessages::UmRemoteServerResponse },
         // "CUserMessageAnimGraphUpdate" => quote! { EBaseUserMessages::UmAnimGraphUpdate },
         // "CUserMessageUtilActionResponse" => quote! { EBaseUserMessages::UmUtilActionResponse },
         // "CUserMessageDllStatusResponse" => quote! { EBaseUserMessages::UmDllStatusResponse },
