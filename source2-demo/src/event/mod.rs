@@ -92,7 +92,10 @@ impl<'a> GameEvent<'a> {
             .keys
             .iter()
             .map(|key| match key.r#type() {
-                1 => EventValue::String(key.val_string().into()),
+                // Proto `val_string` is decoded as bytes: demos can contain non-UTF-8
+                // payloads (e.g. player_disconnect reasons). prost rejects invalid UTF-8
+                // for `string` fields and would abort the whole parse.
+                1 => EventValue::String(String::from_utf8_lossy(key.val_string()).into_owned()),
                 2 => EventValue::Float(key.val_float()),
                 3 => EventValue::Int(key.val_long()),
                 4 => EventValue::Int(key.val_short()),

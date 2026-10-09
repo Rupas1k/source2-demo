@@ -921,6 +921,70 @@ fn parser_builds_game_event_definitions_and_dispatches_named_events() {
     );
 }
 
+#[derive(Default)]
+struct StringGameEventObserver {
+    values: Vec<String>,
+}
+
+impl Observer for StringGameEventObserver {
+    fn interests(&self) -> Interests {
+        Interests::BASE_GAME_EVENT
+    }
+
+    fn on_game_event(&mut self, _ctx: &Context, ge: &GameEvent) -> ObserverResult {
+        let value: String = ge.get_value("reason")?.try_into()?;
+        self.values.push(value);
+        Ok(())
+    }
+}
+
+#[test]
+fn game_event_string_keys_accept_non_utf8_bytes() {
+    let list = CSvcMsgGameEventList {
+        descriptors: vec![csvc_msg_game_event_list::DescriptorT {
+            eventid: Some(9),
+            name: Some("player_disconnect".to_string()),
+            keys: vec![csvc_msg_game_event_list::KeyT {
+                r#type: Some(1),
+                name: Some("reason".to_string()),
+            }],
+        }],
+    }
+    .encode_to_vec();
+
+    // Invalid UTF-8 payload (same wire layout for protobuf string and bytes).
+    let mut key = csvc_msg_game_event::KeyT::default();
+    key.r#type = Some(1);
+    key.val_string = Some(vec![0xC3, 0x28]);
+    let mut event = CSvcMsgGameEvent::default();
+    event.eventid = Some(9);
+    event.keys = vec![key];
+    let event = event.encode_to_vec();
+
+    let replay = replay_with_playback_ticks(
+        20,
+        &[
+            (EDemoCommands::DemSyncTick, 0, sync_payload()),
+            (
+                EDemoCommands::DemPacket,
+                5,
+                demo_packet_payload(&[
+                    (EBaseGameEvents::GeSource1LegacyGameEventList as i32, &list),
+                    (EBaseGameEvents::GeSource1LegacyGameEvent as i32, &event),
+                ]),
+            ),
+        ],
+    );
+    let mut parser = Parser::from_slice(&replay).unwrap();
+    let observer = parser.register_observer::<StringGameEventObserver>();
+
+    parser.run_to_end().unwrap();
+    assert_eq!(
+        observer.borrow().values,
+        vec![String::from_utf8_lossy(&[0xC3, 0x28]).into_owned()]
+    );
+}
+
 struct FailingTickObserver;
 
 impl Observer for FailingTickObserver {
