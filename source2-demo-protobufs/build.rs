@@ -279,11 +279,14 @@ fn fetch_protobufs_from_github() -> std::io::Result<()> {
 
             match ureq::get(&url).call() {
                 Ok(mut response) => {
+                    // Wire-compatible: keep Valve field numbers, but decode as bytes so
+                    // prost does not reject non-UTF-8 GOTV payloads (player names / event keys).
                     let content = response
                         .body_mut()
                         .read_to_string()
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Failed to read response: {}", e)))?
-                        .replace("optional string player_name = 2;", "optional bytes player_name = 2;");
+                        .replace("optional string player_name = 2;", "optional bytes player_name = 2;")
+                        .replace("optional string val_string = 2;", "optional bytes val_string = 2;");
 
                     let file_path = format!("{}/{}", proto_dir, file);
                     fs::write(&file_path, content)?;
