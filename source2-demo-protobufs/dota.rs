@@ -1979,6 +1979,12 @@ pub struct CDotaUserMsgTeUnitAnimationEnd {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CDotaUserMsgTidehunterArcanaProgressFish {}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CDotaUserMsgTidehunterArcanaProgressRavages {}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CDotaUserMsgTimerAlert {
     #[prost(int32, optional, tag = "1", default = "-1")]
     pub player_id: ::core::option::Option<i32>,
@@ -2392,6 +2398,14 @@ pub struct CMsgDotaCombatLogEntry {
     pub heal_from_regen: ::core::option::Option<bool>,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CMsgEventAction {
+    #[prost(uint32, optional, tag = "1")]
+    pub action_id: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "2", default = "1")]
+    pub times_completed: ::core::option::Option<u32>,
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, ::prost::Message)]
 pub struct CMsgHeroAbilityStat {
     #[prost(enumeration = "EHeroStatType", optional, tag = "1", default = "KEHeroStatTypeNone")]
@@ -2438,8 +2452,8 @@ pub struct CMsgMonsterHunterInvestigationGameState {
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct CMsgMonsterHunterMaterialQuantity {
-    #[prost(message, repeated, tag = "1")]
-    pub material_counts: ::prost::alloc::vec::Vec<c_msg_monster_hunter_material_quantity::MaterialCountsEntry>,
+    #[prost(map = "uint32, int32", tag = "1")]
+    pub material_counts: ::std::collections::HashMap<u32, i32>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
@@ -2456,6 +2470,46 @@ pub struct CMsgPendingEventAward {
     pub audit_action: ::core::option::Option<u32>,
     #[prost(uint64, optional, tag = "6")]
     pub audit_data: ::core::option::Option<u64>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CMsgPeriodicResourceKey {
+    #[prost(uint32, optional, tag = "1")]
+    pub account_id: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "2")]
+    pub periodic_resource_id: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "3")]
+    pub timestamp: ::core::option::Option<u32>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CMsgPeriodicResourceValue {
+    #[prost(uint32, optional, tag = "1")]
+    pub periodic_resource_max: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "2")]
+    pub periodic_resource_used: ::core::option::Option<u32>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
+pub struct CMsgUserEventPoints {
+    #[prost(uint32, optional, tag = "1")]
+    pub account_id: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "2")]
+    pub event_id: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "3")]
+    pub total_points: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "4")]
+    pub total_premium_points: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "5")]
+    pub points: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "6")]
+    pub premium_points: ::core::option::Option<u32>,
+    #[prost(message, repeated, tag = "7")]
+    pub completed_actions: ::prost::alloc::vec::Vec<CMsgEventAction>,
+    #[prost(bool, optional, tag = "8")]
+    pub owned: ::core::option::Option<bool>,
+    #[prost(uint32, optional, tag = "9")]
+    pub active_season_id: ::core::option::Option<u32>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -3350,6 +3404,8 @@ pub enum EDotaUserMessages {
     DotaUmTormentorTimer = 634,
     DotaUmKillEffect = 635,
     DotaUmGiveItem = 636,
+    DotaUmTidehunterArcanaProgressRavages = 637,
+    DotaUmTidehunterArcanaProgressFish = 638,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -3935,16 +3991,6 @@ pub mod c_msg_monster_hunter_investigation_game_state {
     }
 }
 
-pub mod c_msg_monster_hunter_material_quantity {
-    #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-    pub struct MaterialCountsEntry {
-        #[prost(uint32, optional, tag = "1")]
-        pub key: ::core::option::Option<u32>,
-        #[prost(int32, optional, tag = "2")]
-        pub value: ::core::option::Option<i32>,
-    }
-}
-
 pub mod cdota_response_query_serialized {
     #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
     pub struct Fact {
@@ -4192,6 +4238,8 @@ pub mod cdota_user_msg_unit_event {
         pub flags: ::core::option::Option<u32>,
         #[prost(int32, optional, tag = "8")]
         pub response_type: ::core::option::Option<i32>,
+        #[prost(int32, optional, tag = "9")]
+        pub speech_target_entity_index: ::core::option::Option<i32>,
     }
     #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, ::prost::Message)]
     pub struct SpeechMute {

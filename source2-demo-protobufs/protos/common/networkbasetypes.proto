@@ -2,6 +2,9 @@ import "valveextensions.proto";
 import "google/protobuf/descriptor.proto";
 import "network_connection.proto";
 
+option additional_includes = "schemasystem/schema_enable_defines.h";
+option additional_includes = "entityhandle.h";
+
 extend .google.protobuf.MessageOptions {
 	optional int32 maximum_size_bytes = 50000;
 }
@@ -101,10 +104,12 @@ message CMsgPlayerInfo {
 	optional fixed64 steamid = 4;
 	optional bool fakeplayer = 5;
 	optional bool ishltv = 6;
+	optional bool clan_member = 9;
+	optional bool clan_officer = 10;
 }
 
 message CEntityMsg {
-	optional uint32 target_entity = 1 [default = 16777215];
+	optional uint32 target_entity = 1 [default = 16777215, boxed_type = "CEHandleNetworkableInt", synthetic_default = "16777215"];
 }
 
 message CMsg_CVars {
@@ -199,7 +204,7 @@ message CNETMsg_SpawnGroup_Load {
 	optional string localnamefixup = 12;
 	optional string parentnamefixup = 13;
 	optional int32 manifestloadpriority = 14;
-	optional uint32 worldgroupid = 15;
+	optional uint32 worldgroupid = 15 [boxed_type = "WorldGroupId_t"];
 	optional uint32 creationsequence = 16;
 	optional string savegamefilename = 17;
 	optional uint32 spawngroupparenthandle = 18;
@@ -231,6 +236,15 @@ message CNETMsg_SpawnGroup_LoadCompleted {
 	optional uint32 spawngrouphandle = 1;
 }
 
+message QuantizedFloatEncoderAlias_t {
+	optional string name = 1;
+	optional int32 bit_count = 2;
+	optional int32 encode_flags = 3;
+	optional float min_value = 4;
+	optional float max_value = 5;
+	optional bool validate = 6;
+}
+
 message CSVCMsg_GameSessionConfiguration {
 	optional bool is_multiplayer = 1;
 	optional bool is_loadsavegame = 2;
@@ -251,6 +265,8 @@ message CSVCMsg_GameSessionConfiguration {
 	optional bool is_transition = 16;
 	optional string previouslevel = 17;
 	optional string landmarkname = 18;
+	repeated .QuantizedFloatEncoderAlias_t quantized_float_encoder_aliases = 20;
+	optional float max_coord = 21;
 }
 
 message CNETMsg_DebugOverlay {
