@@ -2695,8 +2695,8 @@ pub mod csvc_msg_game_event {
     pub struct KeyT {
         #[prost(int32, optional, tag = "1")]
         pub r#type: ::core::option::Option<i32>,
-        #[prost(string, optional, tag = "2")]
-        pub val_string: ::core::option::Option<::prost::alloc::string::String>,
+        #[prost(bytes = "vec", optional, tag = "2")]
+        pub val_string: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
         #[prost(float, optional, tag = "3")]
         pub val_float: ::core::option::Option<f32>,
         #[prost(int32, optional, tag = "4")]
@@ -3006,8 +3006,8 @@ pub mod c_msg_source1_legacy_game_event {
     pub struct KeyT {
         #[prost(int32, optional, tag = "1")]
         pub r#type: ::core::option::Option<i32>,
-        #[prost(string, optional, tag = "2")]
-        pub val_string: ::core::option::Option<::prost::alloc::string::String>,
+        #[prost(bytes = "vec", optional, tag = "2")]
+        pub val_string: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
         #[prost(float, optional, tag = "3")]
         pub val_float: ::core::option::Option<f32>,
         #[prost(int32, optional, tag = "4")]

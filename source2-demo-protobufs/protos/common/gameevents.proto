@@ -79,7 +79,7 @@ message CMsgSource1LegacyListenEvents {
 message CMsgSource1LegacyGameEvent {
 	message key_t {
 		optional int32 type = 1;
-		optional string val_string = 2;
+		optional bytes val_string = 2;
 		optional float val_float = 3;
 		optional int32 val_long = 4;
 		optional int32 val_short = 5;
