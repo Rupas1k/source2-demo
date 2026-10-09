@@ -55,7 +55,8 @@ fn main() -> std::io::Result<()> {
                 "./protos/citadel/citadel_usermessages.proto",
                 "./protos/citadel/base_modifier.proto",
             ],
-            &["./protos/common", "./protos/citadel"],
+            // Game folder first so Valve's google/protobuf/descriptor.proto wins over stock.
+            &["./protos/citadel", "./protos/common"],
         )?;
 
         config.default_package_filename("cs2");
@@ -66,7 +67,7 @@ fn main() -> std::io::Result<()> {
                 "./protos/cs2/cstrike15_usermessages.proto",
                 "./protos/cs2/engine_gcmessages.proto",
             ],
-            &["./protos/common", "./protos/cs2"],
+            &["./protos/cs2", "./protos/common"],
         )?;
 
         clean_rust_file("dota.rs")?;
@@ -235,6 +236,8 @@ fn fetch_protobufs_from_github() -> std::io::Result<()> {
                 "steammessages_unified_base.steamworkssdk.proto",
                 "usermessages.proto",
                 "valveextensions.proto",
+                // Valve dump: extends FileOptions/FieldOptions with boxed_type, additional_includes, etc.
+                "google/protobuf/descriptor.proto",
             ],
         ),
         (
@@ -246,6 +249,8 @@ fn fetch_protobufs_from_github() -> std::io::Result<()> {
                 "dota_shared_enums.proto",
                 "dota_usermessages.proto",
                 "events.proto",
+                "event_gcmessages_common.proto",
+                "google/protobuf/descriptor.proto",
             ],
         ),
         (
@@ -256,6 +261,7 @@ fn fetch_protobufs_from_github() -> std::io::Result<()> {
                 "citadel_gcmessages_common.proto",
                 "citadel_usermessages.proto",
                 "base_modifier.proto",
+                "google/protobuf/descriptor.proto",
             ],
         ),
         (
@@ -266,6 +272,7 @@ fn fetch_protobufs_from_github() -> std::io::Result<()> {
                 "cstrike15_gcmessages.proto",
                 "cstrike15_usermessages.proto",
                 "engine_gcmessages.proto",
+                "google/protobuf/descriptor.proto",
             ],
         ),
     ];
@@ -276,6 +283,10 @@ fn fetch_protobufs_from_github() -> std::io::Result<()> {
 
         for file in files {
             let url = format!("{}/{}/{}", GITHUB_RAW_URL, github_dir, file);
+            let file_path = format!("{}/{}", proto_dir, file);
+            if let Some(parent) = std::path::Path::new(&file_path).parent() {
+                fs::create_dir_all(parent)?;
+            }
 
             match ureq::get(&url).call() {
                 Ok(mut response) => {
@@ -288,7 +299,6 @@ fn fetch_protobufs_from_github() -> std::io::Result<()> {
                         .replace("optional string player_name = 2;", "optional bytes player_name = 2;")
                         .replace("optional string val_string = 2;", "optional bytes val_string = 2;");
 
-                    let file_path = format!("{}/{}", proto_dir, file);
                     fs::write(&file_path, content)?;
                 }
                 Err(e) => {
