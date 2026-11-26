@@ -145,7 +145,7 @@
 .field-path {
   min-width: 0;
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) 32px;
+  grid-template-columns: 16px minmax(0, 1fr) 32px;
   align-items: start;
   gap: 4px;
 }
@@ -407,11 +407,12 @@ button.sort-label {
 .message-list-row[data-depth="2"] .message-disclosures {
   margin-inline-start: 28px;
 }
-.message-disclosure {
+.field-disclosure {
   display: grid;
   place-items: center;
   width: 16px;
-  height: 22px;
+  height: 18px;
+  flex: none;
   cursor: pointer;
 }
 .message-list-row .record-status {
@@ -422,4 +423,9 @@ button.sort-label {
 }
 .message-entity-status {
   padding-inline-start: 49px;
+}
+
+.field-disclosure-space {
+  width: 16px;
+  flex: none;
 }

@@ -67,6 +67,7 @@ export function FieldCells({
           {row.expandableKind ? (
             <button
               type="button"
+              className="field-disclosure"
               aria-label={row.joinedNamedPath}
               aria-expanded={expanded}
               onClick={() => onToggle(row.joinedNamedPath)}

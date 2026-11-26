@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronRight } from "../../shared/components/Icons";
 import { sortRows, type TableSort } from "../../workbench/tableSort";
 import { useState } from "react";
 
@@ -50,17 +51,19 @@ export function sortMessageFields(
 function FieldRow({ field, depth }: { field: Field; depth: number }) {
   const [open, setOpen] = useState(field.openByDefault ?? false);
   const expandable = !!field.children?.length;
+  const DisclosureIcon = open ? ChevronDown : ChevronRight;
   return (
     <>
       <div className="sheet-grid message-field">
         <span
-          className="truncate"
-          title={field.name}
+          className="flex items-center gap-1"
           style={{ paddingLeft: 9 + depth * 12 }}
         >
           {expandable ? (
             <button
-              className="block max-w-full truncate"
+              type="button"
+              className="field-disclosure"
+              aria-label={field.name}
               aria-expanded={open}
               onKeyDown={(event) => {
                 if (
@@ -73,11 +76,14 @@ function FieldRow({ field, depth }: { field: Field; depth: number }) {
               }}
               onClick={() => setOpen(!open)}
             >
-              {open ? "▾" : "▸"} {field.name}
+              <DisclosureIcon size={13} />
             </button>
           ) : (
-            field.name
+            <span className="field-disclosure-space" aria-hidden="true" />
           )}
+          <span className="truncate" title={field.name}>
+            {field.name}
+          </span>
         </span>
         <span className="field-type" title={field.kind || undefined}>
           {field.kind}

@@ -25,7 +25,7 @@ function MessageDisclosure({
   return (
     <button
       type="button"
-      className="message-disclosure"
+      className="field-disclosure"
       aria-label={label}
       title={label}
       aria-expanded={expanded}
