@@ -1,3 +1,4 @@
+use crate::field_filter::{parse_field_filters, string_predicate};
 use crate::protobuf_map::get_enum_from_struct;
 #[cfg(any(feature = "dota", feature = "citadel"))]
 use crate::type_utils::is_combat_log_type;
@@ -224,7 +225,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
                                 Err(error) => errors.extend(error.to_compile_error()),
                             }
                         }
-                        "on_entity_field_updates" | "wants_entity_field_updates" if !cfg!(feature = "entity-field-updates") => {
+                        "on_field_update" | "wants_entity_field_updates" if !cfg!(feature = "entity-field-updates") => {
                             errors.extend(syn::Error::new_spanned(attr, "field update observers require the entity-field-updates feature").to_compile_error());
                         }
                         "observer_interests" | "wants_full_packet_snapshot" | "wants_entity_field_updates" => {
@@ -243,12 +244,10 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
                                 Err(error) => errors.extend(error.to_compile_error()),
                             }
                         }
-                        "on_entity_field_updates" => {
+                        "on_field_update" => {
                             has_entity_field_updates = true;
-                            match observer_entity_field_updates_args(method) {
-                                Ok(args) => on_entity_field_updates_body.extend(quote! {
-                                    self.#method_name(#args)?;
-                                }),
+                            match observer_field_update_body(attr, method) {
+                                Ok(body) => on_entity_field_updates_body.extend(body),
                                 Err(error) => errors.extend(error.to_compile_error()),
                             }
                         }
@@ -785,8 +784,13 @@ fn observer_no_args(method: &syn::ImplItemFn, attr_name: &str) -> syn::Result<pr
     Ok(quote! {})
 }
 
-fn observer_entity_field_updates_args(method: &syn::ImplItemFn) -> syn::Result<proc_macro2::TokenStream> {
+fn observer_field_update_body(
+    attr: &syn::Attribute,
+    method: &syn::ImplItemFn,
+) -> syn::Result<proc_macro2::TokenStream> {
+    let (class, field) = parse_field_filters(attr)?;
     let mut args = Vec::new();
+    let mut per_write = None;
     for input in method.sig.inputs.iter().skip(1) {
         let FnArg::Typed(pat_type) = input else {
             continue;
@@ -796,29 +800,62 @@ fn observer_entity_field_updates_args(method: &syn::ImplItemFn) -> syn::Result<p
             quote! { ctx }
         } else if is_entity_type(&type_string) {
             quote! { entity }
-        } else if is_entity_field_updates_type(&pat_type.ty) {
-            quote! { updates }
+        } else if let Some(single) = field_update_arg(&pat_type.ty) {
+            if per_write.replace(single).is_some() {
+                return Err(syn::Error::new_spanned(pat_type, "expected one field update parameter"));
+            }
+            if single { quote! { update } } else { quote! { updates } }
         } else {
             return Err(syn::Error::new_spanned(
                 pat_type,
-                "expected `&Context`, `&Entity`, or `&[EntityFieldUpdate]`",
+                "expected `&Context`, `&Entity`, `&EntityFieldUpdate`, or `&[EntityFieldUpdate]`",
             ));
         };
         args.push(arg);
     }
-    Ok(quote! { #(#args),* })
+
+    let method_name = &method.sig.ident;
+    let call = quote! { self.#method_name(#(#args),*)?; };
+    if per_write != Some(true) {
+        if class.is_some() || field.is_some() {
+            return Err(syn::Error::new_spanned(attr, "field update filters require an `&EntityFieldUpdate` parameter"));
+        }
+        return Ok(call);
+    }
+
+    let class_matches = match class {
+        Some(class) => string_predicate(&quote! { entity.class().name() }, &class)?,
+        None => quote! { true },
+    };
+    let field_matches = match field {
+        Some(field) => string_predicate(&quote! { update.name.as_str() }, &field)?,
+        None => quote! { true },
+    };
+    Ok(quote! {
+        if #class_matches {
+            for update in updates {
+                if #field_matches {
+                    #call
+                }
+            }
+        }
+    })
 }
 
-fn is_entity_field_updates_type(ty: &Type) -> bool {
+fn field_update_arg(ty: &Type) -> Option<bool> {
     let Type::Reference(reference) = ty else {
-        return false;
+        return None;
     };
-    let Type::Slice(slice) = reference.elem.as_ref() else {
-        return false;
+    if reference.mutability.is_some() {
+        return None;
+    }
+    let (element, single) = match reference.elem.as_ref() {
+        Type::Slice(slice) => (slice.elem.as_ref(), false),
+        element => (element, true),
     };
-    reference.mutability.is_none()
-        && matches!(slice.elem.as_ref(), Type::Path(path)
-            if path.path.segments.last().is_some_and(|segment| segment.ident == "EntityFieldUpdate"))
+    matches!(element, Type::Path(path)
+        if path.path.segments.last().is_some_and(|segment| segment.ident == "EntityFieldUpdate"))
+        .then_some(single)
 }
 
 fn observer_entity_args(method: &syn::ImplItemFn) -> syn::Result<proc_macro2::TokenStream> {

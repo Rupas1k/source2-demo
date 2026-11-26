@@ -1,3 +1,4 @@
+use crate::field_filter::{parse_field_filters, string_predicate};
 use crate::protobuf_map::get_enum_from_struct;
 use crate::type_utils::{
     is_context_type, is_demo_command_type, is_entity_events_type, is_entity_type, is_field_value_ref_type, is_field_value_type,
@@ -6,12 +7,7 @@ use crate::type_utils::{
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse_macro_input;
-use syn::punctuated::Punctuated;
-use syn::{Expr, FnArg, Ident, ItemImpl, Lit, Token, Type};
-
-fn path_is(path: &syn::Path, name: &str) -> bool {
-    path.segments.last().is_some_and(|segment| segment.ident == name)
-}
+use syn::{FnArg, Ident, ItemImpl, Type};
 
 pub(crate) fn expand_rewriter(item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemImpl);
@@ -310,23 +306,7 @@ pub(crate) fn expand_rewriter(item: TokenStream) -> TokenStream {
 
 fn rewrite_field_body(attr: &syn::Attribute, method: &syn::ImplItemFn) -> syn::Result<proc_macro2::TokenStream> {
     let method_name = &method.sig.ident;
-    let mut class = None;
-    let mut field = None;
-
-    attr.parse_nested_meta(|meta| {
-        if path_is(&meta.path, "class") {
-            let value = meta.value()?;
-            class = Some(value.parse::<Expr>()?);
-            Ok(())
-        } else if path_is(&meta.path, "field") {
-            let value = meta.value()?;
-            field = Some(value.parse::<Expr>()?);
-            Ok(())
-        } else {
-            Err(meta.error("expected `class = ...` or `field = ...`"))
-        }
-    })?;
-
+    let (class, field) = parse_field_filters(attr)?;
     let class = class.ok_or_else(|| syn::Error::new_spanned(attr, "missing `class = ...`"))?;
     let class_predicate = string_predicate(&quote! { entity.class().name() }, &class)?;
     let class_only = field.is_none();
@@ -348,97 +328,6 @@ fn rewrite_field_body(attr: &syn::Attribute, method: &syn::ImplItemFn) -> syn::R
             }
         }
     })
-}
-
-fn string_predicate(target: &proc_macro2::TokenStream, expr: &Expr) -> syn::Result<proc_macro2::TokenStream> {
-    match expr {
-        Expr::Lit(expr_lit) => {
-            let Lit::Str(value) = &expr_lit.lit else {
-                return Err(syn::Error::new_spanned(expr, "expected string literal"));
-            };
-            Ok(quote! { #target == #value })
-        }
-        Expr::Call(call) => {
-            let Expr::Path(path) = call.func.as_ref() else {
-                return Err(syn::Error::new_spanned(&call.func, "expected predicate name"));
-            };
-            let Some(ident) = path.path.get_ident() else {
-                return Err(syn::Error::new_spanned(&path.path, "expected predicate name"));
-            };
-            let name = ident.to_string();
-            match name.as_str() {
-                "exact" => {
-                    let value = single_string_arg(expr, &call.args)?;
-                    Ok(quote! { #target == #value })
-                }
-                "starts_with" => {
-                    let value = single_string_arg(expr, &call.args)?;
-                    Ok(quote! { #target.starts_with(#value) })
-                }
-                "ends_with" => {
-                    let value = single_string_arg(expr, &call.args)?;
-                    Ok(quote! { #target.ends_with(#value) })
-                }
-                "contains" => {
-                    let value = single_string_arg(expr, &call.args)?;
-                    Ok(quote! { #target.contains(#value) })
-                }
-                "any" => {
-                    if call.args.is_empty() {
-                        return Err(syn::Error::new_spanned(expr, "`any` needs at least one argument"));
-                    }
-                    let predicates = call
-                        .args
-                        .iter()
-                        .map(|arg| string_predicate(target, arg))
-                        .collect::<syn::Result<Vec<_>>>()?;
-                    Ok(quote! { false #( || (#predicates) )* })
-                }
-                "all" => {
-                    if call.args.is_empty() {
-                        return Err(syn::Error::new_spanned(expr, "`all` needs at least one argument"));
-                    }
-                    let predicates = call
-                        .args
-                        .iter()
-                        .map(|arg| string_predicate(target, arg))
-                        .collect::<syn::Result<Vec<_>>>()?;
-                    Ok(quote! { true #( && (#predicates) )* })
-                }
-                "not" => {
-                    if call.args.len() != 1 {
-                        return Err(syn::Error::new_spanned(expr, "`not` needs exactly one argument"));
-                    }
-                    let Some(arg) = call.args.first() else {
-                        return Err(syn::Error::new_spanned(expr, "`not` needs exactly one argument"));
-                    };
-                    let predicate = string_predicate(target, arg)?;
-                    Ok(quote! { !(#predicate) })
-                }
-                _ => Err(syn::Error::new_spanned(
-                    ident,
-                    "unknown predicate; expected exact, starts_with, ends_with, contains, any, all, or not",
-                )),
-            }
-        }
-        _ => Err(syn::Error::new_spanned(expr, "expected string literal or predicate call")),
-    }
-}
-
-fn single_string_arg<'a>(expr: &Expr, args: &'a Punctuated<Expr, Token![,]>) -> syn::Result<&'a syn::LitStr> {
-    if args.len() != 1 {
-        return Err(syn::Error::new_spanned(expr, "predicate needs exactly one argument"));
-    }
-    let Some(arg) = args.first() else {
-        return Err(syn::Error::new_spanned(expr, "predicate needs exactly one argument"));
-    };
-    let Expr::Lit(expr_lit) = arg else {
-        return Err(syn::Error::new_spanned(expr, "predicate argument must be a string literal"));
-    };
-    let Lit::Str(value) = &expr_lit.lit else {
-        return Err(syn::Error::new_spanned(expr, "predicate argument must be a string literal"));
-    };
-    Ok(value)
 }
 
 fn rewrite_field_method_args(method: &syn::ImplItemFn) -> syn::Result<proc_macro2::TokenStream> {

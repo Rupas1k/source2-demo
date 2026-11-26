@@ -925,7 +925,7 @@ fn observer_macro_supports_gated_field_updates() {
             self.0
         }
 
-        #[crate::on_entity_field_updates]
+        #[crate::on_field_update]
         fn record_writes(&mut self, _: &[crate::metadata::EntityFieldUpdate]) -> ObserverResult {
             Ok(())
         }
@@ -937,6 +937,66 @@ fn observer_macro_supports_gated_field_updates() {
     );
     assert!(!CaptureFields(false).wants_entity_field_updates());
     assert!(CaptureFields(true).wants_entity_field_updates());
+}
+
+#[cfg(feature = "entity-field-updates")]
+#[test]
+fn observer_macro_filters_individual_field_updates() {
+    use crate::metadata::EntityFieldUpdate;
+    use crate::Class;
+
+    #[derive(Default)]
+    struct FieldObserver {
+        batch_sizes: Vec<usize>,
+        selected: Vec<String>,
+    }
+
+    #[observer]
+    impl FieldObserver {
+        #[crate::on_field_update]
+        fn batch(&mut self, writes: &[EntityFieldUpdate]) -> ObserverResult {
+            self.batch_sizes.push(writes.len());
+            Ok(())
+        }
+
+        #[crate::on_field_update(
+            class = starts_with("CPlayer"),
+            field = all(ends_with("Health"), not(contains("Max")))
+        )]
+        fn single(&mut self, write: &EntityFieldUpdate, _: &Entity) -> ObserverResult {
+            self.selected.push(write.name.clone());
+            Ok(())
+        }
+    }
+
+    let record = |name: &str| EntityFieldUpdate {
+        path: vec![0],
+        name: name.into(),
+        field_type: "int32".into(),
+        before: None,
+        after: FieldValue::Signed32(5),
+    };
+    let writes = [
+        record("m_iHealth"),
+        record("m_iMaxHealth"),
+        record("m_iMana"),
+        record("m_stats.m_iHealth"),
+    ];
+    let ctx = Context::new(CDemoFileInfo::default());
+    let entity = Entity {
+        class: Class::new(0, "CPlayerPawn".into(), Default::default()).into(),
+        ..Default::default()
+    };
+    let mut observer = FieldObserver::default();
+    observer
+        .on_entity_field_updates(&ctx, &Entity::default(), &writes)
+        .unwrap();
+    assert!(observer.selected.is_empty());
+    observer
+        .on_entity_field_updates(&ctx, &entity, &writes)
+        .unwrap();
+    assert_eq!(observer.batch_sizes, [4, 4]);
+    assert_eq!(observer.selected, ["m_iHealth", "m_stats.m_iHealth"]);
 }
 
 #[test]

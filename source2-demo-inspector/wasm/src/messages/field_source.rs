@@ -69,7 +69,7 @@ impl FieldTrace {
         self.collecting
     }
 
-    #[on_entity_field_updates]
+    #[on_field_update]
     fn track_field_updates(
         &mut self,
         entity: &Entity,

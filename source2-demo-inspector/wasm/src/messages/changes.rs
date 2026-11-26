@@ -104,7 +104,7 @@ impl EntityChanges {
         self.packet.collecting
     }
 
-    #[on_entity_field_updates]
+    #[on_field_update]
     fn track_field_updates(&mut self, updates: &[EntityFieldUpdate]) -> ObserverResult {
         self.fields.extend(updates.iter().map(|update| FieldChange {
             path: update.path.clone(),
