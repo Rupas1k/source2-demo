@@ -12,6 +12,7 @@ mod entity;
 pub mod error;
 mod event;
 mod macros;
+pub mod metadata;
 mod parser;
 mod stream;
 mod string_table;

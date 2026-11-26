@@ -59,6 +59,8 @@ pub use container::*;
 
 use crate::error::EntityError;
 use crate::field::{FieldPath, FieldState};
+use crate::metadata::inspect_fields;
+pub use crate::metadata::{BaselineEntity, EntityField};
 use crate::FieldValue;
 use std::rc::Rc;
 
@@ -105,28 +107,6 @@ pub enum EntityEvents {
     Updated,
     /// Entity was removed
     Deleted,
-}
-
-/// A read-only entity field entry for inspection UIs and debugging tools.
-pub struct EntityField<'a> {
-    /// Numeric field path used by the demo stream.
-    pub path: Vec<u16>,
-    /// Human-readable dotted field path.
-    pub name: String,
-    /// Source 2 field type reported by the serializer.
-    pub field_type: String,
-    /// Decoded value type used by `source2-demo`.
-    pub decoded_type: Option<&'static str>,
-    /// Current field value, if the field is present in the state.
-    pub value: Option<&'a FieldValue>,
-}
-
-/// A baseline entity entry keyed by class id.
-pub struct BaselineEntity {
-    /// Entity class id used to look up the baseline.
-    pub class_id: i32,
-    /// Human-readable entity class name.
-    pub class_name: String,
 }
 
 impl EntityEvents {
@@ -262,21 +242,7 @@ impl Entity {
     /// This is intended for generic inspection tools that need to enumerate an
     /// entity without knowing property names ahead of time.
     pub fn fields(&self) -> Vec<EntityField<'_>> {
-        self.class
-            .serializer
-            .get_paths(&mut FieldPath::default(), &self.state)
-            .into_iter()
-            .map(|fp| {
-                let value = self.state.get_value(&fp);
-                EntityField {
-                    path: (0..=fp.last).map(|idx| fp.path[idx]).collect(),
-                    name: self.class.serializer.get_name(&fp).to_string(),
-                    field_type: self.class.serializer.get_type(&fp).to_string(),
-                    decoded_type: value.map(FieldValue::type_name),
-                    value,
-                }
-            })
-            .collect()
+        inspect_fields(&self.class.serializer, &self.state)
     }
 
     /// Returns a reference to the entity's class.
