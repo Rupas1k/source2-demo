@@ -195,7 +195,8 @@ export default function DemoTimeline() {
 
   function occurrenceTitle(label: string, target: number | undefined) {
     if (target === undefined) return `No ${label.toLowerCase()}`;
-    return `${label} at tick ${formatNumber(target)} · ${activity?.label}`;
+    const destination = `${label} at tick ${formatNumber(target)}`;
+    return activity ? `${destination}\n${activity.label}` : destination;
   }
 
   function stepOccurrence(forward: boolean) {
@@ -254,7 +255,7 @@ export default function DemoTimeline() {
             title={
               previousTick === undefined
                 ? "No previous recorded tick"
-                : `Previous recorded tick · ${formatNumber(previousTick)}`
+                : `Previous recorded tick at ${formatNumber(previousTick)}`
             }
             disabled={previousTick === undefined}
             onClick={() => stepRecorded(false)}
@@ -267,7 +268,7 @@ export default function DemoTimeline() {
             title={
               nextTick === undefined
                 ? "No next recorded tick"
-                : `Next recorded tick · ${formatNumber(nextTick)}`
+                : `Next recorded tick at ${formatNumber(nextTick)}`
             }
             disabled={nextTick === undefined}
             onClick={() => stepRecorded(true)}
@@ -324,7 +325,7 @@ export default function DemoTimeline() {
           )}
           <Slider
             className="seek-control"
-            title="Scroll to zoom"
+            title={parser ? "Scroll to zoom the timeline" : undefined}
             disabled={!parser}
             min={start}
             max={end || 1}

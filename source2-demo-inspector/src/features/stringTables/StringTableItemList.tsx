@@ -75,24 +75,20 @@ export function StringTableItemList({
       <StringTableRows
         rows={rows}
         renderCells={(entry) => ({
-          keyCell: (
-            <TableCell
-              changed={entry.keyChanged}
-              before={entry.previous?.key}
-              after={entry.current?.key}
-              added={!entry.previous}
-              removed={!entry.current}
-            />
-          ),
-          dataCell: (
-            <TableCell
-              changed={entry.dataChanged}
-              before={entry.oldData}
-              after={entry.data}
-              added={!entry.previous}
-              removed={!entry.current}
-            />
-          ),
+          keyCell: renderTableCell({
+            changed: entry.keyChanged,
+            before: entry.previous?.key,
+            after: entry.current?.key,
+            added: !entry.previous,
+            removed: !entry.current,
+          }),
+          dataCell: renderTableCell({
+            changed: entry.dataChanged,
+            before: entry.oldData,
+            after: entry.data,
+            added: !entry.previous,
+            removed: !entry.current,
+          }),
         })}
         query={query}
         viewport={viewportRef}
@@ -103,7 +99,7 @@ export function StringTableItemList({
   );
 }
 
-function TableCell({
+function renderTableCell({
   changed,
   before,
   after,
@@ -116,14 +112,17 @@ function TableCell({
   added: boolean;
   removed: boolean;
 }) {
-  if (!changed) return <>{after}</>;
+  if (!changed) return after;
+  const prior = added ? "absent" : (before ?? "—");
+  const current = removed ? "absent" : (after ?? "—");
+  const title = `${prior} → ${current}`;
   return (
     <>
-      <span className="prior-value">
-        {added ? "absent" : (before ?? "—")} →{" "}
+      <span className="prior-value" title={title}>
+        {prior} →{" "}
       </span>
-      <span className="table-change-value">
-        {removed ? "absent" : (after ?? "—")}
+      <span className="table-change-value" title={title}>
+        {current}
       </span>
     </>
   );

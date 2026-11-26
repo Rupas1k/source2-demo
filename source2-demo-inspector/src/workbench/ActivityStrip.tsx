@@ -116,7 +116,12 @@ export function ActivityStrip({
           created ? `${numberFormat.format(created)} created` : "",
           deleted ? `${numberFormat.format(deleted)} deleted` : "",
         ].filter(Boolean);
-        const title = `${activity.label}\n${range} · ${numberFormat.format(matches)} ${matches === 1 ? "match" : "matches"}${lifecycle.length ? "\n" + lifecycle.join(" · ") : ""}`;
+        const details = [
+          activity.label,
+          range,
+          `${numberFormat.format(matches)} ${matches === 1 ? "match" : "matches"}`,
+          ...lifecycle,
+        ];
         return (
           <button
             type="button"
@@ -127,8 +132,8 @@ export function ActivityStrip({
             data-created={created > 0 || undefined}
             data-deleted={deleted > 0 || undefined}
             tabIndex={-1}
-            title={title}
-            aria-label={title.replace("\n", ", ")}
+            title={details.join("\n")}
+            aria-label={details.join(", ")}
             style={
               {
                 left: showTicks

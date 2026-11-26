@@ -71,7 +71,11 @@ export function StringTableRows<Row extends EntryRow>({
           {onSelectRow ? (
             <button
               type="button"
-              title="Show timeline activity for this row"
+              title={
+                selectedRow === row.index
+                  ? "Clear row activity selection"
+                  : "Show timeline activity for this row"
+              }
               aria-label={`Show activity for row ${row.index}`}
               aria-pressed={selectedRow === row.index}
               onClick={(event) => {
@@ -85,8 +89,13 @@ export function StringTableRows<Row extends EntryRow>({
             row.index
           )}
         </span>
-        <span>{keyCell}</span>
-        <span className={onSelectRow ? "field-type" : undefined}>
+        <span title={typeof keyCell === "string" ? keyCell : undefined}>
+          {keyCell}
+        </span>
+        <span
+          className={onSelectRow ? "field-type" : undefined}
+          title={typeof dataCell === "string" ? dataCell : undefined}
+        >
           {dataCell}
         </span>
       </div>

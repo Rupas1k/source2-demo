@@ -55,7 +55,9 @@ export function MessageBranchRows<Row>({
               aria-pressed={item.active}
               onClick={item.select}
             >
-              <span className="truncate">{item.name}</span>
+              <span className="truncate" title={item.name}>
+                {item.name}
+              </span>
               {item.status && (
                 <span className="record-status">{item.status}</span>
               )}

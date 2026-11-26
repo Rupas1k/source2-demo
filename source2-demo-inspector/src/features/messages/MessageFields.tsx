@@ -79,8 +79,12 @@ function FieldRow({ field, depth }: { field: Field; depth: number }) {
             field.name
           )}
         </span>
-        <span className="field-type">{field.kind}</span>
-        <span className="field-value">{field.value}</span>
+        <span className="field-type" title={field.kind || undefined}>
+          {field.kind}
+        </span>
+        <span className="field-value" title={field.value || undefined}>
+          {field.value}
+        </span>
       </div>
       {open && field.children && (
         <FieldRows fields={field.children} depth={depth + 1} />

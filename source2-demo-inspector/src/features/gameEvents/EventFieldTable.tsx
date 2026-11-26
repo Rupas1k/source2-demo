@@ -67,14 +67,20 @@ export function EventFieldTable({
               data-stripe={index % 2 === 1 || undefined}
             >
               <span>{row.index}</span>
-              <span>{row.name}</span>
-              <span className="field-type">{row.kind}</span>
+              <span title={row.name}>{row.name}</span>
+              <span className="field-type" title={row.kind || undefined}>
+                {row.kind}
+              </span>
             </div>
           ) : (
             <div className="sheet-grid message-field">
-              <span>{row.name}</span>
-              <span className="field-type">{row.kind}</span>
-              <span className="field-value">{row.value}</span>
+              <span title={row.name}>{row.name}</span>
+              <span className="field-type" title={row.kind || undefined}>
+                {row.kind}
+              </span>
+              <span className="field-value" title={row.value || undefined}>
+                {row.value}
+              </span>
             </div>
           );
         }}

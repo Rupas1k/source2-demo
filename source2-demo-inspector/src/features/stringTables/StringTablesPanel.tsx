@@ -24,8 +24,8 @@ export default function StringTablesPanel() {
     selected === undefined
       ? "String-table writes"
       : selectedRow === undefined
-        ? `String-table writes · ${selected}`
-        : `String-table writes · ${selected}, row ${selectedRow}`,
+        ? `String table writes for ${selected}`
+        : `String table writes for ${selected}, row ${selectedRow}`,
   );
   return (
     <RecordPanes

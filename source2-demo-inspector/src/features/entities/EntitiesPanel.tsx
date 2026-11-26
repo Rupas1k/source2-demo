@@ -58,9 +58,9 @@ export default function EntitiesPanel() {
     baselines
       ? baseline === undefined
         ? "Baseline writes"
-        : `Baseline writes · ${baselineName ?? baseline}`
+        : `Baseline writes for ${baselineName ?? baseline}`
       : tracked
-        ? `Entity activity · ${tracked.name} ${tracked.index}`
+        ? `Activity for ${tracked.name} ${tracked.index}`
         : "Entity activity",
   );
   return (

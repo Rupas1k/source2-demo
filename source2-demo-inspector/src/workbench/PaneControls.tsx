@@ -46,7 +46,7 @@ export function SearchBar({
         <output
           className="match-count"
           aria-label="Matches"
-          title={`${matchCount} matches`}
+          title={`${matchCount.toLocaleString()} ${matchCount === 1 ? "match" : "matches"}`}
         >
           {matchCount.toLocaleString()}
         </output>

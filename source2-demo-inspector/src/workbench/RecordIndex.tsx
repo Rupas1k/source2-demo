@@ -156,7 +156,9 @@ export function RecordIndex<K extends string | number>({
                 onSelect(row.key === selected ? undefined : row.key)
               }
             >
-              <span className="truncate">{row.name}</span>
+              <span className="truncate" title={row.name}>
+                {row.name}
+              </span>
               {row.status && (
                 <span className="record-status">{row.status}</span>
               )}

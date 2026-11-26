@@ -17,6 +17,7 @@ export function SortLabel({
       type="button"
       className="sort-label"
       onClick={onSort}
+      title={`Sort by ${label}`}
       aria-label={`Sort by ${label}, currently ${direction ?? "unsorted"}`}
     >
       {label}
@@ -51,7 +52,7 @@ export function FieldColumnHeader({
         type="button"
         className="resize-column"
         aria-label={`Resize ${label} column`}
-        title="Drag or use arrow keys to resize. Double-click to reset."
+        title="Drag or use the left and right arrow keys to resize. Double-click or press Enter to reset."
         onPointerDown={(event) => {
           if (event.button !== 0) return;
           stopDrag.current?.();

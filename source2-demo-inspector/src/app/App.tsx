@@ -197,7 +197,7 @@ export default function App() {
                       parser
                         ? `${parser.totalTicks().toLocaleString()} ticks`
                         : "",
-                      "Click to open another replay",
+                      "Open another replay (Ctrl+O / Cmd+O)",
                     ]
                       .filter(Boolean)
                       .join("\n")
