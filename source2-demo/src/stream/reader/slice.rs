@@ -73,8 +73,11 @@ impl<'a> BitsReader for SliceReader<'a> {
         #[cfg(debug_assertions)]
         self.bit_reader.refill_lookahead();
         #[cfg(not(debug_assertions))]
-        unsafe {
-            self.bit_reader.refill_lookahead_unchecked();
+        if self.bit_reader.unbuffered_bytes_remaining() >= 8 {
+            // SAFETY: The unchecked refill loads eight unbuffered bytes.
+            unsafe { self.bit_reader.refill_lookahead_unchecked() };
+        } else {
+            self.bit_reader.refill_lookahead();
         }
     }
 
