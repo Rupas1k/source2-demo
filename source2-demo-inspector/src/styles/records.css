@@ -69,22 +69,10 @@
 .record-row__selectable {
   cursor: pointer;
 }
-.record-row__selected {
-  background-color: var(--active);
-  color: rgb(var(--fg));
-}
-.record-row__selected:hover {
-  background-color: var(--active-hover);
-}
 .record-pane:has(.record-row__selectable) .record-row__selectable {
   font-family: system-ui, sans-serif;
   font-size: 13px;
-  padding-inline: 9px;
-  border-inline-start: 2px solid transparent;
-}
-.record-pane .record-row__selectable.record-row__selected {
-  border-inline-start-color: var(--accent);
-  font-weight: 600;
+  padding-inline: 11px 9px;
 }
 .sheet {
   display: flex;
@@ -377,10 +365,11 @@ button.sort-label {
 .entry-columns .sheet-row:hover {
   background-color: var(--hover);
 }
-.entry-columns .sheet-row[data-selected] {
+:is(.record-row__selected, .sheet-row[data-selected]) {
   background-color: var(--active);
+  color: rgb(var(--fg));
 }
-.entry-columns .sheet-row[data-selected]:hover {
+:is(.record-row__selected, .sheet-row[data-selected]):hover {
   background-color: var(--active-hover);
 }
 
