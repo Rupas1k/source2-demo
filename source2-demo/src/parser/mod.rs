@@ -204,6 +204,11 @@ impl<S> Parser<'static, SeekableReader<S>>
 where
     S: std::io::Read + std::io::Seek,
 {
+    /// Byte offset immediately after the last command read by this parser.
+    pub fn replay_position(&self) -> usize {
+        self.reader.position()
+    }
+
     /// Creates a new parser from a reader.
     ///
     /// Uses SeekableReader for reading data from the reader, but internally
