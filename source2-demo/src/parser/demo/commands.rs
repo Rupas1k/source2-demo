@@ -159,11 +159,10 @@ where
     }
 
     fn dem_packet(&mut self, packet: CDemoPacket) -> Result<(), ParserError> {
-        let mut packet_reader = SliceReader::new(packet.data());
-        while packet_reader.remaining_bytes() != 0 {
-            let msg_type = packet_reader.read_ubit_var() as i32;
-            let size = packet_reader.read_var_u32();
-            let msg_buf = packet_reader.read_bytes(size);
+        for frame in packet_messages(packet.data()) {
+            let frame = frame?;
+            let msg_type = frame.id as i32;
+            let msg_buf = frame.payload;
 
             #[cfg(feature = "dota")]
             if let Ok(msg) = EDotaUserMessages::try_from(msg_type) {

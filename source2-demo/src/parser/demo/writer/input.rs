@@ -1,15 +1,7 @@
 use crate::error::ParserError;
 use crate::parser::demo::writer::DemoWriter;
-use crate::proto::EDemoCommands;
-use crate::reader::{BitsReader, MessageReader};
+use crate::reader::{read_raw_command, BitsReader, MessageReader, RawDemoMessage};
 use std::io::{Seek, Write};
-
-pub(crate) struct RawDemoMessage {
-    pub(crate) msg_type: EDemoCommands,
-    pub(crate) tick: u32,
-    pub(crate) raw_payload: Vec<u8>,
-    pub(crate) compressed: bool,
-}
 
 impl<'a, R, W> DemoWriter<'a, R, W>
 where
@@ -17,24 +9,7 @@ where
     W: Write + Seek,
 {
     pub(crate) fn read_next_raw_message(&mut self) -> Result<Option<RawDemoMessage>, ParserError> {
-        self.parser.reader.refill();
-        if self.parser.reader.remaining_bytes() == 0 {
-            return Ok(None);
-        }
-
-        let cmd = self.parser.reader.read_var_u32() as i32;
-        let tick = self.parser.reader.read_var_u32();
-        let size = self.parser.reader.read_var_u32();
-        let compressed = cmd & EDemoCommands::DemIsCompressed as i32 != 0;
-        let msg_type = EDemoCommands::try_from(cmd & !(EDemoCommands::DemIsCompressed as i32))?;
-        let raw_payload = self.parser.reader.read_bytes(size);
-
-        Ok(Some(RawDemoMessage {
-            msg_type,
-            tick,
-            raw_payload,
-            compressed,
-        }))
+        read_raw_command(&mut self.parser.reader)
     }
 
     pub(crate) fn decode_raw_payload(message: &RawDemoMessage) -> Result<Vec<u8>, ParserError> {

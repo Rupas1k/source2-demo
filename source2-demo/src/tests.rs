@@ -373,6 +373,41 @@ fn round_up_dropped_when_high_quantizes_exactly() {
 }
 
 #[test]
+fn indexes_unknown_and_compressed_commands_without_decoding() {
+    use crate::reader::commands;
+    use std::borrow::Cow;
+
+    let mut file = b"PBDEMS2\0\0\0\0\0\0\0\0\0".to_vec();
+    file.extend([31, 4, 1, 42, 65, 5, 1, 255]);
+    let records = commands(&file).unwrap();
+    assert_eq!((records[0].id, records[0].tick), (31, 4));
+    assert!(matches!(records[0].payload(&file), Ok(Cow::Borrowed([42]))));
+    assert!(records[1].compressed);
+    assert_eq!(records[1].range, 23..24);
+    assert!(records[1].payload(&file).is_err());
+    assert!(commands(&file[..23]).is_err());
+}
+
+#[test]
+fn rejects_short_payloads() {
+    use crate::reader::packet_messages;
+
+    let mut bytes = Vec::new();
+    let mut writer = BitstreamWriter::new(&mut bytes);
+    writer.write_ubit_var(0).unwrap();
+    writer.write_bytes(&[2]).unwrap();
+    writer.flush().unwrap();
+    drop(writer);
+
+    let mut messages = packet_messages(&bytes);
+    assert!(matches!(
+        messages.next(),
+        Some(Err(ParserError::InvalidFrame("truncated packet message")))
+    ));
+    assert!(messages.next().is_none());
+}
+
+#[test]
 fn demo_message_writer_emits_header_and_payload() {
     let payload = [0xAA, 0xBB, 0xCC];
     let mut out = Vec::new();

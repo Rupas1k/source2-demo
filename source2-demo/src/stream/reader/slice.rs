@@ -1,3 +1,4 @@
+use crate::error::ParserError;
 use crate::stream::bits::BitsReader;
 use bitter::BitReader;
 
@@ -22,6 +23,23 @@ impl<'a> SliceReader<'a> {
             string_buffer: [0; 1024],
             source_offset: 0,
         }
+    }
+
+    pub(crate) fn read_packet_message_into(
+        &mut self,
+        payload: &mut Vec<u8>,
+    ) -> Result<Option<u32>, ParserError> {
+        if self.remaining_bytes() == 0 {
+            return Ok(None);
+        }
+
+        let id = self.read_ubit_var();
+        let size = self.read_var_u32();
+        if size as usize > self.remaining_bytes() {
+            return Err(ParserError::InvalidFrame("truncated packet message"));
+        }
+        self.read_bytes_into(size, payload);
+        Ok(Some(id))
     }
 
     #[inline]

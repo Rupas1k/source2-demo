@@ -47,16 +47,13 @@ where
         let mut scratch = Vec::new();
         let mut changed = false;
 
-        'messages: while reader.remaining_bytes() != 0 {
+        'messages: loop {
             let message_start = bit_position(&reader);
-            let msg_type = reader.read_ubit_var() as i32;
-            let size = reader.read_var_u32();
-            let msg_buf = if retain_messages {
-                reader.read_bytes(size)
-            } else {
-                reader.read_bytes_into(size, &mut scratch);
-                std::mem::take(&mut scratch)
+            let Some(msg_type) = reader.read_packet_message_into(&mut scratch)? else {
+                break;
             };
+            let msg_type = msg_type as i32;
+            let msg_buf = std::mem::take(&mut scratch);
             let message_end = bit_position(&reader);
 
             let mut msg_payload = msg_buf;

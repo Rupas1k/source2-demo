@@ -19,7 +19,7 @@ use std::cell::RefCell;
 use std::io::{Seek, Write};
 use std::rc::Rc;
 
-pub(crate) use input::RawDemoMessage;
+pub(crate) use crate::reader::RawDemoMessage;
 pub use rewriter::{
     rewrite_protobuf_message, DemoRewriter, MessageRewrite, PacketMessage, RewriteInterests,
 };

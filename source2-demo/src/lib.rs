@@ -19,16 +19,20 @@ mod string_table;
 #[cfg(test)]
 mod tests;
 
-/// Reader types used by advanced parser integrations.
+/// Binary readers and replay framing utilities.
 ///
 /// Most applications should construct parsers with [`Parser::from_slice`] or
 /// [`Parser::from_reader`]. These re-exports are primarily for wrappers that
 /// need to store a concrete parser type.
 pub mod reader {
-    pub(crate) use crate::stream::reader::{
-        BitsReader, FieldPathCodec, FieldReader, MessageReader, ReplayInfoReader,
+    pub use crate::stream::reader::{
+        commands, packet_data, packet_messages, Command, PacketMessage as RawPacketMessage,
+        SeekableReader, SliceReader,
     };
-    pub use crate::stream::reader::{SeekableReader, SliceReader};
+    pub(crate) use crate::stream::reader::{
+        read_raw_command, BitsReader, FieldPathCodec, FieldReader, MessageReader, RawDemoMessage,
+        ReplayInfoReader,
+    };
 }
 
 /// Demo rewriting APIs and lower-level bitstream writer utilities.
