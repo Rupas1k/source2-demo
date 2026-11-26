@@ -68,6 +68,37 @@
   grid-row: 2;
 }
 
+.tick-ruler {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ruler-mark {
+  position: absolute;
+  inset-block-end: 0;
+  height: 4px;
+  border-inline-start: 1px solid var(--line);
+}
+.ruler-mark[data-major] {
+  height: 6px;
+  border-color: rgb(var(--fg-subtle));
+}
+.ruler-mark > span {
+  position: absolute;
+  bottom: 6px;
+  transform: translateX(-50%);
+  color: rgb(var(--fg-subtle));
+  font-size: 10px;
+  line-height: 11px;
+  font-variant-numeric: tabular-nums;
+}
+@container (width < 480px) {
+  .ruler-mark > span {
+    display: none;
+  }
+}
+
 .seek-control {
   position: relative;
   display: flex;
@@ -78,11 +109,12 @@
   user-select: none;
 }
 .slider-rail {
-  position: relative;
+  position: absolute;
+  inset-block-end: 0;
   width: 100%;
-  height: 4px;
+  height: 2px;
   overflow: hidden;
-  background: rgb(var(--fg) / 0.09);
+  background: var(--line);
 }
 .slider-progress {
   position: absolute;
@@ -95,8 +127,7 @@
   pointer-events: none;
   display: block;
   width: 2px;
-  height: 14px;
-  border-radius: 1px;
+  height: 100%;
   background: var(--accent);
 }
 .slider-input {
@@ -253,8 +284,8 @@
   display: grid;
   grid-template-rows: 13px 17px;
   border: 1px solid var(--line);
-  border-radius: 3px;
   background: rgb(var(--bg));
+  container-type: inline-size;
   flex: 1;
   min-width: 0;
 }
@@ -262,7 +293,7 @@
   position: relative;
   grid-row: 1;
   background: rgb(var(--fg) / 0.025);
-  border-radius: 2px 2px 0 0;
+  border-bottom: 1px solid var(--line);
 }
 .activity-bar {
   position: absolute;
@@ -285,7 +316,7 @@
 .activity-cursor {
   position: absolute;
   inset-block: 0;
-  width: 2px;
+  width: 1px;
   transform: translateX(-50%);
   background: var(--accent);
   pointer-events: none;

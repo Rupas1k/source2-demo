@@ -17,6 +17,47 @@ function centeredStart(tick: number, span: number, last: number) {
   return Math.max(0, Math.min(last - span, tick - Math.floor(span / 2)));
 }
 
+function TickRuler({ start, end }: { start: number; end: number }) {
+  const span = end - start;
+  if (span <= 0) return null;
+
+  const target = span / 6;
+  const magnitude = 10 ** Math.floor(Math.log10(target));
+  const step = Math.max(
+    1,
+    magnitude *
+      ([1, 2, 5, 10].find((factor) => factor * magnitude >= target) ?? 10),
+  );
+  const interval = step % 5 === 0 ? step / 5 : Math.max(1, step / 2);
+  const marks = [];
+  for (
+    let tick = Math.ceil(start / interval) * interval;
+    tick <= end;
+    tick += interval
+  ) {
+    const position = (100 * (tick - start)) / span;
+    const major = tick % step === 0;
+    marks.push(
+      <span
+        className="ruler-mark"
+        key={tick}
+        data-major={major || undefined}
+        style={{ left: `${position}%` }}
+      >
+        {major && position >= 6 && position <= 94 && (
+          <span>{formatNumber(tick)}</span>
+        )}
+      </span>,
+    );
+  }
+
+  return (
+    <div className="tick-ruler" aria-hidden="true">
+      {marks}
+    </div>
+  );
+}
+
 export default function DemoTimeline() {
   const parser = useReplayStore((state) => state.replaySession);
   const view = useReplayStore((state) => state.activeView);
@@ -313,6 +354,7 @@ export default function DemoTimeline() {
           />
         )}
         <div className="track">
+          {parser && <TickRuler start={start} end={end} />}
           {cursor !== tick && cursor >= start && cursor <= end && (
             <output
               className="tick-preview"
