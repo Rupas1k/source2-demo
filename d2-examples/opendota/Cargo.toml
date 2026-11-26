@@ -7,7 +7,7 @@ edition = "2024"
 serde = "1.0"
 hashbrown = { version = "0.17", features = ["serde"] }
 anyhow = "1.0"
-serde_with = "3.15"
+serde_with = "3.25"
 serde_json = "1.0"
 
 source2-demo = { path = "../../source2-demo", features = ["dota"] }

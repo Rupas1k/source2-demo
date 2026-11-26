@@ -19,7 +19,7 @@ path = "./lib.rs"
 protox = { version = "0.10", optional = true }
 prost-build = "0.14"
 itertools = "0.15"
-ureq = "3.1"
+ureq = "3.5"
 
 [dependencies]
 prost-reflect = { version = "0.16", optional = true }

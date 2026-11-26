@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 source2-demo = { path = "../../source2-demo", features = ["dota"] }
-hashbrown = "0.16"
+hashbrown = "0.17"
 anyhow = "1.0"
