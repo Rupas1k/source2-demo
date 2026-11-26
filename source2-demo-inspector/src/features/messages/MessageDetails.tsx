@@ -72,6 +72,7 @@ export function MessageDetails({
       />
       <SheetTable
         tableId="message-fields"
+        className="field-tree"
         columns={["Field", "Type", "Value"]}
         sort={fieldSort.sort}
         onSort={fieldSort.toggleSort}

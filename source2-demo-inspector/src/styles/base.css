@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  --field-disclosure-width: 16px;
   --activity-created: light-dark(#2f7855, #7cd2a5);
   --activity-deleted: light-dark(#a44747, #ffa2a2);
   --hover: rgb(var(--fg) / 0.08);

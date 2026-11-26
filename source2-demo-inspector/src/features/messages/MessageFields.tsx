@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronRight } from "../../shared/components/Icons";
 import { sortRows, type TableSort } from "../../workbench/tableSort";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 
 export interface Field {
   name: string;
@@ -48,7 +48,15 @@ export function sortMessageFields(
   );
 }
 
-function FieldRow({ field, depth }: { field: Field; depth: number }) {
+function FieldRow({
+  field,
+  depth,
+  path,
+}: {
+  field: Field;
+  depth: number;
+  path: string;
+}) {
   const [open, setOpen] = useState(field.openByDefault ?? false);
   const expandable = !!field.children?.length;
   const DisclosureIcon = open ? ChevronDown : ChevronRight;
@@ -56,8 +64,8 @@ function FieldRow({ field, depth }: { field: Field; depth: number }) {
     <>
       <div className="sheet-grid message-field">
         <span
-          className="flex items-center gap-1"
-          style={{ paddingLeft: 9 + depth * 12 }}
+          className="protobuf-field-name"
+          style={{ "--field-depth": depth } as CSSProperties}
         >
           {expandable ? (
             <button
@@ -81,7 +89,7 @@ function FieldRow({ field, depth }: { field: Field; depth: number }) {
           ) : (
             <span className="field-disclosure-space" aria-hidden="true" />
           )}
-          <span className="truncate" title={field.name}>
+          <span className="truncate" title={path}>
             {field.name}
           </span>
         </span>
@@ -93,7 +101,11 @@ function FieldRow({ field, depth }: { field: Field; depth: number }) {
         </span>
       </div>
       {open && field.children && (
-        <FieldRows fields={field.children} depth={depth + 1} />
+        <FieldRows
+          fields={field.children}
+          depth={depth + 1}
+          parentPath={path}
+        />
       )}
     </>
   );
@@ -102,15 +114,22 @@ function FieldRow({ field, depth }: { field: Field; depth: number }) {
 export function FieldRows({
   fields,
   depth = 0,
+  parentPath,
 }: {
   fields: Field[];
   depth?: number;
+  parentPath?: string;
 }) {
   const [limit, setLimit] = useState(128);
   return (
     <>
       {fields.slice(0, limit).map((field, i) => (
-        <FieldRow key={i} field={field} depth={depth} />
+        <FieldRow
+          key={i}
+          field={field}
+          depth={depth}
+          path={parentPath ? `${parentPath}.${field.name}` : field.name}
+        />
       ))}
       {fields.length > limit && (
         <button className="record-row" onClick={() => setLimit(limit + 128)}>

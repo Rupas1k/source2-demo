@@ -97,6 +97,7 @@
   white-space: pre-wrap;
 }
 .sheet-grid {
+  --cell-inline-padding: 9px;
   display: grid;
   grid-template-columns: var(--columns);
 }
@@ -110,7 +111,7 @@
   color: rgb(var(--fg-subtle));
 }
 .sheet-grid > * {
-  padding: 4px 9px;
+  padding: 4px var(--cell-inline-padding);
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -131,12 +132,30 @@
 .sheet-row[data-stripe] {
   background: rgb(var(--fg) / 0.024);
 }
+.field-tree {
+  --field-gap: 4px;
+  --field-indent-step: 10px;
+}
+.field-tree .sheet-heading > :first-child .sort-label {
+  margin-inline-start: calc(var(--field-disclosure-width) + var(--field-gap));
+  min-width: 0;
+}
+.field-path,
+.protobuf-field-name {
+  --field-indent: calc(min(var(--field-depth), 6) * var(--field-indent-step));
+  gap: var(--field-gap);
+}
+.protobuf-field-name {
+  display: flex;
+  align-items: center;
+  padding-inline-start: calc(var(--cell-inline-padding) + var(--field-indent));
+}
 .field-path {
   min-width: 0;
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) 32px;
+  grid-template-columns: var(--field-disclosure-width) minmax(0, 1fr) 32px;
   align-items: start;
-  gap: 4px;
+  padding-inline-start: var(--field-indent);
 }
 .field-path-text {
   line-height: 1.4;
@@ -398,7 +417,7 @@ button.sort-label {
 .field-disclosure {
   display: grid;
   place-items: center;
-  width: 16px;
+  width: var(--field-disclosure-width);
   height: 18px;
   flex: none;
   cursor: pointer;
@@ -414,6 +433,6 @@ button.sort-label {
 }
 
 .field-disclosure-space {
-  width: 16px;
+  width: var(--field-disclosure-width);
   flex: none;
 }

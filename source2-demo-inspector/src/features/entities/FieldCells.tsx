@@ -8,7 +8,7 @@ import {
   HistoryIcon,
 } from "../../shared/components/Icons";
 import { eHandleToIndex, isEHandleValid } from "../../generated/wasm/inspector";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { itemCount } from "../../shared/utils/formatNumber";
 import type { EntityFieldRow } from "./entityTypes";
 
@@ -60,9 +60,7 @@ export function FieldCells({
       <div className="field-name">
         <div
           className="field-path"
-          style={{
-            paddingInlineStart: Math.min(row.depth, 6) * 9,
-          }}
+          style={{ "--field-depth": row.depth } as CSSProperties}
         >
           {row.expandableKind ? (
             <button
