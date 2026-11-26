@@ -77,7 +77,8 @@ pub(crate) fn is_demo_command_type(value: &str) -> bool {
 pub(crate) fn is_message_type(value: &str) -> bool {
     matches!(
         value,
-        "u32" | ":: source2_demo :: proto :: EDemoCommands"
+        "u32"
+            | ":: source2_demo :: proto :: EDemoCommands"
             | "source2_demo :: proto :: EDemoCommands"
             | "EDemoCommands"
             | ":: source2_demo :: proto :: EBaseUserMessages"

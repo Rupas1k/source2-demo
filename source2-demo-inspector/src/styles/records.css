@@ -283,14 +283,39 @@
   font-variant-numeric: tabular-nums;
 }
 
-.column-label {position:relative;display:flex;align-items:center;height:100%;}
-.column-label .sort-label {overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
-.column-label .resize-column {position:absolute;inset:0 0 0 auto;width:8px;cursor:col-resize;touch-action:none;user-select:none;}
-.column-label .resize-column:focus-visible {border-right:2px solid var(--accent);}
+.column-label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+.column-label .sort-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.column-label .resize-column {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+.column-label .resize-column:focus-visible {
+  border-right: 2px solid var(--accent);
+}
 
-.sort-label {max-width:100%;text-align:left;}
-button.sort-label {cursor:pointer;}
-.sort-label span {color:rgb(var(--fg-subtle));}
+.sort-label {
+  max-width: 100%;
+  text-align: left;
+}
+button.sort-label {
+  cursor: pointer;
+}
+.sort-label span {
+  color: rgb(var(--fg-subtle));
+}
 
 .message-field {
   border-bottom: 1px solid var(--line);

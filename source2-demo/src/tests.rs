@@ -419,7 +419,10 @@ fn namespaces_and_game_directories_select_the_field_schema() {
     assert_eq!(command.name(), "CDemoSendTables");
     assert!(packet.get_field_by_name("tick").is_some());
     assert_eq!(
-        schema.descriptor(MessageFamily::Packet, 554).unwrap().name(),
+        schema
+            .descriptor(MessageFamily::Packet, 554)
+            .unwrap()
+            .name(),
         "CMsgDOTACombatLogEntry"
     );
     assert!(schema.descriptor(MessageFamily::Packet, u32::MAX).is_none());

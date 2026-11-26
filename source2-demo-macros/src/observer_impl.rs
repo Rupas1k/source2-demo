@@ -226,21 +226,24 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
                             }
                         }
                         "on_field_update" | "wants_entity_field_updates" if !cfg!(feature = "entity-field-updates") => {
-                            errors.extend(syn::Error::new_spanned(attr, "field update observers require the entity-field-updates feature").to_compile_error());
+                            errors.extend(
+                                syn::Error::new_spanned(attr, "field update observers require the entity-field-updates feature").to_compile_error(),
+                            );
                         }
                         "observer_interests" | "wants_full_packet_snapshot" | "wants_entity_field_updates" => {
                             let name = segment.ident.to_string();
                             let (handler, args) = match name.as_str() {
                                 "observer_interests" => (&mut interests_override, observer_no_args(method, &name)),
-                                "wants_full_packet_snapshot" => (
-                                    &mut full_packet_snapshot,
-                                    observer_context_args(method, "#[wants_full_packet_snapshot]"),
-                                ),
+                                "wants_full_packet_snapshot" => {
+                                    (&mut full_packet_snapshot, observer_context_args(method, "#[wants_full_packet_snapshot]"))
+                                }
                                 _ => (&mut entity_field_updates, observer_no_args(method, &name)),
                             };
                             match args {
                                 Ok(args) if handler.is_none() => *handler = Some(quote! { self.#method_name(#args) }),
-                                Ok(_) => errors.extend(syn::Error::new_spanned(attr, format!("only one #[{name}] handler is allowed")).to_compile_error()),
+                                Ok(_) => {
+                                    errors.extend(syn::Error::new_spanned(attr, format!("only one #[{name}] handler is allowed")).to_compile_error())
+                                }
                                 Err(error) => errors.extend(error.to_compile_error()),
                             }
                         }
@@ -784,10 +787,7 @@ fn observer_no_args(method: &syn::ImplItemFn, attr_name: &str) -> syn::Result<pr
     Ok(quote! {})
 }
 
-fn observer_field_update_body(
-    attr: &syn::Attribute,
-    method: &syn::ImplItemFn,
-) -> syn::Result<proc_macro2::TokenStream> {
+fn observer_field_update_body(attr: &syn::Attribute, method: &syn::ImplItemFn) -> syn::Result<proc_macro2::TokenStream> {
     let (class, field) = parse_field_filters(attr)?;
     let mut args = Vec::new();
     let mut per_write = None;
@@ -804,7 +804,11 @@ fn observer_field_update_body(
             if per_write.replace(single).is_some() {
                 return Err(syn::Error::new_spanned(pat_type, "expected one field update parameter"));
             }
-            if single { quote! { update } } else { quote! { updates } }
+            if single {
+                quote! { update }
+            } else {
+                quote! { updates }
+            }
         } else {
             return Err(syn::Error::new_spanned(
                 pat_type,
@@ -818,7 +822,10 @@ fn observer_field_update_body(
     let call = quote! { self.#method_name(#(#args),*)?; };
     if per_write != Some(true) {
         if class.is_some() || field.is_some() {
-            return Err(syn::Error::new_spanned(attr, "field update filters require an `&EntityFieldUpdate` parameter"));
+            return Err(syn::Error::new_spanned(
+                attr,
+                "field update filters require an `&EntityFieldUpdate` parameter",
+            ));
         }
         return Ok(call);
     }
@@ -855,7 +862,7 @@ fn field_update_arg(ty: &Type) -> Option<bool> {
     };
     matches!(element, Type::Path(path)
         if path.path.segments.last().is_some_and(|segment| segment.ident == "EntityFieldUpdate"))
-        .then_some(single)
+    .then_some(single)
 }
 
 fn observer_entity_args(method: &syn::ImplItemFn) -> syn::Result<proc_macro2::TokenStream> {

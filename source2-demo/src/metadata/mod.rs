@@ -7,8 +7,8 @@ pub use crate::reader::{
     commands, packet_data, packet_messages, Command, RawPacketMessage as PacketMessage,
 };
 pub(crate) use entity::inspect_fields;
-pub use entity::{BaselineEntity, EntityField};
 #[cfg(feature = "entity-field-updates")]
 pub use entity::EntityFieldUpdate;
+pub use entity::{BaselineEntity, EntityField};
 #[cfg(feature = "reflection")]
 pub use source2_demo_protobufs::schema::{MessageFamily, MessageSchema};
