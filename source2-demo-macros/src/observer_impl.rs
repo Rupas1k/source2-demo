@@ -224,6 +224,9 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
                                 Err(error) => errors.extend(error.to_compile_error()),
                             }
                         }
+                        "on_entity_field_updates" | "wants_entity_field_updates" if !cfg!(feature = "entity-field-updates") => {
+                            errors.extend(syn::Error::new_spanned(attr, "field update observers require the entity-field-updates feature").to_compile_error());
+                        }
                         "observer_interests" | "wants_full_packet_snapshot" | "wants_entity_field_updates" => {
                             let name = segment.ident.to_string();
                             let (handler, args) = match name.as_str() {

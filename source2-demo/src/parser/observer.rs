@@ -1,3 +1,4 @@
+#[cfg(feature = "entity-field-updates")]
 use crate::metadata::EntityFieldUpdate;
 use crate::parser::Context;
 use crate::proto::*;
@@ -91,6 +92,7 @@ bitflags::bitflags! {
         /// Every packet message processed by the parser, before typed dispatch.
         const RAW_PACKET_MESSAGE = 1 << 19;
         /// Capture explicit entity field writes. Also requires entity state.
+        #[cfg(feature = "entity-field-updates")]
         const ENTITY_FIELD_UPDATES = 1 << 20;
         /// Process selected full packet snapshots when requested by the observer.
         const FULL_PACKET_SNAPSHOTS = 1 << 21;
@@ -375,11 +377,13 @@ pub trait Observer {
     }
 
     /// Controls whether to capture field writes for the current entity operation.
+    #[cfg(feature = "entity-field-updates")]
     fn wants_entity_field_updates(&self) -> bool {
         true
     }
 
     /// Receives explicit field writes after the decoder applies them.
+    #[cfg(feature = "entity-field-updates")]
     fn on_entity_field_updates(
         &mut self,
         ctx: &Context,
@@ -619,10 +623,12 @@ where
         self.borrow_mut().on_tick_end(ctx)
     }
 
+    #[cfg(feature = "entity-field-updates")]
     fn wants_entity_field_updates(&self) -> bool {
         self.borrow().wants_entity_field_updates()
     }
 
+    #[cfg(feature = "entity-field-updates")]
     fn on_entity_field_updates(
         &mut self,
         ctx: &Context,

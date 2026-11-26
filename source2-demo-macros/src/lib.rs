@@ -1034,6 +1034,7 @@ pub fn on_entity(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// Receives decoded entity field writes. The handler returns `ObserverResult`
 /// and can take `&Context`, `&Entity`, and `&[EntityFieldUpdate]`.
 /// Adds entity state and field update interests.
+#[cfg(feature = "entity-field-updates")]
 #[proc_macro_attribute]
 pub fn on_entity_field_updates(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
@@ -1049,6 +1050,7 @@ pub fn wants_full_packet_snapshot(_attr: TokenStream, item: TokenStream) -> Toke
 
 /// Controls when to capture field writes for `#[on_entity_field_updates]`.
 /// The predicate takes `&self` and returns `bool`. Capture defaults to enabled.
+#[cfg(feature = "entity-field-updates")]
 #[proc_macro_attribute]
 pub fn wants_entity_field_updates(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item

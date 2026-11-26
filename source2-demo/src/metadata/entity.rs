@@ -15,6 +15,7 @@ pub struct EntityField<'a> {
 }
 
 /// One field write from an entity creation or update, in wire order.
+#[cfg(feature = "entity-field-updates")]
 #[derive(Debug)]
 pub struct EntityFieldUpdate {
     /// Numeric serializer path.

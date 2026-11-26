@@ -1,10 +1,13 @@
 use crate::entity::field::*;
 use crate::entity::*;
 use crate::error::ParserError;
+#[cfg(feature = "entity-field-updates")]
 use crate::metadata::EntityFieldUpdate;
 use crate::proto::*;
 use crate::reader::*;
-use crate::{try_observers, Interests, Parser, StringTable};
+#[cfg(feature = "entity-field-updates")]
+use crate::Interests;
+use crate::{try_observers, Parser, StringTable};
 use std::cell::RefCell;
 
 pub trait SvcMsg {
@@ -206,7 +209,11 @@ where
         entity.class = class.clone();
         entity.state = entity_baseline;
 
+        #[cfg(feature = "entity-field-updates")]
         self.read_entity_fields(reader, index)?;
+        #[cfg(not(feature = "entity-field-updates"))]
+        self.field_reader
+            .read_fields(reader, &entity.class.serializer, &mut entity.state);
 
         try_observers!(
             self,
@@ -226,7 +233,14 @@ where
         reader: &mut SliceReader,
         index: usize,
     ) -> Result<(), ParserError> {
+        #[cfg(feature = "entity-field-updates")]
         self.read_entity_fields(reader, index)?;
+        #[cfg(not(feature = "entity-field-updates"))]
+        {
+            let entity = &mut self.context.entities.entities_vec[index];
+            self.field_reader
+                .read_fields(reader, &entity.class.serializer, &mut entity.state);
+        }
 
         try_observers!(
             self,
@@ -258,6 +272,7 @@ where
     }
 }
 
+#[cfg(feature = "entity-field-updates")]
 impl<'a, R> Parser<'a, R>
 where
     R: BitsReader + MessageReader,
