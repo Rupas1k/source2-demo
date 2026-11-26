@@ -836,11 +836,18 @@ fn parser_dispatches_packet_net_svc_base_and_dota_messages() {
 
 #[derive(Default)]
 struct RawMessageMacroObserver {
+    packet_ids: Vec<u32>,
     svc_messages: Vec<(SvcMessages, usize)>,
 }
 
 #[observer]
 impl RawMessageMacroObserver {
+    #[on_message]
+    fn raw_packet(&mut self, id: u32, _payload: &[u8]) -> ObserverResult {
+        self.packet_ids.push(id);
+        Ok(())
+    }
+
     #[on_message]
     fn raw_svc(&mut self, _ctx: &Context, msg_type: SvcMessages, payload: &[u8]) -> ObserverResult {
         self.svc_messages.push((msg_type, payload.len()));
@@ -860,7 +867,9 @@ fn observer_macro_can_receive_raw_message_payloads() {
 
     let packet_messages = vec![
         (SvcMessages::SvcServerInfo as i32, server_info.as_slice()),
+        (4095, &[1, 2][..]),
         (NetMessages::NetTick as i32, net_tick.as_slice()),
+        (4095, &[][..]),
     ];
     let replay = replay_with_playback_ticks(
         20,
@@ -878,6 +887,25 @@ fn observer_macro_can_receive_raw_message_payloads() {
 
     parser.run_to_end().unwrap();
 
+    let commands = crate::metadata::commands(&replay).unwrap();
+    let packet = commands.last().unwrap();
+    let data = crate::metadata::packet_data(packet.id, &packet.payload(&replay).unwrap())
+        .unwrap()
+        .unwrap();
+    let frames: Vec<_> = crate::metadata::packet_messages(&data)
+        .map(Result::unwrap)
+        .collect();
+    assert_eq!(
+        frames
+            .iter()
+            .map(|f| (f.id as i32, f.payload.as_slice()))
+            .collect::<Vec<_>>(),
+        packet_messages
+    );
+    assert_eq!(
+        observer.borrow().packet_ids,
+        frames.iter().map(|f| f.id).collect::<Vec<_>>()
+    );
     assert_eq!(
         observer.borrow().svc_messages,
         vec![(SvcMessages::SvcServerInfo, server_info.len())]

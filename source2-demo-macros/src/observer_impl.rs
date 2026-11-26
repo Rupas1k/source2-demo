@@ -53,6 +53,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     }
 
     let mut has_demo = false;
+    let mut has_raw_packet = false;
     let mut has_net = false;
     let mut has_svc = false;
     let mut has_base_um = false;
@@ -100,6 +101,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     let mut on_cs2_game_event_body = quote!();
 
     let mut on_svc_message_body = quote!();
+    let mut on_raw_packet_body = quote!();
     let mut on_net_message_body = quote!();
     let mut on_base_game_event_body = quote!();
     let mut on_demo_command_body = quote!();
@@ -327,6 +329,10 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
                                 }
 
                                 let known_message_root = match root.as_str() {
+                                    "u32" => {
+                                        has_raw_packet = true;
+                                        true
+                                    }
                                     "EDemoCommands" => {
                                         has_demo = true;
                                         true
@@ -380,6 +386,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
                                 }
 
                                 match root.as_str() {
+                                    "u32" => extend!(on_raw_packet_body),
                                     "EDemoCommands" => extend!(on_demo_command_body),
                                     "EBaseUserMessages" => extend!(on_base_user_message_body),
                                     "EBaseGameEvents" => extend!(on_base_game_event_body),
@@ -428,6 +435,11 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
             msg: &[u8],
         ) -> ObserverResult {
             #on_svc_message_body
+            Ok(())
+        }
+
+        fn on_raw_packet_message(&mut self, ctx: &Context, msg_type: u32, msg: &[u8]) -> ObserverResult {
+            #on_raw_packet_body
             Ok(())
         }
 
@@ -600,6 +612,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
         interests = quote!(::source2_demo::Interests::all());
     }
 
+    add_if!(has_raw_packet, RAW_PACKET_MESSAGE);
     add_if!(has_demo, DEMO_MESSAGE);
     add_if!(has_net, NET_MESSAGE);
     add_if!(has_svc, SVC_MESSAGE);
@@ -839,7 +852,7 @@ fn observer_message_args(method: &syn::ImplItemFn) -> syn::Result<(ObserverMessa
 
     match (message, message_type, payload) {
         (Some((arg_type, is_ref)), None, false) => Ok((ObserverMessageKind::Decoded { arg_type, is_ref }, args)),
-        (None, Some((enum_type, is_ref)), true) => Ok((ObserverMessageKind::Raw { enum_type, is_ref }, args)),
+        (None, Some((enum_type, is_ref)), _) => Ok((ObserverMessageKind::Raw { enum_type, is_ref }, args)),
         (Some(_), Some(_), _) => Err(syn::Error::new_spanned(
             &method.sig,
             "#[on_message] cannot mix protobuf and raw message arguments",
@@ -848,13 +861,9 @@ fn observer_message_args(method: &syn::ImplItemFn) -> syn::Result<(ObserverMessa
             &method.sig,
             "#[on_message] raw payload handlers need a message type argument",
         )),
-        (None, Some(_), false) => Err(syn::Error::new_spanned(
-            &method.sig,
-            "#[on_message] raw handlers need a `&[u8]` payload argument",
-        )),
         (None, None, _) => Err(syn::Error::new_spanned(
             &method.sig,
-            "#[on_message] needs a protobuf message argument or raw message type plus `&[u8]`",
+            "#[on_message] needs a protobuf message argument or a raw message type",
         )),
     }
 }

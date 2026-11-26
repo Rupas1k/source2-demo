@@ -87,6 +87,8 @@ bitflags::bitflags! {
     /// ```
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub struct Interests: u64 {
+        /// Every packet message processed by the parser, before typed dispatch.
+        const RAW_PACKET_MESSAGE = 1 << 19;
         /// Interest in outer demo messages (`EDemoCommands`).
         const DEMO_MESSAGE = 1 << 0;
         /// Interest in net messages (`NetMessages`).
@@ -276,6 +278,12 @@ pub trait Observer {
         msg_type: EDemoCommands,
         msg: &[u8],
     ) -> ObserverResult {
+        Ok(())
+    }
+
+    /// Receives each processed packet message in wire order, including unknown IDs.
+    /// Requires [`Interests::RAW_PACKET_MESSAGE`]. Seeking can skip packets.
+    fn on_raw_packet_message(&mut self, ctx: &Context, id: u32, payload: &[u8]) -> ObserverResult {
         Ok(())
     }
 
@@ -529,6 +537,10 @@ where
         msg: &[u8],
     ) -> ObserverResult {
         self.borrow_mut().on_demo_command(ctx, msg_type, msg)
+    }
+
+    fn on_raw_packet_message(&mut self, ctx: &Context, id: u32, payload: &[u8]) -> ObserverResult {
+        self.borrow_mut().on_raw_packet_message(ctx, id, payload)
     }
 
     fn on_net_message(

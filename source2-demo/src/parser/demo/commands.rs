@@ -5,6 +5,7 @@ use crate::parser::demo::DemoMessages;
 use crate::parser::Parser;
 use crate::proto::*;
 use crate::reader::*;
+use crate::try_observers;
 use crate::HashMap;
 use crate::StringTableRow;
 use std::rc::Rc;
@@ -163,6 +164,11 @@ where
             let frame = frame?;
             let msg_type = frame.id as i32;
             let msg_buf = frame.payload;
+            try_observers!(
+                self,
+                RAW_PACKET_MESSAGE,
+                on_raw_packet_message(&self.context, frame.id, &msg_buf)
+            )?;
 
             #[cfg(feature = "dota")]
             if let Ok(msg) = EDotaUserMessages::try_from(msg_type) {

@@ -592,6 +592,10 @@ pub fn rewriter(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// ## Handle raw messages
 ///
+/// Use a `u32` message type to observe every processed packet
+/// message before typed dispatch, including unknown numeric IDs. Take `&[u8]`
+/// when the handler needs the payload.
+///
 /// ```no_run
 /// # use source2_demo::prelude::*;
 /// # struct MyObs;
