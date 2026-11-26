@@ -1,6 +1,7 @@
+import { readReplayInput } from "./readReplayInput";
 import { seekReplay } from "./seekReplay";
 import { disposeReplayActivity } from "./replayActivity";
-import initInspector, { ReplaySession } from "../generated/wasm/inspector";
+import initInspector, { type ReplaySession } from "../generated/wasm/inspector";
 import { useEffect, useState } from "react";
 import { useReplayStore } from "./state";
 
@@ -13,7 +14,8 @@ export function useReplaySession() {
   const [initError, setInitError] = useState<unknown>();
   useEffect(() => {
     if (!file) return;
-    let cancelled = false;
+    const controller = new AbortController();
+    const { signal } = controller;
     let parser: ReplaySession | undefined;
 
     const openReplay = async () => {
@@ -22,31 +24,32 @@ export function useReplaySession() {
 
         setLoadingStage("initializing web assembly");
         await initInspector();
-        if (cancelled) {
+        if (signal.aborted) {
           return;
         }
 
         setLoadingStage("loading file into memory");
-        const fileBytes = new Uint8Array(await file.arrayBuffer());
-        if (cancelled) {
+        const input = await readReplayInput(file, signal);
+        if (signal.aborted) {
+          input.free();
           return;
         }
 
         setLoadingStage("constructing parser");
-        parser = new ReplaySession(fileBytes);
-        if (cancelled) {
+        parser = input.intoSession();
+        if (signal.aborted) {
           return;
         }
 
         setLoadingStage("seeking to first tick");
         seekReplay(parser, 0);
-        if (cancelled) {
+        if (signal.aborted) {
           return;
         }
 
         attachReplay(file, parser, parser.recordedTicks());
       } catch (error) {
-        if (cancelled) {
+        if (signal.aborted) {
           return;
         }
         setInitError(error);
@@ -55,7 +58,7 @@ export function useReplaySession() {
     void openReplay();
 
     return () => {
-      cancelled = true;
+      controller.abort();
       disposeReplayActivity(file);
       parser?.free();
     };

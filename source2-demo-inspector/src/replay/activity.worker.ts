@@ -1,6 +1,7 @@
+import { readReplayInput } from "./readReplayInput";
 import { expose, transfer } from "comlink";
 import initInspector, {
-  ReplayActivityIndex,
+  type ReplayActivityIndex,
 } from "../generated/wasm/inspector";
 import type { ActivityApi } from "./activityQuery";
 
@@ -8,9 +9,10 @@ let index: Promise<ReplayActivityIndex> | undefined;
 
 const api: ActivityApi = {
   async read(file, query) {
-    index ??= Promise.all([initInspector(), file.arrayBuffer()]).then(
-      ([, bytes]) => new ReplayActivityIndex(new Uint8Array(bytes)),
-    );
+    index ??= (async () => {
+      await initInspector();
+      return (await readReplayInput(file)).intoActivity();
+    })();
     const activity = await index;
     const points =
       query.view === "entityOccurrences"

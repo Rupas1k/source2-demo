@@ -1,8 +1,8 @@
+use crate::input::ReplayBytes;
 use crate::records::*;
 use crate::MessageInspector;
 use std::fmt::Display;
 use std::io::Cursor;
-use std::rc::Rc;
 
 use source2_demo::prelude::*;
 
@@ -11,8 +11,8 @@ use wasm_bindgen::JsError;
 
 #[wasm_bindgen]
 pub struct ReplaySession {
-    parser: Parser<'static, source2_demo::reader::SeekableReader<Cursor<Rc<[u8]>>>>,
-    file: Rc<[u8]>,
+    parser: Parser<'static, source2_demo::reader::SeekableReader<Cursor<ReplayBytes>>>,
+    file: ReplayBytes,
 }
 
 #[derive(Default)]
@@ -31,7 +31,7 @@ impl ReplaySession {
         if bytes.len() < 16 || !bytes.starts_with(b"PBDEMS2\0") {
             return Err(JsError::new("Expected a Source 2 demo header."));
         }
-        let file: Rc<[u8]> = bytes.into();
+        let file: ReplayBytes = bytes.into();
         let cursor = Cursor::new(file.clone());
         let mut parser = Parser::from_reader(cursor).map_err(to_js_error)?;
         parser.register_observer::<InspectorState>();

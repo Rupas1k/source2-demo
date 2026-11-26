@@ -1,10 +1,11 @@
+import { readReplayInput } from "../../replay/readReplayInput";
 import { expose, transfer } from "comlink";
 import { isFullPacket } from "./messageIndex";
 import { gameEventDefinitions } from "./packetGameEvents";
 import type { FiredEvent } from "../../replay/readGameEvents";
 import { packetTableRecords, snapshotTables } from "./packetStringTables";
 import initInspector, {
-  MessageInspector,
+  type MessageInspector,
 } from "../../generated/wasm/inspector";
 import { sortRows } from "../../workbench/tableSort";
 import type {
@@ -15,17 +16,55 @@ import type {
   Query,
 } from "./messageIndex";
 
+// Search results use four words per match: command, child, wire ID, and tick.
+const matchWidth = 4;
+const noChild = 0xffffffff;
+const parentRow = 0x80000000;
+
+interface PacketGroup {
+  parent: Entry;
+  childStart: number;
+  childEnd: number;
+}
+
 let inspector: MessageInspector;
 let opening: Promise<void>;
 let commands: Entry[] | undefined;
 let lastTerm: string | undefined;
-let matches: Entry[] = [];
-let rows: IndexedEntry[] = [];
-let groups: Map<number, { parent: Entry; children: Entry[] }> | undefined;
-let firstAtTick = new Map<number, Entry>();
+let matches: Uint32Array = new Uint32Array();
+let rows = new Uint32Array();
+let groups: Map<number, PacketGroup> | undefined;
+let parents: PacketGroup[] = [];
+let firstAtTick = new Map<number, number>();
 let points = new Uint32Array();
 let revision = 0;
 let fired: Map<string, FiredEvent> | undefined;
+const names = {
+  command: new Map<number, string>(),
+  packet: new Map<number, string>(),
+};
+
+function messageName(packet: boolean, id: number) {
+  const cache = packet ? names.packet : names.command;
+  let name = cache.get(id);
+  if (name === undefined) {
+    name = inspector.messageName(packet, id);
+    cache.set(id, name);
+  }
+  return name;
+}
+
+function matchEntry(offset: number): Entry {
+  const child = matches[offset + 1];
+  const id = matches[offset + 2];
+  return {
+    command: matches[offset],
+    child: child === noChild ? null : child,
+    id,
+    tick: matches[offset + 3],
+    name: messageName(child !== noChild, id),
+  };
+}
 
 function firedEvents() {
   return (fired ??= new Map(
@@ -36,10 +75,40 @@ function firedEvents() {
   ));
 }
 
-function counts(entries: Entry[]) {
-  const byTick = new Map<number, number>();
-  for (const { tick } of entries) byTick.set(tick, (byTick.get(tick) ?? 0) + 1);
-  return Uint32Array.from(Array.from(byTick).flat());
+function indexMatches(term: string) {
+  matches = inspector.search(term);
+  const counts = new Map<number, number>();
+  firstAtTick = new Map();
+  for (let offset = 0; offset < matches.length; offset += matchWidth) {
+    const tick = matches[offset + 3];
+    if (!firstAtTick.has(tick)) firstAtTick.set(tick, offset);
+    if (term) counts.set(tick, (counts.get(tick) ?? 0) + 1);
+  }
+  points = Uint32Array.from(Array.from(counts).flat());
+  lastTerm = term;
+  groups = undefined;
+}
+
+function groupMatches() {
+  const result = new Map<number, PacketGroup>();
+  for (let offset = 0; offset < matches.length; offset += matchWidth) {
+    const command = matches[offset];
+    const isParent = matches[offset + 1] === noChild;
+    let group = result.get(command);
+    if (!group) {
+      if (!isParent)
+        commands ??= JSON.parse(inspector.commandEntries()) as Entry[];
+      const start = isParent ? offset + matchWidth : offset;
+      group = {
+        parent: isParent ? matchEntry(offset) : commands![command],
+        childStart: start,
+        childEnd: start,
+      };
+      result.set(command, group);
+    }
+    if (!isParent) group.childEnd = offset + matchWidth;
+  }
+  return result;
 }
 
 function query({
@@ -50,75 +119,76 @@ function query({
   fullPacketsOpen,
   revealedPacket,
 }: Query) {
-  if (lastTerm !== term) {
-    matches = JSON.parse(inspector.search(term));
-    firstAtTick = new Map();
-    for (const entry of matches)
-      if (!firstAtTick.has(entry.tick)) firstAtTick.set(entry.tick, entry);
-    points = term ? counts(matches) : new Uint32Array();
-    lastTerm = term;
-    groups = undefined;
-  }
-  rows = [];
+  if (lastTerm !== term) indexMatches(term);
+  rows = new Uint32Array();
+  parents = [];
   if (wide) {
-    if (!groups) {
-      groups = new Map();
-      for (const entry of matches) {
-        if (entry.child === null) {
-          groups.set(entry.command, { parent: entry, children: [] });
-          continue;
-        }
-        let group = groups.get(entry.command);
-        if (!group) {
-          commands ??= JSON.parse(inspector.commandEntries()) as Entry[];
-          group = { parent: commands[entry.command], children: [] };
-          groups.set(entry.command, group);
-        }
-        group.children.push(entry);
-      }
-    }
+    groups ??= groupMatches();
     const order = sort?.column === "id" ? undefined : sort;
-    const parents = sortRows(
+    parents = sortRows(
       [...groups.values()],
       order,
       (group, column) => group.parent[column],
     );
-    for (const { parent, children } of parents) {
-      const full = isFullPacket(parent);
-      rows.push({ ...parent, hasChildren: children.length > 0 });
-      if (
-        (full ? fullPacketsOpen : packetsOpen) ||
-        parent.command === revealedPacket
-      ) {
-        for (const child of sortRows(
-          children,
-          order,
-          (entry, column) => entry[column],
-        ))
-          rows.push({
-            ...child,
-            hasChildren: false,
-            ...(full ? { inFullPacket: true } : undefined),
-          });
+    const isOpen = ({ parent }: PacketGroup) =>
+      (isFullPacket(parent) ? fullPacketsOpen : packetsOpen) ||
+      parent.command === revealedPacket;
+    const count = parents.reduce(
+      (total, group) =>
+        total +
+        (isOpen(group) ? (group.childEnd - group.childStart) / matchWidth : 0),
+      parents.length,
+    );
+    rows = new Uint32Array(count);
+    let position = 0;
+    for (const [index, group] of parents.entries()) {
+      rows[position++] = parentRow + index;
+      if (!isOpen(group)) continue;
+      const { childStart, childEnd } = group;
+      if (order?.column === "name") {
+        const offsets = [];
+        for (let offset = childStart; offset < childEnd; offset += matchWidth)
+          offsets.push(offset);
+        const sorted = sortRows(offsets, order, (offset) =>
+          messageName(true, matches[offset + 2]),
+        );
+        rows.set(sorted, position);
+        position += sorted.length;
+      } else {
+        for (let offset = childStart; offset < childEnd; offset += matchWidth)
+          rows[position++] = offset;
       }
     }
+  } else {
+    groups = undefined;
   }
   return {
     revision: ++revision,
     rows: rows.length,
-    matches: matches.length,
+    matches: matches.length / matchWidth,
     activity: points,
+  };
+}
+
+function rowEntry(row: number): IndexedEntry {
+  if (row >= parentRow) {
+    const group = parents[row - parentRow];
+    return { ...group.parent, hasChildren: group.childStart < group.childEnd };
+  }
+  const entry = matchEntry(row);
+  const parent = groups?.get(entry.command)?.parent;
+  return {
+    ...entry,
+    hasChildren: false,
+    ...(parent && isFullPacket(parent) ? { inFullPacket: true } : undefined),
   };
 }
 
 const api: MessageIndexApi = {
   open(file) {
     opening = (async () => {
-      const [, bytes] = await Promise.all([
-        initInspector(),
-        file.arrayBuffer(),
-      ]);
-      inspector = MessageInspector.fromBytes(new Uint8Array(bytes));
+      await initInspector();
+      inspector = (await readReplayInput(file)).intoMessages();
     })();
     return opening;
   },
@@ -128,17 +198,29 @@ const api: MessageIndexApi = {
   },
   async range({ revision: request, start, end }) {
     await opening;
-    return request === revision ? rows.slice(start, end) : [];
+    return request === revision
+      ? Array.from(rows.subarray(start, end), rowEntry)
+      : [];
   },
   async position({ revision: request, command, child }) {
     await opening;
     return request === revision
-      ? rows.findIndex((row) => row.command === command && row.child === child)
+      ? rows.findIndex((row) =>
+          row >= parentRow
+            ? child === null &&
+              parents[row - parentRow].parent.command === command
+            : child !== null &&
+              matches[row] === command &&
+              matches[row + 1] === child,
+        )
       : -1;
   },
   async occurrence({ revision: request, tick }) {
     await opening;
-    return request === revision ? firstAtTick.get(tick) : undefined;
+    const offset = firstAtTick.get(tick);
+    return request === revision && offset !== undefined
+      ? matchEntry(offset)
+      : undefined;
   },
   async entityChanges({ command, child }) {
     await opening;
@@ -181,11 +263,12 @@ const api: MessageIndexApi = {
   },
   async typeOccurrences({ id, child }) {
     await opening;
-    const entries = JSON.parse(inspector.search(String(id))) as Entry[];
+    const entries = inspector.search(String(id));
     const locations = [];
-    for (const entry of entries) {
-      if (entry.id === id && (entry.child !== null) === child)
-        locations.push(entry.tick, entry.command, entry.child ?? -1);
+    for (let offset = 0; offset < entries.length; offset += matchWidth) {
+      const entryChild = entries[offset + 1];
+      if (entries[offset + 2] === id && (entryChild !== noChild) === child)
+        locations.push(entries[offset + 3], entries[offset], entryChild);
     }
     const result = Uint32Array.from(locations);
     return transfer(result, [result.buffer]);

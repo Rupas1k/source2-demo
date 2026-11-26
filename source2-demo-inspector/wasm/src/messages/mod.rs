@@ -3,13 +3,14 @@ mod events;
 pub(crate) mod field_source;
 mod fields;
 
+use crate::input::ReplayBytes;
 use prost::Message;
 use prost_reflect::DynamicMessage;
 use serde::Serialize;
 use source2_demo::metadata::{MessageFamily, MessageSchema};
 use source2_demo::proto::CDemoFileHeader;
 use source2_demo::reader::{commands, packet_data, packet_messages, Command, RawPacketMessage};
-use std::{collections::HashMap, rc::Rc};
+use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
 #[derive(Serialize)]
@@ -23,18 +24,18 @@ struct Entry<'a> {
 
 #[wasm_bindgen]
 pub struct MessageInspector {
-    file: Rc<[u8]>,
+    file: ReplayBytes,
     commands: Vec<Command>,
     by_tick: std::collections::BTreeMap<i32, Vec<usize>>,
     schema: MessageSchema,
     packets: HashMap<usize, Vec<RawPacketMessage>>,
     payload_size: usize,
     fired_events: Option<Vec<events::FiredEvent>>,
-    search_index: Option<Vec<(usize, Option<usize>, u32)>>,
+    search_index: Option<Vec<[u32; 3]>>,
 }
 
 impl MessageInspector {
-    pub(crate) fn new(file: Rc<[u8]>) -> Result<Self, String> {
+    pub(crate) fn new(file: ReplayBytes) -> Result<Self, String> {
         let commands = commands(&file).map_err(|e| e.to_string())?;
         let header = commands
             .first()
@@ -134,16 +135,16 @@ impl MessageInspector {
         Ok(serde_json::to_string(&self.fired_events)?)
     }
 
-    pub fn search(&mut self, query: &str) -> Result<String, JsError> {
+    pub fn search(&mut self, query: &str) -> Result<Vec<u32>, JsError> {
         if self.search_index.is_none() {
             let mut index = Vec::new();
             for (ordinal, command) in self.commands.iter().enumerate() {
-                index.push((ordinal, None, command.id));
+                index.push([ordinal as u32, u32::MAX, command.id]);
                 if command.is_packet() {
                     let payload = command.payload(&self.file)?;
                     let data = packet_data(command.id, &payload)?.unwrap_or_default();
                     for (child, message) in packet_messages(&data).enumerate() {
-                        index.push((ordinal, Some(child), message?.id));
+                        index.push([ordinal as u32, child as u32, message?.id]);
                     }
                 }
             }
@@ -152,30 +153,45 @@ impl MessageInspector {
         let query = query.to_lowercase();
         let id = query.parse::<u32>().ok();
         let mut matches = HashMap::new();
-        let results: Vec<_> = self
-            .search_index
-            .iter()
-            .flatten()
-            .filter_map(|&(command, child, wire_id)| {
-                let family = if child.is_some() {
-                    MessageFamily::Packet
-                } else {
-                    MessageFamily::Command
-                };
-                let name = self.schema.name(family, wire_id);
-                let matched = matches
-                    .entry((child.is_some(), wire_id))
-                    .or_insert_with(|| id == Some(wire_id) || name.to_lowercase().contains(&query));
-                matched.then_some(Entry {
+        let mut results = Vec::new();
+        for &[command, child, wire_id] in self.search_index.iter().flatten() {
+            let packet = child != u32::MAX;
+            let matched = *matches.entry((packet, wire_id)).or_insert_with(|| {
+                id == Some(wire_id)
+                    || query.is_empty()
+                    || self
+                        .schema
+                        .name(
+                            if packet {
+                                MessageFamily::Packet
+                            } else {
+                                MessageFamily::Command
+                            },
+                            wire_id,
+                        )
+                        .to_lowercase()
+                        .contains(&query)
+            });
+            if matched {
+                results.extend_from_slice(&[
                     command,
                     child,
-                    id: wire_id,
-                    tick: self.commands[command].tick.max(0),
-                    name,
-                })
-            })
-            .collect();
-        Ok(serde_json::to_string(&results)?)
+                    wire_id,
+                    self.commands[command as usize].tick.max(0) as u32,
+                ]);
+            }
+        }
+        Ok(results)
+    }
+
+    #[wasm_bindgen(js_name = "messageName")]
+    pub fn message_name(&self, packet: bool, id: u32) -> String {
+        let family = if packet {
+            MessageFamily::Packet
+        } else {
+            MessageFamily::Command
+        };
+        self.schema.name(family, id).to_owned()
     }
 
     #[wasm_bindgen(js_name = "entityChanges")]
