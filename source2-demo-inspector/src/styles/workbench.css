@@ -1,0 +1,314 @@
+.toolbar,
+.transport-head,
+.transport-controls {
+  display: flex;
+  align-items: center;
+}
+.toolbar {
+  grid-column: 1/-1;
+  background: var(--chrome);
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.transport-controls button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.transport-controls button:disabled {
+  cursor: default;
+}
+.stage {
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.loading {
+  color: rgb(var(--fg-subtle));
+}
+.transport {
+  grid-column: 1/-1;
+  min-width: 0;
+  padding: 0 14px 6px;
+  background: var(--rail);
+  border-top: 1px solid var(--line);
+}
+.transport-head {
+  height: 29px;
+  gap: 12px;
+}
+.transport-controls {
+  margin-left: auto;
+  gap: 2px;
+}
+.transport-tick {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  margin-right: 5px;
+}
+.transport-tick-value {
+  display: inline-block;
+  width: 6ch;
+  padding: 0;
+  background: transparent;
+  text-align: right;
+}
+.transport-tick-value:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+.track {
+  position: relative;
+  grid-row: 2;
+}
+
+.seek-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+.slider-rail {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  background: rgb(var(--fg) / 0.09);
+}
+.slider-progress {
+  position: absolute;
+  height: 100%;
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+.slider-thumb {
+  position: absolute;
+  left: clamp(0px, calc(var(--slider-position) - 1px), calc(100% - 2px));
+  pointer-events: none;
+  display: block;
+  width: 2px;
+  height: 14px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+.slider-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  opacity: 0;
+  cursor: inherit;
+}
+.slider-input::-webkit-slider-thumb {
+  appearance: none;
+  width: 2px;
+}
+.slider-input::-moz-range-thumb {
+  width: 2px;
+  border: 0;
+}
+.seek-control:has(.slider-input:focus-visible) {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+.seek-control[data-disabled] {
+  cursor: default;
+  opacity: 0.55;
+}
+.seek-control[data-disabled] .slider-thumb {
+  visibility: hidden;
+}
+.notice,
+.loading {
+  padding: 10px;
+}
+.notice {
+  color: light-dark(#a42626, #ffa4a4);
+}
+.drop-overlay {
+  position: fixed;
+  inset: 4px;
+  display: grid;
+  place-items: center;
+  z-index: 10;
+  border: 2px dashed var(--accent);
+  background: rgb(var(--bg) / 0.94);
+  pointer-events: none;
+}
+.tick-preview {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  transform: translateX(-50%);
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgb(var(--bg));
+  color: rgb(var(--fg));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  z-index: 2;
+}
+.simple-desk {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100dvh;
+}
+.app-header {
+  min-width: 0;
+  background: var(--rail);
+}
+.header-error {
+  padding: 4px 9px;
+  border-bottom: 1px solid var(--line);
+  color: light-dark(#a42626, #ffa4a4);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.simple-bar {
+  height: 34px;
+  gap: 10px;
+  padding: 0 9px;
+  background: var(--rail);
+  font-size: 13px;
+}
+.view-tabs {
+  display: flex;
+  align-self: stretch;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.view-tabs button {
+  flex: none;
+  padding-inline: 9px;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  color: rgb(var(--fg-subtle));
+}
+.view-tabs button[aria-current="page"] {
+  border-bottom-color: var(--accent);
+  color: rgb(var(--fg));
+}
+.view-tabs button:focus-visible {
+  outline-offset: -3px;
+}
+.replay-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-inline-start: auto;
+  min-width: 0;
+  max-width: min(45%, 32rem);
+}
+.replay-open,
+.header-icon-button {
+  display: flex;
+  align-items: center;
+  height: 25px;
+  border-radius: 3px;
+  color: rgb(var(--fg-subtle));
+}
+.replay-open {
+  gap: 6px;
+  min-width: 0;
+  padding-inline: 6px;
+}
+.replay-open svg,
+.header-icon-button {
+  flex: none;
+}
+.replay-open-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.header-icon-button {
+  justify-content: center;
+  width: 24px;
+}
+.simple-desk .transport {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 9px;
+}
+.simple-desk .transport-head {
+  flex: none;
+  gap: 5px;
+  height: 24px;
+}
+.timeline-tracks {
+  display: grid;
+  grid-template-rows: 13px 17px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgb(var(--bg));
+  flex: 1;
+  min-width: 0;
+}
+.activity-strip {
+  position: relative;
+  grid-row: 1;
+  background: rgb(var(--fg) / 0.025);
+  border-radius: 2px 2px 0 0;
+}
+.activity-bar {
+  position: absolute;
+  inset-block: 0;
+  min-width: 2px;
+  border-radius: 0;
+}
+.activity-bar::after {
+  position: absolute;
+  inset-inline: 0 1px;
+  inset-block-end: 0;
+  height: var(--activity-height);
+  background: var(--accent);
+  opacity: 0.6;
+  content: "";
+}
+.activity-bar:hover::after {
+  opacity: 1;
+}
+.activity-cursor {
+  position: absolute;
+  inset-block: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--accent);
+  pointer-events: none;
+}
+.activity-bar[data-created]::after {
+  background: var(--activity-created);
+}
+.activity-bar[data-deleted]::after {
+  background: var(--activity-deleted);
+}
+.activity-bar[data-created][data-deleted]::after {
+  background: linear-gradient(
+    to top,
+    var(--activity-created) 50%,
+    var(--activity-deleted) 50%
+  );
+}
+
+.timeline-occurrences {
+  padding-inline-start: 5px;
+  border-inline-start: 1px solid var(--line);
+}
+
+.activity-marker::after {
+  inset-inline: 3px;
+}
