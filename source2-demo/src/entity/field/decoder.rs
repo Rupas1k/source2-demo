@@ -932,22 +932,3 @@ impl Skip for QuantizedFloatDecoder {
         reader.skip_bits(self.bit_count);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // CS2 CBeam m_fWidth. Truncating gave quantize(high) != high, so the decoder
-    // kept RoundUp and read a marker bit the server never wrote.
-    #[test]
-    fn round_up_dropped_when_high_quantizes_exactly() {
-        let decoder = QuantizedFloatDecoder::new(&FieldProperties {
-            encoder: None,
-            encoder_flags: QuantizedFloatFlags::RoundUp as i32,
-            bit_count: 10,
-            low_value: 0.0,
-            high_value: 102.3,
-        });
-        assert_eq!(decoder.flags & QuantizedFloatFlags::RoundUp as u32, 0);
-    }
-}

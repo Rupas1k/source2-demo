@@ -347,6 +347,31 @@ fn normal_sign_bit_matches_reader_encoding() {
     }
 }
 
+// CS2 CBeam m_fWidth. Truncating kept a RoundUp marker bit the server never wrote.
+#[test]
+fn round_up_dropped_when_high_quantizes_exactly() {
+    use crate::entity::field::{Decode, FieldProperties, QuantizedFloatDecoder};
+
+    let decoder = QuantizedFloatDecoder::new(&FieldProperties {
+        encoder: None,
+        encoder_flags: 1 << 1, // RoundUp
+        bit_count: 10,
+        low_value: 0.0,
+        high_value: 102.3,
+    });
+
+    let mut bytes = Vec::new();
+    let mut writer = BitstreamWriter::new(&mut bytes);
+    writer.write_bits(10, 1023).unwrap();
+    writer.write_bits(6, 0b101010).unwrap();
+    writer.flush().unwrap();
+    drop(writer);
+
+    let mut reader = SliceReader::new(&bytes);
+    assert_eq!(decoder.decode(&mut reader), FieldValue::Float(102.3));
+    assert_eq!(reader.read_bits(6), 0b101010);
+}
+
 #[test]
 fn demo_message_writer_emits_header_and_payload() {
     let payload = [0xAA, 0xBB, 0xCC];
