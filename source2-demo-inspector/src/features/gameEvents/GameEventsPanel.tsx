@@ -1,5 +1,5 @@
 import { sortRows, useTableSort } from "../../workbench/tableSort";
-import { FilterToggle, SearchField } from "../../workbench/PaneControls";
+import { FilterToggle, SearchBar } from "../../workbench/PaneControls";
 import { useEffect, useMemo, useState } from "react";
 import type { ReplaySession } from "../../generated/wasm/inspector";
 import { useReplayStore } from "../../replay/state";
@@ -191,12 +191,11 @@ export default function GameEventsPanel() {
       }
       details={
         <div className="sheet">
-          <div className="field-tools">
-            <SearchField
-              label="Filter keys"
-              value={definitions ? definitionQuery : fieldQuery}
-              onChange={definitions ? setDefinitionQuery : setFieldQuery}
-            />
+          <SearchBar
+            label="Filter keys"
+            value={definitions ? definitionQuery : fieldQuery}
+            onChange={definitions ? setDefinitionQuery : setFieldQuery}
+          >
             {!definitions && event && (
               <button type="button" onClick={() => showSource(event)}>
                 Source message
@@ -223,7 +222,7 @@ export default function GameEventsPanel() {
             >
               Definitions
             </FilterToggle>
-          </div>
+          </SearchBar>
           {definitions ? (
             <GameEventKeyList eventId={definition} query={definitionQuery} />
           ) : (

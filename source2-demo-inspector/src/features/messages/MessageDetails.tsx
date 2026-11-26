@@ -1,6 +1,6 @@
 import { PacketGameEventFields } from "./PacketGameEventFields";
 import { useTableSort } from "../../workbench/tableSort";
-import { SearchField } from "../../workbench/PaneControls";
+import { SearchBar } from "../../workbench/PaneControls";
 import { SheetTable } from "../../workbench/SheetTable";
 import {
   FieldRows,
@@ -65,13 +65,11 @@ export function MessageDetails({
     />
   ) : (
     <div className="sheet">
-      <div className="field-tools">
-        <SearchField
-          label="Filter fields"
-          value={fieldQuery}
-          onChange={setFieldQuery}
-        />
-      </div>
+      <SearchBar
+        label="Filter fields"
+        value={fieldQuery}
+        onChange={setFieldQuery}
+      />
       <SheetTable
         tableId="message-fields"
         columns={["Field", "Type", "Value"]}

@@ -1,6 +1,6 @@
 import { useTableSort } from "../../workbench/tableSort";
 import { useState } from "react";
-import { SearchField } from "../../workbench/PaneControls";
+import { SearchBar } from "../../workbench/PaneControls";
 import { EventFieldTable } from "../gameEvents/EventFieldTable";
 import type { PacketGameEvent } from "./packetGameEvents";
 
@@ -15,9 +15,7 @@ export function PacketGameEventFields({
   const fieldSort = useTableSort();
   return (
     <div className="sheet">
-      <div className="field-tools">
-        <SearchField label="Filter keys" value={query} onChange={setQuery} />
-      </div>
+      <SearchBar label="Filter keys" value={query} onChange={setQuery} />
       <EventFieldTable
         sortControl={fieldSort}
         rows={

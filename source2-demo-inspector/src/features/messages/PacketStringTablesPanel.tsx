@@ -1,5 +1,5 @@
 import { StringTableRows } from "../stringTables/StringTableRows";
-import { FilterToggle, SearchField } from "../../workbench/PaneControls";
+import { FilterToggle, SearchBar } from "../../workbench/PaneControls";
 import { useState } from "react";
 import type { Field } from "./MessageFields";
 import { child } from "./packetStringTables";
@@ -30,15 +30,14 @@ export function PacketTableEntries({
   });
   return (
     <>
-      <div className="field-tools">
-        <SearchField
-          label="Filter entries"
-          value={query}
-          onChange={(value) => {
-            setQuery(value);
-            setLimit(128);
-          }}
-        />
+      <SearchBar
+        label="Filter entries"
+        value={query}
+        onChange={(value) => {
+          setQuery(value);
+          setLimit(128);
+        }}
+      >
         {!!serverEntries.length && !!clientEntries.length && (
           <FilterToggle
             pressed={showClient}
@@ -50,7 +49,7 @@ export function PacketTableEntries({
             Client-side
           </FilterToggle>
         )}
-      </div>
+      </SearchBar>
       <StringTableRows
         rows={rows}
         renderCells={(row) => ({ keyCell: row.keyText, dataCell: row.data })}

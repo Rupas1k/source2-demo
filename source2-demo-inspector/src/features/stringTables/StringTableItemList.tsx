@@ -1,7 +1,7 @@
 import { StringTableRows } from "./StringTableRows";
 import { compareTableRows } from "./stringTableChanges";
 import { readStringTable } from "../../replay/readStringTable";
-import { FilterToggle, SearchField } from "../../workbench/PaneControls";
+import { FilterToggle, SearchBar } from "../../workbench/PaneControls";
 import { useMemo, useRef, useState } from "react";
 import { useReplayStore } from "../../replay/state";
 
@@ -57,8 +57,7 @@ export function StringTableItemList({
 
   return (
     <div className="sheet">
-      <div className="field-tools">
-        <SearchField label="Filter entries" value={query} onChange={setQuery} />
+      <SearchBar label="Filter entries" value={query} onChange={setQuery}>
         {previous && (
           <FilterToggle
             pressed={changes}
@@ -71,7 +70,7 @@ export function StringTableItemList({
             Changes
           </FilterToggle>
         )}
-      </div>
+      </SearchBar>
       <StringTableRows
         rows={rows}
         renderCells={(entry) => ({

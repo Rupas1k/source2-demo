@@ -1,5 +1,5 @@
 import type { VirtualizerHandle } from "virtua";
-import { SearchField } from "../../workbench/PaneControls";
+import { SearchBar } from "../../workbench/PaneControls";
 import { SheetTable } from "../../workbench/SheetTable";
 import { fieldColumns, sortFields, type FieldSort } from "./fieldSorting";
 import { FieldCells } from "./FieldCells";
@@ -232,8 +232,7 @@ export function EntityFieldTable({
   } = table;
   return (
     <div className="sheet">
-      <div className="field-tools">
-        <SearchField label="Filter fields" value={query} onChange={setQuery} />
+      <SearchBar label="Filter fields" value={query} onChange={setQuery}>
         {expandablePaths.length > 0 && !term && !comparing && (
           <button
             type="button"
@@ -247,7 +246,7 @@ export function EntityFieldTable({
           </button>
         )}
         {actions}
-      </div>
+      </SearchBar>
       <SheetTable
         tableId="entity-fields"
         columns={fieldColumns}

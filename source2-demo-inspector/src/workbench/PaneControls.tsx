@@ -7,12 +7,7 @@ interface SearchProps {
   onChange: (value: string) => void;
 }
 
-export function SearchField({
-  label,
-  placeholder,
-  value,
-  onChange,
-}: SearchProps) {
+function SearchField({ label, placeholder, value, onChange }: SearchProps) {
   return (
     <input
       className="pane-search-field"
