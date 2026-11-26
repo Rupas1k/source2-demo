@@ -154,7 +154,7 @@ use crate::CombatLogEntry;
 use crate::{Entity, EntityEvents, FieldValue, GameEvent, StringTable};
 use bitter::{BitReader, LittleEndianReader};
 use source2_demo_macros::{
-    observer, on_message, rewrite_demo_message, rewrite_field, rewrite_packet_message, rewriter,
+    observer, on_message, rewrite_demo_message, rewrite_field, rewrite_packet_message, rewriter, wants_full_packet_snapshot,
 };
 use std::io::Cursor;
 
@@ -910,6 +910,62 @@ fn observer_macro_can_receive_raw_message_payloads() {
         observer.borrow().svc_messages,
         vec![(SvcMessages::SvcServerInfo, server_info.len())]
     );
+}
+
+#[test]
+fn selected_full_packet_snapshot_dispatches_embedded_messages() {
+    #[derive(Default)]
+    struct SnapshotObserver {
+        inspect_tick: Option<u32>,
+        message_ids: Vec<u32>,
+    }
+
+    #[observer]
+    impl SnapshotObserver {
+        #[wants_full_packet_snapshot]
+        fn inspect_snapshot(&self, ctx: &Context) -> bool {
+            self.inspect_tick == Some(ctx.tick())
+        }
+
+        #[on_message]
+        fn record_packet_message(&mut self, id: u32) -> ObserverResult {
+            self.message_ids.push(id);
+            Ok(())
+        }
+    }
+
+    let full_packet = |id| {
+        crate::proto::CDemoFullPacket {
+            string_table: None,
+            packet: Some(CDemoPacket {
+                data: Some(packet_data(&[(id, &[])])),
+            }),
+        }
+        .encode_to_vec()
+    };
+    let replay = replay_with_playback_ticks(
+        20,
+        &[
+            (EDemoCommands::DemSyncTick, 0, sync_payload()),
+            (EDemoCommands::DemFullPacket, 5, full_packet(4094)),
+            (EDemoCommands::DemFullPacket, 10, full_packet(4095)),
+        ],
+    );
+
+    for inspect_tick in [None, Some(10)] {
+        let mut parser = Parser::from_slice(&replay).unwrap();
+        let observer = parser.add_observer(SnapshotObserver {
+            inspect_tick,
+            ..Default::default()
+        });
+        parser.run_to_end().unwrap();
+        let expected: &[u32] = if inspect_tick.is_some() {
+            &[4094, 4095]
+        } else {
+            &[4094]
+        };
+        assert_eq!(observer.borrow().message_ids, expected);
+    }
 }
 
 #[derive(Default)]

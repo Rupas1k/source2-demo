@@ -89,6 +89,8 @@ bitflags::bitflags! {
     pub struct Interests: u64 {
         /// Every packet message processed by the parser, before typed dispatch.
         const RAW_PACKET_MESSAGE = 1 << 19;
+        /// Process selected full packet snapshots when requested by the observer.
+        const FULL_PACKET_SNAPSHOTS = 1 << 21;
         /// Interest in outer demo messages (`EDemoCommands`).
         const DEMO_MESSAGE = 1 << 0;
         /// Interest in net messages (`NetMessages`).
@@ -265,6 +267,14 @@ pub trait Observer {
     /// Returns [`Interests::empty()`] by default (no events).
     fn interests(&self) -> Interests {
         Interests::empty()
+    }
+
+    /// Requests that the next full packet be decoded as a fresh entity snapshot.
+    ///
+    /// Requires [`Interests::FULL_PACKET_SNAPSHOTS`]. This replaces the parser's
+    /// entity state. Use a dedicated parser when inspecting a snapshot.
+    fn wants_full_packet_snapshot(&self, ctx: &Context) -> bool {
+        false
     }
 
     /// Called when a demo command is received.
@@ -528,6 +538,10 @@ where
 {
     fn interests(&self) -> Interests {
         self.borrow().interests()
+    }
+
+    fn wants_full_packet_snapshot(&self, ctx: &Context) -> bool {
+        self.borrow().wants_full_packet_snapshot(ctx)
     }
 
     fn on_demo_command(

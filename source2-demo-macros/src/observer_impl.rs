@@ -109,6 +109,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     let mut on_tick_start_body = quote!();
     let mut on_tick_end_body = quote!();
     let mut on_entity_body = quote!();
+    let mut full_packet_snapshot = None;
     let mut on_game_event_body = quote!();
     let mut on_string_table_body = quote!();
     let mut on_stop_body = quote!();
@@ -215,6 +216,15 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
                                         }
                                     });
                                 }
+                                Err(error) => errors.extend(error.to_compile_error()),
+                            }
+                        }
+                        "wants_full_packet_snapshot" => {
+                            match observer_context_args(method, "#[wants_full_packet_snapshot]") {
+                                Ok(args) if full_packet_snapshot.is_none() => {
+                                    full_packet_snapshot = Some(quote! { self.#method_name(#args) });
+                                }
+                                Ok(_) => errors.extend(syn::Error::new_spanned(attr, "only one #[wants_full_packet_snapshot] handler is allowed").to_compile_error()),
                                 Err(error) => errors.extend(error.to_compile_error()),
                             }
                         }
@@ -604,6 +614,13 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
         }
     });
 
+    if let Some(handler) = &full_packet_snapshot {
+        obs_body.extend(quote! {
+            fn wants_full_packet_snapshot(&self, ctx: &::source2_demo::Context) -> bool {
+                #handler
+            }
+        });
+    }
     macro_rules! add_if { ($cond:expr, $flag:ident) => {
         if $cond { interests = quote!(#interests | ::source2_demo::Interests::$flag); }
     }}
@@ -621,6 +638,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     add_if!(has_tick_start, TICK_START);
     add_if!(has_tick_end, TICK_END);
     add_if!(has_entity, ENTITY_STATE);
+    add_if!(full_packet_snapshot.is_some(), FULL_PACKET_SNAPSHOTS);
     add_if!(has_entity_track, ENTITY_EVENTS);
     add_if!(has_string_table, STRING_TABLE_STATE);
     add_if!(has_string_table_track, STRING_TABLE_ENTRIES);

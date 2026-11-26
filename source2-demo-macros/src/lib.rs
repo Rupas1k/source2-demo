@@ -1031,6 +1031,14 @@ pub fn on_entity(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
+/// Selects which full packets to decode as fresh entity snapshots.
+/// The predicate takes `&self` and optionally `&Context`, and returns `bool`.
+/// Adds the full packet snapshot interest. Use a dedicated parser for snapshots.
+#[proc_macro_attribute]
+pub fn wants_full_packet_snapshot(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
 /// Marks a method as a game event handler.
 ///
 /// This handler is called when game events occur (kills, deaths, item purchases, etc.).
