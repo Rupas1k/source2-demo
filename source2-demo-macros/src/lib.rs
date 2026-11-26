@@ -1031,11 +1031,34 @@ pub fn on_entity(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
+/// Receives decoded entity field writes. The handler returns `ObserverResult`
+/// and can take `&Context`, `&Entity`, and `&[EntityFieldUpdate]`.
+/// Adds entity state and field update interests.
+#[proc_macro_attribute]
+pub fn on_entity_field_updates(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
 /// Selects which full packets to decode as fresh entity snapshots.
 /// The predicate takes `&self` and optionally `&Context`, and returns `bool`.
 /// Adds the full packet snapshot interest. Use a dedicated parser for snapshots.
 #[proc_macro_attribute]
 pub fn wants_full_packet_snapshot(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+/// Controls when to capture field writes for `#[on_entity_field_updates]`.
+/// The predicate takes `&self` and returns `bool`. Capture defaults to enabled.
+#[proc_macro_attribute]
+pub fn wants_entity_field_updates(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+/// Supplies the observer's complete interest mask from a method taking `&self`
+/// and returning `Interests`. This replaces the mask inferred by `#[observer]`.
+/// The parser reads the mask when the observer is added.
+#[proc_macro_attribute]
+pub fn observer_interests(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 

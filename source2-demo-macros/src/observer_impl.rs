@@ -62,6 +62,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     let mut has_tick_end = false;
     let mut has_entity = false;
     let mut has_entity_track = false;
+    let mut has_entity_field_updates = false;
     let mut has_string_table = false;
     let mut has_string_table_track = false;
     let mut has_stop = false;
@@ -109,7 +110,10 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     let mut on_tick_start_body = quote!();
     let mut on_tick_end_body = quote!();
     let mut on_entity_body = quote!();
+    let mut on_entity_field_updates_body = quote!();
     let mut full_packet_snapshot = None;
+    let mut entity_field_updates = None;
+    let mut interests_override = None;
     let mut on_game_event_body = quote!();
     let mut on_string_table_body = quote!();
     let mut on_stop_body = quote!();
@@ -219,12 +223,28 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
                                 Err(error) => errors.extend(error.to_compile_error()),
                             }
                         }
-                        "wants_full_packet_snapshot" => {
-                            match observer_context_args(method, "#[wants_full_packet_snapshot]") {
-                                Ok(args) if full_packet_snapshot.is_none() => {
-                                    full_packet_snapshot = Some(quote! { self.#method_name(#args) });
-                                }
-                                Ok(_) => errors.extend(syn::Error::new_spanned(attr, "only one #[wants_full_packet_snapshot] handler is allowed").to_compile_error()),
+                        "observer_interests" | "wants_full_packet_snapshot" | "wants_entity_field_updates" => {
+                            let name = segment.ident.to_string();
+                            let (handler, args) = match name.as_str() {
+                                "observer_interests" => (&mut interests_override, observer_no_args(method, &name)),
+                                "wants_full_packet_snapshot" => (
+                                    &mut full_packet_snapshot,
+                                    observer_context_args(method, "#[wants_full_packet_snapshot]"),
+                                ),
+                                _ => (&mut entity_field_updates, observer_no_args(method, &name)),
+                            };
+                            match args {
+                                Ok(args) if handler.is_none() => *handler = Some(quote! { self.#method_name(#args) }),
+                                Ok(_) => errors.extend(syn::Error::new_spanned(attr, format!("only one #[{name}] handler is allowed")).to_compile_error()),
+                                Err(error) => errors.extend(error.to_compile_error()),
+                            }
+                        }
+                        "on_entity_field_updates" => {
+                            has_entity_field_updates = true;
+                            match observer_entity_field_updates_args(method) {
+                                Ok(args) => on_entity_field_updates_body.extend(quote! {
+                                    self.#method_name(#args)?;
+                                }),
                                 Err(error) => errors.extend(error.to_compile_error()),
                             }
                         }
@@ -621,6 +641,27 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
             }
         });
     }
+    if let Some(handler) = entity_field_updates {
+        obs_body.extend(quote! {
+            fn wants_entity_field_updates(&self) -> bool {
+                #handler
+            }
+        });
+    }
+    if has_entity_field_updates {
+        obs_body.extend(quote! {
+            fn on_entity_field_updates(
+                &mut self,
+                ctx: &::source2_demo::Context,
+                entity: &::source2_demo::Entity,
+                updates: &[::source2_demo::metadata::EntityFieldUpdate],
+            ) -> ::source2_demo::ObserverResult {
+                #on_entity_field_updates_body
+                Ok(())
+            }
+        });
+    }
+
     macro_rules! add_if { ($cond:expr, $flag:ident) => {
         if $cond { interests = quote!(#interests | ::source2_demo::Interests::$flag); }
     }}
@@ -637,7 +678,8 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     add_if!(has_base_ge, BASE_GAME_EVENT);
     add_if!(has_tick_start, TICK_START);
     add_if!(has_tick_end, TICK_END);
-    add_if!(has_entity, ENTITY_STATE);
+    add_if!(has_entity || has_entity_field_updates, ENTITY_STATE);
+    add_if!(has_entity_field_updates, ENTITY_FIELD_UPDATES);
     add_if!(full_packet_snapshot.is_some(), FULL_PACKET_SNAPSHOTS);
     add_if!(has_entity_track, ENTITY_EVENTS);
     add_if!(has_string_table, STRING_TABLE_STATE);
@@ -661,6 +703,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     #[cfg(feature = "cs2")]
     add_if!(has_cs2_ge, CS2_GAME_EVENT);
 
+    let interests = interests_override.unwrap_or(interests);
     let ret = quote! {
         impl Observer for #struct_name {
             fn interests(&self) -> ::source2_demo::Interests { #interests }
@@ -726,6 +769,49 @@ fn observer_context_args(method: &syn::ImplItemFn, attr_name: &str) -> syn::Resu
         }
     }
     Ok(quote! { #(#args),* })
+}
+
+fn observer_no_args(method: &syn::ImplItemFn, attr_name: &str) -> syn::Result<proc_macro2::TokenStream> {
+    if let Some(arg) = method.sig.inputs.iter().nth(1) {
+        return Err(syn::Error::new_spanned(arg, format!("#[{attr_name}] takes only `&self`")));
+    }
+    Ok(quote! {})
+}
+
+fn observer_entity_field_updates_args(method: &syn::ImplItemFn) -> syn::Result<proc_macro2::TokenStream> {
+    let mut args = Vec::new();
+    for input in method.sig.inputs.iter().skip(1) {
+        let FnArg::Typed(pat_type) = input else {
+            continue;
+        };
+        let type_string = stringify_type(pat_type.ty.as_ref());
+        let arg = if is_context_type(&type_string) {
+            quote! { ctx }
+        } else if is_entity_type(&type_string) {
+            quote! { entity }
+        } else if is_entity_field_updates_type(&pat_type.ty) {
+            quote! { updates }
+        } else {
+            return Err(syn::Error::new_spanned(
+                pat_type,
+                "expected `&Context`, `&Entity`, or `&[EntityFieldUpdate]`",
+            ));
+        };
+        args.push(arg);
+    }
+    Ok(quote! { #(#args),* })
+}
+
+fn is_entity_field_updates_type(ty: &Type) -> bool {
+    let Type::Reference(reference) = ty else {
+        return false;
+    };
+    let Type::Slice(slice) = reference.elem.as_ref() else {
+        return false;
+    };
+    reference.mutability.is_none()
+        && matches!(slice.elem.as_ref(), Type::Path(path)
+            if path.path.segments.last().is_some_and(|segment| segment.ident == "EntityFieldUpdate"))
 }
 
 fn observer_entity_args(method: &syn::ImplItemFn) -> syn::Result<proc_macro2::TokenStream> {

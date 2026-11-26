@@ -913,6 +913,55 @@ fn observer_macro_can_receive_raw_message_payloads() {
 }
 
 #[test]
+fn observer_macro_supports_gated_field_updates_and_custom_interests() {
+    struct CaptureFields(bool);
+
+    #[observer]
+    impl CaptureFields {
+        #[crate::wants_entity_field_updates]
+        fn capture(&self) -> bool {
+            self.0
+        }
+
+        #[crate::on_entity_field_updates]
+        fn record_writes(&mut self, _: &[crate::metadata::EntityFieldUpdate]) -> ObserverResult {
+            Ok(())
+        }
+    }
+
+    struct SelectiveObserver(bool);
+
+    #[observer]
+    impl SelectiveObserver {
+        #[crate::observer_interests]
+        fn selected_interests(&self) -> Interests {
+            if self.0 {
+                Interests::RAW_PACKET_MESSAGE
+            } else {
+                Interests::empty()
+            }
+        }
+
+        #[on_message]
+        fn record_packet(&mut self, _: u32) -> ObserverResult {
+            Ok(())
+        }
+    }
+
+    assert_eq!(
+        CaptureFields(false).interests(),
+        Interests::ENTITY_STATE | Interests::ENTITY_FIELD_UPDATES
+    );
+    assert!(!CaptureFields(false).wants_entity_field_updates());
+    assert!(CaptureFields(true).wants_entity_field_updates());
+    assert!(SelectiveObserver(false).interests().is_empty());
+    assert_eq!(
+        SelectiveObserver(true).interests(),
+        Interests::RAW_PACKET_MESSAGE
+    );
+}
+
+#[test]
 fn selected_full_packet_snapshot_dispatches_embedded_messages() {
     #[derive(Default)]
     struct SnapshotObserver {

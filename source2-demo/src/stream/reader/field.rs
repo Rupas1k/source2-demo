@@ -1,4 +1,4 @@
-use crate::entity::field::{Decode, FieldPath, FieldState, Serializer};
+use crate::entity::field::{Decode, FieldPath, FieldState, FieldValue, Serializer};
 use crate::reader::{BitsReader, SliceReader};
 use crate::stream::field_path::{FieldOp, FieldPathCodec};
 
@@ -24,6 +24,16 @@ impl FieldReader {
         serializer: &Serializer,
         state: &mut FieldState,
     ) {
+        self.read_fields_with(reader, serializer, state, |_, _, _| {});
+    }
+
+    pub(crate) fn read_fields_with(
+        &mut self,
+        reader: &mut SliceReader,
+        serializer: &Serializer,
+        state: &mut FieldState,
+        mut on_write: impl FnMut(&FieldPath, &FieldState, &FieldValue),
+    ) {
         let mut i = 0;
         let mut fp = FieldPath::default();
         reader.refill();
@@ -38,8 +48,10 @@ impl FieldReader {
             reader.refill();
         }
 
-        self.paths_buf[..i]
-            .iter_mut()
-            .for_each(|fp| state.set(fp, serializer.get_decoder(fp).decode(reader)))
+        for path in &self.paths_buf[..i] {
+            let value = serializer.get_decoder(path).decode(reader);
+            on_write(path, state, &value);
+            state.set(path, value);
+        }
     }
 }

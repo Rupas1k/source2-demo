@@ -14,6 +14,21 @@ pub struct EntityField<'a> {
     pub value: Option<&'a FieldValue>,
 }
 
+/// One field write from an entity creation or update, in wire order.
+#[derive(Debug)]
+pub struct EntityFieldUpdate {
+    /// Numeric serializer path.
+    pub path: Vec<u16>,
+    /// Dotted serializer path.
+    pub name: String,
+    /// Source 2 serializer type.
+    pub field_type: String,
+    /// Value immediately before this write, including inherited baseline values.
+    pub before: Option<FieldValue>,
+    /// Value decoded from the packet.
+    pub after: FieldValue,
+}
+
 pub(crate) fn inspect_fields<'a>(
     serializer: &Serializer,
     state: &'a FieldState,

@@ -1,3 +1,4 @@
+use crate::metadata::EntityFieldUpdate;
 use crate::parser::Context;
 use crate::proto::*;
 use crate::{Entity, EntityEvents, GameEvent, StringTable};
@@ -89,6 +90,8 @@ bitflags::bitflags! {
     pub struct Interests: u64 {
         /// Every packet message processed by the parser, before typed dispatch.
         const RAW_PACKET_MESSAGE = 1 << 19;
+        /// Capture explicit entity field writes. Also requires entity state.
+        const ENTITY_FIELD_UPDATES = 1 << 20;
         /// Process selected full packet snapshots when requested by the observer.
         const FULL_PACKET_SNAPSHOTS = 1 << 21;
         /// Interest in outer demo messages (`EDemoCommands`).
@@ -371,6 +374,21 @@ pub trait Observer {
         Ok(())
     }
 
+    /// Controls whether to capture field writes for the current entity operation.
+    fn wants_entity_field_updates(&self) -> bool {
+        true
+    }
+
+    /// Receives explicit field writes after the decoder applies them.
+    fn on_entity_field_updates(
+        &mut self,
+        ctx: &Context,
+        entity: &Entity,
+        updates: &[EntityFieldUpdate],
+    ) -> ObserverResult {
+        Ok(())
+    }
+
     /// Called when an entity is created, updated, or deleted.
     ///
     /// Requires [`Interests::ENTITY_EVENTS`] and [`Interests::ENTITY_STATE`] to
@@ -599,6 +617,20 @@ where
 
     fn on_tick_end(&mut self, ctx: &Context) -> ObserverResult {
         self.borrow_mut().on_tick_end(ctx)
+    }
+
+    fn wants_entity_field_updates(&self) -> bool {
+        self.borrow().wants_entity_field_updates()
+    }
+
+    fn on_entity_field_updates(
+        &mut self,
+        ctx: &Context,
+        entity: &Entity,
+        updates: &[EntityFieldUpdate],
+    ) -> ObserverResult {
+        self.borrow_mut()
+            .on_entity_field_updates(ctx, entity, updates)
     }
 
     fn on_entity(&mut self, ctx: &Context, event: EntityEvents, entity: &Entity) -> ObserverResult {
