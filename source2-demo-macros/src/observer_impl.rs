@@ -63,6 +63,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     let mut has_entity = false;
     let mut has_entity_track = false;
     let mut has_entity_field_updates = false;
+    let mut has_game_event = false;
     let mut has_string_table = false;
     let mut has_string_table_track = false;
     let mut has_stop = false;
@@ -248,22 +249,25 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
                                 Err(error) => errors.extend(error.to_compile_error()),
                             }
                         }
-                        "on_game_event" => match observer_game_event_args(method) {
-                            Ok(args) => {
-                                on_game_event_body.extend(if let Ok(event_name) = attr.parse_args::<syn::LitStr>() {
-                                    quote! {
-                                        if ge.name() == #event_name {
+                        "on_game_event" => {
+                            has_game_event = true;
+                            match observer_game_event_args(method) {
+                                Ok(args) => {
+                                    on_game_event_body.extend(if let Ok(event_name) = attr.parse_args::<syn::LitStr>() {
+                                        quote! {
+                                            if ge.name() == #event_name {
+                                                self.#method_name(#args)?;
+                                            }
+                                        }
+                                    } else {
+                                        quote! {
                                             self.#method_name(#args)?;
                                         }
-                                    }
-                                } else {
-                                    quote! {
-                                        self.#method_name(#args)?;
-                                    }
-                                });
+                                    });
+                                }
+                                Err(error) => errors.extend(error.to_compile_error()),
                             }
-                            Err(error) => errors.extend(error.to_compile_error()),
-                        },
+                        }
                         "on_string_table" => {
                             has_string_table = true;
                             has_string_table_track = true;
@@ -675,7 +679,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     add_if!(has_net, NET_MESSAGE);
     add_if!(has_svc, SVC_MESSAGE);
     add_if!(has_base_um, BASE_USER_MESSAGE);
-    add_if!(has_base_ge, BASE_GAME_EVENT);
+    add_if!(has_base_ge || has_game_event, BASE_GAME_EVENT);
     add_if!(has_tick_start, TICK_START);
     add_if!(has_tick_end, TICK_END);
     add_if!(has_entity || has_entity_field_updates, ENTITY_STATE);

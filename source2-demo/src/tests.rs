@@ -154,7 +154,8 @@ use crate::CombatLogEntry;
 use crate::{Entity, EntityEvents, FieldValue, GameEvent, StringTable};
 use bitter::{BitReader, LittleEndianReader};
 use source2_demo_macros::{
-    observer, on_message, rewrite_demo_message, rewrite_field, rewrite_packet_message, rewriter, wants_full_packet_snapshot,
+    observer, on_game_event, on_message, rewrite_demo_message, rewrite_field,
+    rewrite_packet_message, rewriter, wants_full_packet_snapshot,
 };
 use std::io::Cursor;
 
@@ -1136,12 +1137,10 @@ struct StringGameEventObserver {
     values: Vec<String>,
 }
 
-impl Observer for StringGameEventObserver {
-    fn interests(&self) -> Interests {
-        Interests::BASE_GAME_EVENT
-    }
-
-    fn on_game_event(&mut self, _ctx: &Context, ge: &GameEvent) -> ObserverResult {
+#[observer]
+impl StringGameEventObserver {
+    #[on_game_event]
+    fn record_reason(&mut self, ge: &GameEvent) -> ObserverResult {
         let value: String = ge.get_value("reason")?.try_into()?;
         self.values.push(value);
         Ok(())
