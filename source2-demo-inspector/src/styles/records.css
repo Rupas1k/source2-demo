@@ -123,7 +123,8 @@
   min-width: 0;
   overflow: auto;
 }
-.sheet-row {
+.sheet-row,
+.message-field {
   min-height: 26px;
   border-bottom: 1px solid rgb(var(--fg) / 0.09);
 }
@@ -263,7 +264,8 @@
   padding-inline: 10px calc(9px + var(--body-scrollbar-width, 0px));
   overflow: hidden;
 }
-.record-pane .sheet-row {
+.sheet-row,
+.message-field {
   line-height: 17px;
 }
 :is(.event-columns, .entry-columns) .sheet-grid > :first-child {
@@ -305,9 +307,6 @@ button.sort-label {
   color: rgb(var(--fg-subtle));
 }
 
-.message-field {
-  border-bottom: 1px solid var(--line);
-}
 .record-row__selectable > button:not(:disabled):hover,
 .column-label .resize-column:not(:disabled):hover,
 .sort-label:not(:disabled):hover {
