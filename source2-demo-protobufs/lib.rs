@@ -19,3 +19,6 @@ mod cs2;
 pub use cs2::*;
 
 pub use prost;
+
+#[cfg(feature = "reflection")]
+pub mod schema;

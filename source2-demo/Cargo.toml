@@ -25,6 +25,7 @@ source2-demo-protobufs = { path = "../source2-demo-protobufs", version = "0.5.11
 source2-demo-macros = { path = "../source2-demo-macros", version = "0.5.11" }
 
 [features]
+reflection = ["source2-demo-protobufs/reflection"]
 default = ["mimalloc"]
 
 unsafe = []

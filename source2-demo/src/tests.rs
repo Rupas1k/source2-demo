@@ -407,6 +407,23 @@ fn rejects_short_payloads() {
     assert!(messages.next().is_none());
 }
 
+#[cfg(feature = "reflection")]
+#[test]
+fn namespaces_and_game_directories_select_the_field_schema() {
+    use crate::metadata::{MessageFamily, MessageSchema};
+
+    let schema = MessageSchema::new("/game/dota/").unwrap();
+    let command = schema.descriptor(MessageFamily::Command, 4).unwrap();
+    let packet = schema.descriptor(MessageFamily::Packet, 4).unwrap();
+    assert_eq!(command.name(), "CDemoSendTables");
+    assert!(packet.get_field_by_name("tick").is_some());
+    assert_eq!(
+        schema.descriptor(MessageFamily::Packet, 554).unwrap().name(),
+        "CMsgDOTACombatLogEntry"
+    );
+    assert!(schema.descriptor(MessageFamily::Packet, u32::MAX).is_none());
+}
+
 #[test]
 fn demo_message_writer_emits_header_and_payload() {
     let payload = [0xAA, 0xBB, 0xCC];
