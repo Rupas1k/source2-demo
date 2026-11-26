@@ -218,6 +218,8 @@ The crate supports the following cargo features:
 - **`dota`** - Enable Dota 2 replay parsing (includes Dota 2 protobufs)
 - **`deadlock`** - Enable Deadlock replay parsing (includes Citadel protobufs)
 - **`cs2`** - Enable Counter-Strike 2 replay parsing (includes CS2 protobufs)
+- **`entity-field-updates`** - Enable observer callbacks for entity field writes
+- **`reflection`** - Look up protobuf message and field descriptors at runtime
 - **`mimalloc`** (default) - Use mimalloc as the global allocator for improved performance
 
 You can enable multiple game features if needed:
