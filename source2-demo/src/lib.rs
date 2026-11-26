@@ -102,6 +102,8 @@ pub mod prelude {
     pub use crate::entity::{Entity, EntityEvents, EntityField};
     pub use crate::error::ParserError;
     pub use crate::event::{EventValue, GameEvent, GameEventList};
+    #[cfg(feature = "entity-field-updates")]
+    pub use crate::metadata::EntityFieldUpdate;
     pub use crate::parser::{Context, DemoRunner, Interests, Observer, ObserverResult, Parser};
     pub use crate::string_table::{StringTable, StringTableRow, StringTables};
     pub use crate::{property, try_property};

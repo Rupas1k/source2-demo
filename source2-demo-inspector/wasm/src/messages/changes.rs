@@ -1,9 +1,6 @@
 use crate::session::format_field_value;
 use serde::Serialize;
-use source2_demo::metadata::EntityFieldUpdate;
 use source2_demo::prelude::*;
-use source2_demo::proto::EDemoCommands;
-use source2_demo::{StringTable, StringTableRow};
 
 #[derive(Serialize)]
 pub struct EntityChange {

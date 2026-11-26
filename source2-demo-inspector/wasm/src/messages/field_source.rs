@@ -1,7 +1,5 @@
 use serde::Serialize;
-use source2_demo::metadata::EntityFieldUpdate;
 use source2_demo::prelude::*;
-use source2_demo::proto::EDemoCommands;
 use source2_demo::reader::Command;
 
 #[derive(Serialize)]
