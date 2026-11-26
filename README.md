@@ -218,7 +218,6 @@ The crate supports the following cargo features:
 - **`dota`** - Enable Dota 2 replay parsing (includes Dota 2 protobufs)
 - **`deadlock`** - Enable Deadlock replay parsing (includes Citadel protobufs)
 - **`cs2`** - Enable Counter-Strike 2 replay parsing (includes CS2 protobufs)
-- **`unsafe`** - Disable bounds checking in the reader for improved performance.
 - **`mimalloc`** (default) - Use mimalloc as the global allocator for improved performance
 
 You can enable multiple game features if needed:

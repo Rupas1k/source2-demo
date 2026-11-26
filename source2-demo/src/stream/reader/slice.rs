@@ -80,23 +80,8 @@ impl<'a> SliceReader<'a> {
 
 impl<'a> BitsReader for SliceReader<'a> {
     #[inline]
-    #[cfg(not(feature = "unsafe"))]
     fn refill(&mut self) {
         self.bit_reader.refill_lookahead();
-    }
-
-    #[inline]
-    #[cfg(feature = "unsafe")]
-    fn refill(&mut self) {
-        #[cfg(debug_assertions)]
-        self.bit_reader.refill_lookahead();
-        #[cfg(not(debug_assertions))]
-        if self.bit_reader.unbuffered_bytes_remaining() >= 8 {
-            // SAFETY: The unchecked refill loads eight unbuffered bytes.
-            unsafe { self.bit_reader.refill_lookahead_unchecked() };
-        } else {
-            self.bit_reader.refill_lookahead();
-        }
     }
 
     #[inline]
