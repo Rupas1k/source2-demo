@@ -4,7 +4,6 @@ import { ArrowDown, ArrowUp } from "../shared/components/Icons";
 interface Props {
   label: string;
   direction?: "ascending" | "descending";
-  alignEnd?: boolean;
   minimumWidth: number;
   onSort?: () => void;
   onResize: (width?: number) => void;
@@ -15,7 +14,10 @@ export function SortLabel({
   direction,
   alignEnd,
   onSort,
-}: Pick<Props, "label" | "direction" | "alignEnd"> & { onSort: () => void }) {
+}: Pick<Props, "label" | "direction"> & {
+  alignEnd?: boolean;
+  onSort: () => void;
+}) {
   const Arrow = direction === "ascending" ? ArrowUp : ArrowDown;
   return (
     <button
@@ -35,7 +37,6 @@ export function SortLabel({
 export function FieldColumnHeader({
   label,
   direction,
-  alignEnd,
   onSort,
   onResize,
   minimumWidth,
@@ -47,18 +48,9 @@ export function FieldColumnHeader({
   const resize = (next: number) =>
     onResize(Math.max(minimumWidth, Math.round(next)));
   return (
-    <span
-      className="column-label"
-      data-align-end={alignEnd || undefined}
-      ref={cell}
-    >
+    <span className="column-label" ref={cell}>
       {onSort ? (
-        <SortLabel
-          label={label}
-          direction={direction}
-          alignEnd={alignEnd}
-          onSort={onSort}
-        />
+        <SortLabel label={label} direction={direction} onSort={onSort} />
       ) : (
         <span className="sort-label">
           <span className="sort-label-text">{label}</span>

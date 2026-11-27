@@ -165,7 +165,6 @@ export function SheetTable<Column extends string>({
             <FieldColumnHeader
               key={column}
               label={column}
-              alignEnd={compactIndex && index === 0}
               minimumWidth={minimumResize(index)}
               direction={sort?.column === column ? sort.direction : undefined}
               onSort={onSort ? () => onSort(column) : undefined}

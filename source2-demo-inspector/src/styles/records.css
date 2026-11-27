@@ -20,6 +20,7 @@
     var(--record-gutter-start) + var(--message-disclosure-slot)
   );
   --record-gutter-end: 9px;
+  --detail-gutter-start: var(--record-label-gutter);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -87,7 +88,7 @@
 .sheet {
   --cell-inline-start: 6px;
   --cell-inline-end: 9px;
-  --heading-gutter-start: var(--cell-inline-start);
+  --heading-gutter-start: var(--detail-gutter-start);
   display: flex;
   flex: 1;
   min-width: 0;
@@ -143,6 +144,9 @@
 }
 .sheet-grid > * + * {
   border-inline-start: 1px solid var(--line);
+}
+.sheet-grid > :first-child {
+  --cell-inline-start: var(--detail-gutter-start);
 }
 .sheet-scroll {
   flex: 1;
@@ -290,7 +294,8 @@
   color: rgb(var(--fg-subtle));
   font-variant-numeric: tabular-nums;
 }
-.sheet-row > span:first-child {
+.sheet-row > span:first-child,
+.entry-columns .message-field > :first-child {
   font-variant-numeric: tabular-nums;
 }
 .index-heading,
@@ -320,10 +325,6 @@
 .message-field {
   line-height: 17px;
 }
-:is(.event-columns, .entry-columns) .sheet-grid > :first-child {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
 
 .column-label {
   --resize-handle-width: 8px;
@@ -332,9 +333,6 @@
   align-items: center;
   height: 100%;
   padding-inline-end: max(var(--cell-inline-end), var(--resize-handle-width));
-}
-.column-label[data-align-end] {
-  justify-content: flex-end;
 }
 .column-label .resize-column {
   position: absolute;

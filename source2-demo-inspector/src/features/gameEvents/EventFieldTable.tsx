@@ -46,7 +46,6 @@ export function EventFieldTable({
         definition ? ["Index", "Key", "Wire type"] : ["Key", "Type", "Value"]
       }
       compactIndex={definition}
-      className={definition ? "event-columns" : undefined}
       viewportRef={viewport}
       sort={sort}
       onSort={toggleSort}
