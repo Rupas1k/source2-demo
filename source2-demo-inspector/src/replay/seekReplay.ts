@@ -8,6 +8,21 @@ export function seekReplay(session: ReplaySession, tick: number) {
   return session.tick();
 }
 
+export function adjacentRecordedTick(
+  ticks: Int32Array,
+  tick: number,
+  forward: boolean,
+) {
+  let lo = 0;
+  let hi = ticks.length;
+  while (lo < hi) {
+    const mid = lo + Math.floor((hi - lo) / 2);
+    if (ticks[mid] < tick || (forward && ticks[mid] === tick)) lo = mid + 1;
+    else hi = mid;
+  }
+  return ticks[forward ? lo : lo - 1] as number | undefined;
+}
+
 export function captureComparison(
   session: ReplaySession,
   tick: number,

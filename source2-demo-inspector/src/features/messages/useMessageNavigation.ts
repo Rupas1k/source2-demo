@@ -1,6 +1,6 @@
 import { useMessageActivity } from "./useMessageActivity";
 import { readFields } from "../../replay/readFields";
-import { seekReplay } from "../../replay/seekReplay";
+import { adjacentRecordedTick, seekReplay } from "../../replay/seekReplay";
 import { useMessageSearch } from "./useMessageSearch";
 import { readMessageData as read } from "./readMessageData";
 import { sortRows, useTableSort } from "../../workbench/tableSort";
@@ -696,7 +696,23 @@ export function useMessageNavigation({
   function openEntityView(value: number, baseline: boolean) {
     if (!session) return;
     const store = useReplayStore.getState();
+    const view = baseline ? "baselineEntities" : "entities";
+    const previousTick = store.messageTicks
+      ? adjacentRecordedTick(store.messageTicks, tick, false)
+      : undefined;
     try {
+      const previous =
+        previousTick === undefined
+          ? undefined
+          : seekReplay(session, previousTick);
+      const previousFields =
+        previous !== undefined && previous < tick
+          ? (readFields(
+              session,
+              view,
+              baseline ? value : session.entityIndexForHandle(value),
+            ) ?? [])
+          : undefined;
       const actual = seekReplay(session, tick);
       const entity = baseline ? value : session.entityIndexForHandle(value);
       if (entity === undefined)
@@ -707,8 +723,13 @@ export function useMessageNavigation({
       rememberMessage(() => store.setActiveView("messages"));
       if (baseline) store.setSelectedBaseline(entity);
       else store.setSelectedEntity(entity);
-      store.setReplayPosition(actual, undefined);
-      store.setActiveView(baseline ? "baselineEntities" : "entities");
+      store.setReplayPosition(
+        actual,
+        previous !== undefined && previousFields !== undefined
+          ? { tick: previous, view, index: entity, fields: previousFields }
+          : undefined,
+      );
+      store.setActiveView(view);
     } catch (error) {
       try {
         seekReplay(session, store.currentTick);

@@ -1,4 +1,8 @@
-import { captureComparison, seekReplay } from "../replay/seekReplay";
+import {
+  adjacentRecordedTick,
+  captureComparison,
+  seekReplay,
+} from "../replay/seekReplay";
 import { ActivityStrip } from "./ActivityStrip";
 import {
   ChevronLeft,
@@ -168,14 +172,7 @@ export default function DemoTimeline() {
       const target = parser.adjacentTick(forward);
       return (forward ? target > tick : target < tick) ? target : undefined;
     }
-    let lo = 0,
-      hi = ticks.length;
-    while (lo < hi) {
-      const mid = lo + Math.floor((hi - lo) / 2);
-      if (ticks[mid] < tick || (forward && ticks[mid] === tick)) lo = mid + 1;
-      else hi = mid;
-    }
-    return ticks[forward ? lo : lo - 1];
+    return adjacentRecordedTick(ticks, tick, forward);
   }
 
   function recorded(target: number, min = 0, max = last) {
