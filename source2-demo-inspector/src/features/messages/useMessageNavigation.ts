@@ -659,6 +659,25 @@ export function useMessageNavigation({
       : packets.has(entry.command);
   }
 
+  const bulkPackets =
+    wide || term
+      ? []
+      : expandablePackets.filter(
+          (entry) => hasChildren(entry) || canExpandBranch(entry),
+        );
+  const allPacketsOpen = bulkPackets.every(isPacketOpen);
+
+  function toggleAllPackets() {
+    setRevealedParent(undefined);
+    setPacketExpansion((previous) => {
+      const next = new Map(previous);
+      for (const { command } of bulkPackets) next.set(command, !allPacketsOpen);
+      return next;
+    });
+    if (allPacketsOpen && selected && isFullPacket(selected))
+      selectPacketTable(undefined);
+  }
+
   function togglePacket(entry: Entry) {
     const { command } = entry;
     const closing = isPacketOpen(entry);
@@ -800,6 +819,9 @@ export function useMessageNavigation({
       eventFocus,
       isPacketOpen,
       togglePacket,
+      packetTreeToggle: bulkPackets.length
+        ? { expanded: allPacketsOpen, onToggle: toggleAllPackets }
+        : undefined,
       toggleBranch,
       inspector,
       branchRow,

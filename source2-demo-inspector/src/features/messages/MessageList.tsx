@@ -3,7 +3,7 @@ import {
   keepRecordListFocus,
   nextRecordIndex,
 } from "../../workbench/recordNavigation";
-import { SortLabel } from "../../workbench/FieldColumnHeader";
+import { SortLabel, TreeToggle } from "../../workbench/FieldColumnHeader";
 import { MessageBranchRows } from "./MessageBranchRows";
 import { ChevronDown, ChevronRight } from "../../shared/components/Icons";
 import { VirtualRecordList } from "../../workbench/VirtualRecordList";
@@ -70,6 +70,7 @@ export function MessageList({
   eventFocus,
   isPacketOpen,
   togglePacket,
+  packetTreeToggle,
   toggleBranch,
   inspector,
   branchRow,
@@ -146,6 +147,9 @@ export function MessageList({
         </FilterToggle>
       </SearchBar>
       <IndexHeading
+        leadingControl={
+          packetTreeToggle && <TreeToggle {...packetTreeToggle} />
+        }
         label={sortLabel("name", "Message")}
         value={wide ? sortLabel("tick", "Tick") : sortLabel("id", "ID")}
       />

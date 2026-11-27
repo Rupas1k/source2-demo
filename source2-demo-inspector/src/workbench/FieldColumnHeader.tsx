@@ -1,10 +1,38 @@
-import { useEffect, useRef } from "react";
-import { ArrowDown, ArrowUp } from "../shared/components/Icons";
+import { useEffect, useRef, type ReactNode } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronsDown,
+  ChevronsUp,
+} from "../shared/components/Icons";
+
+export function TreeToggle({
+  expanded,
+  onToggle,
+}: {
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const Icon = expanded ? ChevronsUp : ChevronsDown;
+  const label = expanded ? "Collapse all" : "Expand all";
+  return (
+    <button
+      type="button"
+      className="field-disclosure tree-toggle"
+      title={label}
+      aria-label={label}
+      onClick={onToggle}
+    >
+      <Icon size={13} />
+    </button>
+  );
+}
 
 interface Props {
   label: string;
   direction?: "ascending" | "descending";
   minimumWidth: number;
+  leadingControl?: ReactNode;
   onSort?: () => void;
   onResize: (width?: number) => void;
 }
@@ -40,6 +68,7 @@ export function FieldColumnHeader({
   onSort,
   onResize,
   minimumWidth,
+  leadingControl,
 }: Props) {
   const cell = useRef<HTMLSpanElement>(null);
   const stopDrag = useRef<() => void>(undefined);
@@ -49,6 +78,7 @@ export function FieldColumnHeader({
     onResize(Math.max(minimumWidth, Math.round(next)));
   return (
     <span className="column-label" ref={cell}>
+      {leadingControl}
       {onSort ? (
         <SortLabel label={label} direction={direction} onSort={onSort} />
       ) : (

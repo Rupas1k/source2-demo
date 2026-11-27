@@ -311,6 +311,7 @@
     sans-serif;
 }
 .index-heading {
+  position: relative;
   display: flex;
   gap: 4px;
   justify-content: space-between;
@@ -464,6 +465,12 @@ button.sort-label {
   height: 18px;
   flex: none;
   cursor: pointer;
+}
+.tree-toggle {
+  position: absolute;
+  inset-inline-start: 2px;
+  inset-block: 0;
+  margin-block: auto;
 }
 .message-list-row .record-status {
   margin-inline-start: auto;

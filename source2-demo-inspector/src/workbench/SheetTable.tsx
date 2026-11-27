@@ -40,13 +40,16 @@ function useScrollHeader() {
 export function IndexHeading({
   label,
   value,
+  leadingControl,
 }: {
   label: ReactNode;
   value: ReactNode;
+  leadingControl?: ReactNode;
 }) {
   const ref = useScrollHeader();
   return (
     <div className="index-heading" ref={ref}>
+      {leadingControl}
       {label}
       {value}
     </div>
@@ -105,12 +108,14 @@ export function SheetTable<Column extends string>({
   sizes,
   sort,
   onSort,
+  leadingControl,
 }: {
   tableId: TableId;
   columns: readonly Column[];
   sizes?: readonly ColumnSize[];
   sort?: { column: Column; direction: "ascending" | "descending" };
   onSort?: (column: Column) => void;
+  leadingControl?: ReactNode;
   children: ReactNode;
   viewportRef?: Ref<HTMLDivElement>;
   className?: string;
@@ -165,6 +170,7 @@ export function SheetTable<Column extends string>({
             <FieldColumnHeader
               key={column}
               label={column}
+              leadingControl={index === 0 ? leadingControl : undefined}
               minimumWidth={minimumResize(index)}
               direction={sort?.column === column ? sort.direction : undefined}
               onSort={onSort ? () => onSort(column) : undefined}

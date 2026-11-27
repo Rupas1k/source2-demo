@@ -1,5 +1,6 @@
 import type { VirtualizerHandle } from "virtua";
 import { SearchBar } from "../../workbench/PaneControls";
+import { TreeToggle } from "../../workbench/FieldColumnHeader";
 import { SheetTable } from "../../workbench/SheetTable";
 import { fieldColumns, sortFields, type FieldSort } from "./fieldSorting";
 import { FieldCells } from "./FieldCells";
@@ -233,18 +234,6 @@ export function EntityFieldTable({
   return (
     <div className="sheet">
       <SearchBar label="Filter fields" value={query} onChange={setQuery}>
-        {expandablePaths.length > 0 && !term && !comparing && (
-          <button
-            type="button"
-            onClick={() =>
-              setExpandedFieldGroups(
-                new Set(allExpanded ? [] : expandablePaths),
-              )
-            }
-          >
-            {allExpanded ? "Collapse all" : "Expand all"}
-          </button>
-        )}
         {actions}
       </SearchBar>
       <SheetTable
@@ -252,6 +241,18 @@ export function EntityFieldTable({
         columns={fieldColumns}
         className="entity-fields"
         tree
+        leadingControl={
+          expandablePaths.length > 0 && !term && !comparing ? (
+            <TreeToggle
+              expanded={allExpanded}
+              onToggle={() =>
+                setExpandedFieldGroups(
+                  new Set(allExpanded ? [] : expandablePaths),
+                )
+              }
+            />
+          ) : undefined
+        }
         sizes={fieldColumns.map((column) => columnSizes[column])}
         viewportRef={viewportRef}
         sort={sort}

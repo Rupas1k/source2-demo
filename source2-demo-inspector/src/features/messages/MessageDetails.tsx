@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { PacketGameEventFields } from "./PacketGameEventFields";
 import { useTableSort } from "../../workbench/tableSort";
 import { SearchBar } from "../../workbench/PaneControls";
+import { TreeToggle } from "../../workbench/FieldColumnHeader";
 import { SheetTable } from "../../workbench/SheetTable";
 import {
   fieldExpansionDefaults,
@@ -90,19 +91,18 @@ export function MessageDetails({
         label="Filter fields"
         value={fieldQuery}
         onChange={setFieldQuery}
-      >
-        {expandablePaths.length > 0 && !fieldQuery.trim() && (
-          <button
-            type="button"
-            onClick={() => setFieldsOpen(expandablePaths, !allExpanded)}
-          >
-            {allExpanded ? "Collapse all" : "Expand all"}
-          </button>
-        )}
-      </SearchBar>
+      />
       <SheetTable
         tableId="message-fields"
         tree
+        leadingControl={
+          expandablePaths.length > 0 && !fieldQuery.trim() ? (
+            <TreeToggle
+              expanded={allExpanded}
+              onToggle={() => setFieldsOpen(expandablePaths, !allExpanded)}
+            />
+          ) : undefined
+        }
         columns={["Field", "Type", "Value"]}
         sort={fieldSort.sort}
         onSort={fieldSort.toggleSort}
