@@ -172,6 +172,29 @@ where
 
         self.prologue()?;
 
+        if target_tick == 0 {
+            // The header and sign-on commands can precede the first gameplay tick.
+            self.context.tick = 0;
+            self.context.previous_tick = 0;
+            let observers = mem::take(&mut self.observers);
+            let result = (|| {
+                loop {
+                    let position = self.reader.position();
+                    let Some(message) = self.reader.read_next_message()? else {
+                        break;
+                    };
+                    if (message.tick as i32) > 0 {
+                        self.reader.seek(position);
+                        break;
+                    }
+                    self.on_demo_command(message.msg_type, message.buf.as_slice())?;
+                }
+                Ok(())
+            })();
+            self.observers = observers;
+            return result;
+        }
+
         self.skip_deltas = true;
         let observers = mem::take(&mut self.observers);
 

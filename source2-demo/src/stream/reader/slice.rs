@@ -309,6 +309,11 @@ impl<'a> BitsReader for SliceReader<'a> {
     }
 
     #[inline]
+    fn position(&self) -> usize {
+        self.source_buffer.len() - self.remaining_bytes()
+    }
+
+    #[inline]
     fn seek(&mut self, offset: usize) {
         assert!(offset <= self.source_buffer.len());
         self.bit_reader = bitter::LittleEndianReader::new(&self.source_buffer[offset..]);

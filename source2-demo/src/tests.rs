@@ -644,6 +644,31 @@ impl Observer for DemoLifecycleObserver {
 }
 
 #[test]
+fn parser_jump_to_zero_keeps_first_gameplay_tick_available() {
+    let replay = replay_with_playback_ticks(
+        20,
+        &[
+            (EDemoCommands::DemSyncTick, u32::MAX, sync_payload()),
+            (EDemoCommands::DemPacket, 2, demo_packet_payload(&[])),
+            (EDemoCommands::DemStop, 20, Vec::new()),
+        ],
+    );
+    let mut parser = Parser::from_reader(std::io::Cursor::new(replay)).unwrap();
+
+    parser.jump_to_tick(0).unwrap();
+    assert_eq!(parser.context().tick(), 0);
+    let start = parser.replay_position();
+
+    parser.run_to_tick(2).unwrap();
+    assert_eq!(parser.context().tick(), 2);
+    assert!(parser.replay_position() > start);
+
+    parser.jump_to_tick(0).unwrap();
+    assert_eq!(parser.context().tick(), 0);
+    assert_eq!(parser.replay_position(), start);
+}
+
+#[test]
 fn parser_run_to_end_dispatches_demo_tick_and_stop_observers() {
     let replay = replay_with_playback_ticks(
         20,

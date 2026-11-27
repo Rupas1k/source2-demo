@@ -37,10 +37,6 @@ impl<R: Read + Seek> SeekableReader<R> {
         Ok(reader)
     }
 
-    pub(crate) fn position(&self) -> usize {
-        self.bytes_read_total - self.lookahead_bit_count as usize / 8
-    }
-
     fn refill_internal_buffer(&mut self) -> std::io::Result<usize> {
         if self.read_position < self.bytes_in_buffer / 2 {
             return Ok(0);
@@ -400,6 +396,11 @@ impl<R: Read + Seek> BitsReader for SeekableReader<R> {
     #[inline]
     fn remaining_bytes(&self) -> usize {
         (self.bytes_in_buffer - self.read_position) + (self.lookahead_bit_count as usize / 8)
+    }
+
+    #[inline]
+    fn position(&self) -> usize {
+        self.bytes_read_total - self.lookahead_bit_count as usize / 8
     }
 
     #[inline]
