@@ -13,8 +13,9 @@ type TableId =
 
 export type NestedMessageBranchKind =
   "entities" | "stringTables" | "gameEvents";
+type SharedMessageBranchKind = Exclude<NestedMessageBranchKind, "stringTables">;
 export type MessageBranchKind =
-  NestedMessageBranchKind | `full:${NestedMessageBranchKind}`;
+  SharedMessageBranchKind | `full:${SharedMessageBranchKind}`;
 
 interface InspectorPreferences {
   lastTab: ViewTab;

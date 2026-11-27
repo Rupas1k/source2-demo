@@ -58,6 +58,9 @@ export function useMessageNavigation({
   const [collapsedPackets, setCollapsedPackets] = useState<ReadonlySet<number>>(
     () => new Set(),
   );
+  const [openTableBranches, setOpenTableBranches] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const [revealedParent, setRevealedParent] = useState<number>();
   const revealedPacket =
     selected?.command === revealedParent ? revealedParent : undefined;
@@ -373,7 +376,7 @@ export function useMessageNavigation({
 
   function branchPreference(
     entry: Entry,
-    kind: NestedMessageBranchKind,
+    kind: Exclude<NestedMessageBranchKind, "stringTables">,
   ): MessageBranchKind {
     const fromFullPacket =
       entry.child !== null &&
@@ -392,7 +395,9 @@ export function useMessageNavigation({
       return snapshotVisible && isPacketOpen(entry);
     }
     return (
-      !!expansion[branchPreference(entry, kind)] ||
+      (kind === "stringTables"
+        ? openTableBranches.has(key)
+        : !!expansion[branchPreference(entry, kind)]) ||
       (selectedKey === key && revealedBranchKey === key)
     );
   }
@@ -623,12 +628,27 @@ export function useMessageNavigation({
   }
 
   function toggleBranch(entry: Entry, kind: NestedMessageBranchKind) {
-    const preference = branchPreference(entry, kind);
+    const key = messageKey(entry);
     const open = !isBranchOpen(entry, kind);
+    if (kind === "stringTables") {
+      setOpenTableBranches((previous) => {
+        const next = new Set(previous);
+        if (open) next.add(key);
+        else next.delete(key);
+        return next;
+      });
+      if (open) stringTables.load(entry);
+      else if (selectedKey === key) {
+        setRevealedBranchKey(undefined);
+        selectPacketTable(undefined);
+      }
+      return;
+    }
+
+    const preference = branchPreference(entry, kind);
     setExpanded(preference, open);
     if (open) {
       if (kind === "entities") entityChanges.load(entry);
-      else if (kind === "stringTables") stringTables.load(entry);
       else gameEvents.load(entry);
     } else if (
       selected &&
@@ -638,7 +658,6 @@ export function useMessageNavigation({
     ) {
       setRevealedBranchKey(undefined);
       if (kind === "entities") selectChangedEntity(undefined);
-      else if (kind === "stringTables") selectPacketTable(undefined);
       else selectPacketEvent(undefined);
     }
   }
