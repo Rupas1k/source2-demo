@@ -117,6 +117,7 @@ export function RecordIndex<K extends string | number>({
   const columnLabel = (column: IndexColumn, label: string) => (
     <SortLabel
       label={label}
+      alignEnd={column !== "name"}
       direction={sort?.column === column ? sort.direction : undefined}
       onSort={() => {
         toggleSort(column);
@@ -154,7 +155,7 @@ export function RecordIndex<K extends string | number>({
             <div
               key={row.key}
               className={
-                "record-row record-row__selectable flex items-center" +
+                "record-row record-row__selectable record-index-row flex items-center" +
                 (selected === row.key ? " record-row__selected" : "")
               }
               style={{ height: 26 }}

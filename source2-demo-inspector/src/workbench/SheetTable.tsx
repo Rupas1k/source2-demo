@@ -100,6 +100,7 @@ export function SheetTable<Column extends string>({
   children,
   viewportRef,
   className = "",
+  tree = false,
   compactIndex = false,
   sizes,
   sort,
@@ -113,6 +114,7 @@ export function SheetTable<Column extends string>({
   children: ReactNode;
   viewportRef?: Ref<HTMLDivElement>;
   className?: string;
+  tree?: boolean;
   compactIndex?: boolean;
 }) {
   const widths = useInspectorPreferences((state) => state.widths?.[tableId]);
@@ -127,8 +129,15 @@ export function SheetTable<Column extends string>({
       grow: index === 0 || (columns.length === 3 && index === 2) ? 2 : 1,
     };
   });
-  const tracks = columns.map((column, index) => {
+  const minimumResize = (index: number) => (tree && index === 0 ? 56 : 48);
+  const savedWidths = columns.map((column, index) => {
     const width = widths?.[column];
+    return width === undefined
+      ? undefined
+      : Math.max(width, minimumResize(index));
+  });
+  const tracks = columns.map((_, index) => {
+    const width = savedWidths[index];
     if (width !== undefined) return width + "px";
     const { minimum, grow, maximum } = defaults[index];
     const limit = maximum ?? (grow ? `${grow}fr` : undefined);
@@ -136,7 +145,7 @@ export function SheetTable<Column extends string>({
   });
   return (
     <SheetViewport
-      className={className}
+      className={tree ? `${className} field-tree` : className}
       contentClass="resizable-sheet"
       viewportRef={viewportRef}
       style={
@@ -144,18 +153,20 @@ export function SheetTable<Column extends string>({
           "--columns": tracks.join(" "),
           "--sheet-min-width":
             columns.reduce(
-              (sum, column, index) =>
-                sum + (widths?.[column] ?? defaults[index].minimum),
+              (sum, _, index) =>
+                sum + (savedWidths[index] ?? defaults[index].minimum),
               0,
             ) + "px",
         } as CSSProperties
       }
       header={
         <div className="sheet-heading sheet-grid">
-          {columns.map((column) => (
+          {columns.map((column, index) => (
             <FieldColumnHeader
               key={column}
               label={column}
+              alignEnd={compactIndex && index === 0}
+              minimumWidth={minimumResize(index)}
               direction={sort?.column === column ? sort.direction : undefined}
               onSort={onSort ? () => onSort(column) : undefined}
               onResize={(width) => setColumnWidth(tableId, column, width)}

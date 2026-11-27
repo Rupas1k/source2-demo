@@ -102,7 +102,7 @@ export function MessageDetails({
       </SearchBar>
       <SheetTable
         tableId="message-fields"
-        className="field-tree"
+        tree
         columns={["Field", "Type", "Value"]}
         sort={fieldSort.sort}
         onSort={fieldSort.toggleSort}

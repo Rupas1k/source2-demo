@@ -180,7 +180,7 @@ export default function App() {
         <div className="toolbar simple-bar">
           <button
             type="button"
-            className="header-icon-button"
+            className="header-icon-button header-back"
             aria-label="Back"
             title="Back (Esc)"
             aria-keyshortcuts="Escape"

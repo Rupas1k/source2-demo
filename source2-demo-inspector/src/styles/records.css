@@ -14,6 +14,12 @@
   min-width: 0;
 }
 .record-pane {
+  --record-gutter-start: 2px;
+  --message-disclosure-slot: 18px;
+  --record-label-gutter: calc(
+    var(--record-gutter-start) + var(--message-disclosure-slot)
+  );
+  --record-gutter-end: 9px;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -72,14 +78,34 @@
 .record-pane:has(.record-row__selectable) .record-row__selectable {
   font-family: system-ui, sans-serif;
   font-size: 13px;
-  padding-inline: 11px 9px;
+  padding-inline: var(--record-row-start, var(--record-gutter-start))
+    var(--record-gutter-end);
+}
+.record-index-row {
+  --record-row-start: var(--record-label-gutter);
 }
 .sheet {
+  --cell-inline-start: 6px;
+  --cell-inline-end: 9px;
+  --heading-gutter-start: var(--cell-inline-start);
   display: flex;
   flex: 1;
   min-width: 0;
   min-height: 0;
   flex-direction: column;
+}
+.sheet:has(> .index-heading) {
+  --heading-gutter-start: var(--record-label-gutter);
+}
+.sheet:is(.field-tree, :has(> .field-tree)) {
+  --tree-cell-start: 2px;
+  --field-gap: 2px;
+  --field-label-inset: calc(var(--field-disclosure-width) + var(--field-gap));
+}
+.sheet:has(> .field-tree) {
+  --heading-gutter-start: calc(
+    var(--tree-cell-start) + var(--field-label-inset)
+  );
 }
 .table-header {
   flex: none;
@@ -97,7 +123,6 @@
   white-space: pre-wrap;
 }
 .sheet-grid {
-  --cell-inline-padding: 9px;
   display: grid;
   grid-template-columns: var(--columns);
 }
@@ -111,7 +136,8 @@
   color: rgb(var(--fg-subtle));
 }
 .sheet-grid > * {
-  padding: 4px var(--cell-inline-padding);
+  padding-block: 4px;
+  padding-inline: var(--cell-inline-start) var(--cell-inline-end);
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -133,11 +159,13 @@
   background: rgb(var(--fg) / 0.024);
 }
 .field-tree {
-  --field-gap: 4px;
   --field-indent-step: 10px;
 }
+.field-tree .sheet-grid > :first-child {
+  --cell-inline-start: var(--tree-cell-start);
+}
 .field-tree .sheet-heading > :first-child .sort-label {
-  margin-inline-start: calc(var(--field-disclosure-width) + var(--field-gap));
+  margin-inline-start: var(--field-label-inset);
   min-width: 0;
 }
 .field-path,
@@ -148,7 +176,7 @@
 .protobuf-field-name {
   display: flex;
   align-items: center;
-  padding-inline-start: calc(var(--cell-inline-padding) + var(--field-indent));
+  padding-inline-start: calc(var(--cell-inline-start) + var(--field-indent));
 }
 .field-path {
   min-width: 0;
@@ -216,7 +244,7 @@
   height: 2rem;
   flex-shrink: 0;
   margin: 0;
-  padding: 0 8px;
+  padding-inline: var(--heading-gutter-start, 6px) 8px;
 }
 .pane-search-field {
   min-width: 0;
@@ -279,9 +307,14 @@
 }
 .index-heading {
   display: flex;
+  gap: 4px;
   justify-content: space-between;
-  padding-inline: 10px calc(9px + var(--body-scrollbar-width, 0px));
+  padding-inline: var(--heading-gutter-start)
+    calc(var(--record-gutter-end) + var(--body-scrollbar-width, 0px));
   overflow: hidden;
+}
+.index-heading > [data-align-end] {
+  flex: none;
 }
 .sheet-row,
 .message-field {
@@ -293,20 +326,20 @@
 }
 
 .column-label {
+  --resize-handle-width: 8px;
   position: relative;
   display: flex;
   align-items: center;
   height: 100%;
+  padding-inline-end: max(var(--cell-inline-end), var(--resize-handle-width));
 }
-.column-label .sort-label {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+.column-label[data-align-end] {
+  justify-content: flex-end;
 }
 .column-label .resize-column {
   position: absolute;
   inset: 0 0 0 auto;
-  width: 8px;
+  width: var(--resize-handle-width);
   cursor: col-resize;
   touch-action: none;
   user-select: none;
@@ -316,13 +349,25 @@
 }
 
 .sort-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
   max-width: 100%;
-  text-align: left;
+}
+.sort-label[data-align-end] {
+  flex-direction: row-reverse;
+}
+.sort-label-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 button.sort-label {
   cursor: pointer;
 }
-.sort-label span {
+.sort-arrow {
+  flex: none;
   color: rgb(var(--fg-subtle));
 }
 
@@ -405,7 +450,7 @@ button.sort-label {
 }
 .message-disclosures {
   display: flex;
-  flex: 0 0 24px;
+  flex: 0 0 var(--message-disclosure-slot);
   align-items: center;
 }
 .message-list-row[data-depth="1"] .message-disclosures {

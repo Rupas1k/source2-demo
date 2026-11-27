@@ -208,8 +208,8 @@
 }
 .simple-bar {
   height: 34px;
-  gap: 10px;
   padding: 0 9px;
+  padding-inline-start: 3px;
   background: var(--rail);
   font-size: 13px;
 }
@@ -239,6 +239,7 @@
   align-items: center;
   gap: 2px;
   margin-inline-start: auto;
+  padding-inline-start: 10px;
   min-width: 0;
   max-width: min(45%, 32rem);
 }
@@ -268,6 +269,9 @@
 .header-icon-button {
   justify-content: center;
   width: 24px;
+}
+.header-back {
+  width: 17px;
 }
 .header-icon-button:is(a):hover {
   background-color: var(--hover);

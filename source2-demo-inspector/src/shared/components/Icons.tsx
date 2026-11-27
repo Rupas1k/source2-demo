@@ -24,6 +24,8 @@ function icon(path: string) {
 }
 
 export const ArrowLeft = icon("M19 12H5m6-6-6 6 6 6");
+export const ArrowUp = icon("M12 19V5m-6 6 6-6 6 6");
+export const ArrowDown = icon("M12 5v14m-6-6 6 6 6-6");
 export const FolderOpen = icon(
   "M3 19V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2M3 19l3-8h16l-3 8Z",
 );

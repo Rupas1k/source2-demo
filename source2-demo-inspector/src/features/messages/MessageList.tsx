@@ -81,6 +81,7 @@ export function MessageList({
   const sortLabel = (column: "name" | "id" | "tick", label: string) => (
     <SortLabel
       label={label}
+      alignEnd={column !== "name"}
       direction={
         indexSort.sort?.column === column ? indexSort.sort.direction : undefined
       }

@@ -1,8 +1,11 @@
 import { useEffect, useRef } from "react";
+import { ArrowDown, ArrowUp } from "../shared/components/Icons";
 
 interface Props {
   label: string;
   direction?: "ascending" | "descending";
+  alignEnd?: boolean;
+  minimumWidth: number;
   onSort?: () => void;
   onResize: (width?: number) => void;
 }
@@ -10,22 +13,21 @@ interface Props {
 export function SortLabel({
   label,
   direction,
+  alignEnd,
   onSort,
-}: Pick<Props, "label" | "direction"> & { onSort: () => void }) {
+}: Pick<Props, "label" | "direction" | "alignEnd"> & { onSort: () => void }) {
+  const Arrow = direction === "ascending" ? ArrowUp : ArrowDown;
   return (
     <button
       type="button"
       className="sort-label"
+      data-align-end={alignEnd || undefined}
       onClick={onSort}
       title={`Sort by ${label}`}
       aria-label={`Sort by ${label}, currently ${direction ?? "unsorted"}`}
     >
-      {label}
-      {direction && (
-        <span aria-hidden="true">
-          {direction === "ascending" ? " ↑" : " ↓"}
-        </span>
-      )}
+      <span className="sort-label-text">{label}</span>
+      {direction && <Arrow className="sort-arrow" size={12} />}
     </button>
   );
 }
@@ -33,20 +35,34 @@ export function SortLabel({
 export function FieldColumnHeader({
   label,
   direction,
+  alignEnd,
   onSort,
   onResize,
+  minimumWidth,
 }: Props) {
   const cell = useRef<HTMLSpanElement>(null);
   const stopDrag = useRef<() => void>(undefined);
   useEffect(() => () => stopDrag.current?.(), []);
   const width = () => cell.current!.getBoundingClientRect().width;
-  const resize = (next: number) => onResize(Math.max(48, Math.round(next)));
+  const resize = (next: number) =>
+    onResize(Math.max(minimumWidth, Math.round(next)));
   return (
-    <span className="column-label" ref={cell}>
+    <span
+      className="column-label"
+      data-align-end={alignEnd || undefined}
+      ref={cell}
+    >
       {onSort ? (
-        <SortLabel label={label} direction={direction} onSort={onSort} />
+        <SortLabel
+          label={label}
+          direction={direction}
+          alignEnd={alignEnd}
+          onSort={onSort}
+        />
       ) : (
-        <span className="sort-label">{label}</span>
+        <span className="sort-label">
+          <span className="sort-label-text">{label}</span>
+        </span>
       )}
       <button
         type="button"

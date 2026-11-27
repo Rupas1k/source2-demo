@@ -250,7 +250,8 @@ export function EntityFieldTable({
       <SheetTable
         tableId="entity-fields"
         columns={fieldColumns}
-        className="entity-fields field-tree"
+        className="entity-fields"
+        tree
         sizes={fieldColumns.map((column) => columnSizes[column])}
         viewportRef={viewportRef}
         sort={sort}
