@@ -1,6 +1,6 @@
 [package]
 name = "source2-demo"
-description = "Dota 2 / Deadlock / CS2 replay parser written in Rust"
+description = "Rust library for parsing and modifying Source 2 demos from Dota 2, Deadlock, and Counter-Strike 2"
 readme = "README.md"
 categories = ["parsing"]
 keywords = ["dota", "deadlock", "cs2", "replay", "demo"]
