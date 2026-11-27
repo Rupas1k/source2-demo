@@ -37,7 +37,7 @@ where
             }
         }
 
-        self.finalize_file_info_offset()?;
+        self.finalize_header_offsets()?;
         Ok(())
     }
 

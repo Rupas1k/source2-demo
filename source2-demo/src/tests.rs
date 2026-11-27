@@ -565,6 +565,80 @@ fn demo_writer_demo_message_rewriter_can_drop_outer_messages() {
     );
 }
 
+struct DropDemoSyncTick;
+
+impl DemoRewriter for DropDemoSyncTick {
+    fn interests(&self) -> RewriteInterests {
+        RewriteInterests::DEMO_MESSAGE
+    }
+
+    fn rewrite_demo_message(
+        &mut self,
+        _ctx: &Context,
+        _tick: u32,
+        msg_type: EDemoCommands,
+        _payload: &[u8],
+    ) -> Result<MessageRewrite, ParserError> {
+        if msg_type == EDemoCommands::DemSyncTick {
+            Ok(MessageRewrite::Drop)
+        } else {
+            Ok(MessageRewrite::Keep)
+        }
+    }
+}
+
+#[test]
+fn demo_writer_updates_spawn_groups_header_offset() {
+    let replay = replay_with_messages(&[
+        (
+            EDemoCommands::DemFileInfo,
+            0,
+            CDemoFileInfo::default().encode_to_vec(),
+        ),
+        (EDemoCommands::DemSyncTick, 1, sync_payload()),
+        (EDemoCommands::DemSpawnGroups, 2, Vec::new()),
+    ]);
+    let mut replay = replay;
+    replay[12..16].copy_from_slice(&23_062_185_u32.to_le_bytes());
+    let parser = Parser::from_slice(&replay).unwrap();
+    let output = Cursor::new(Vec::new());
+    let mut writer = DemoWriter::new(parser, output);
+    writer.add_rewriter(DropDemoSyncTick);
+
+    writer.run().unwrap();
+    let (_, output) = writer.into_parts();
+    let output = output.into_inner();
+
+    let mut file_info_command = Vec::new();
+    write_demo_message(
+        &mut file_info_command,
+        EDemoCommands::DemFileInfo,
+        0,
+        &CDemoFileInfo::default().encode_to_vec(),
+    )
+    .unwrap();
+    let expected_offset = (16 + file_info_command.len()) as u32;
+    assert_eq!(
+        u32::from_le_bytes(output[12..16].try_into().unwrap()),
+        expected_offset
+    );
+    assert_ne!(expected_offset, 23_062_185);
+}
+
+#[test]
+fn demo_writer_clears_spawn_groups_header_offset_when_absent() {
+    let mut replay = minimal_replay();
+    replay[12..16].copy_from_slice(&23_062_185_u32.to_le_bytes());
+    let parser = Parser::from_slice(&replay).unwrap();
+    let output = Cursor::new(Vec::new());
+    let mut writer = DemoWriter::new(parser, output);
+
+    writer.run().unwrap();
+    let (_, output) = writer.into_parts();
+
+    assert_eq!(&output.into_inner()[12..16], &[0; 4]);
+}
+
 #[derive(Default)]
 struct TypedDemoMessageRewriter {
     file_info_seen: bool,

@@ -108,6 +108,7 @@ where
     entity_rewrite: EntityRewriteState,
     bytes_written: u64,
     file_info_offset: Option<u64>,
+    spawn_groups_offset: Option<u64>,
 }
 
 impl<'a, R, W> DemoWriter<'a, R, W>
@@ -126,6 +127,7 @@ where
             entity_rewrite: EntityRewriteState::new(),
             bytes_written: 0,
             file_info_offset: None,
+            spawn_groups_offset: None,
         }
     }
 

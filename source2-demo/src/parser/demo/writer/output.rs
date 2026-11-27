@@ -17,9 +17,7 @@ where
         payload: &[u8],
         compressed: bool,
     ) -> Result<(), ParserError> {
-        if msg_type == EDemoCommands::DemFileInfo && self.file_info_offset.is_none() {
-            self.file_info_offset = Some(self.bytes_written);
-        }
+        self.record_command_offset(msg_type);
         self.bytes_written += self
             .writer
             .write_message_with_compression(msg_type, tick, payload, compressed)?
@@ -34,9 +32,7 @@ where
         raw_payload: &[u8],
         compressed: bool,
     ) -> Result<(), ParserError> {
-        if msg_type == EDemoCommands::DemFileInfo && self.file_info_offset.is_none() {
-            self.file_info_offset = Some(self.bytes_written);
-        }
+        self.record_command_offset(msg_type);
 
         let cmd = if compressed {
             msg_type as i32 | EDemoCommands::DemIsCompressed as i32
@@ -75,15 +71,32 @@ where
         }
     }
 
-    pub(crate) fn finalize_file_info_offset(&mut self) -> Result<(), ParserError> {
-        let Some(offset) = self.file_info_offset else {
-            return Ok(());
-        };
-        let offset: u32 = offset
-            .try_into()
-            .map_err(|_| ParserError::ReplayEncodingError)?;
-        self.writer.seek(SeekFrom::Start(8))?;
-        self.writer.write_all(&offset.to_le_bytes())?;
+    fn record_command_offset(&mut self, msg_type: EDemoCommands) {
+        match msg_type {
+            EDemoCommands::DemFileInfo if self.file_info_offset.is_none() => {
+                self.file_info_offset = Some(self.bytes_written);
+            }
+            EDemoCommands::DemSpawnGroups if self.spawn_groups_offset.is_none() => {
+                self.spawn_groups_offset = Some(self.bytes_written);
+            }
+            _ => {}
+        }
+    }
+
+    pub(crate) fn finalize_header_offsets(&mut self) -> Result<(), ParserError> {
+        for (position, offset) in [
+            (8, self.file_info_offset),
+            (12, Some(self.spawn_groups_offset.unwrap_or(0))),
+        ] {
+            let Some(offset) = offset else {
+                continue;
+            };
+            let offset: u32 = offset
+                .try_into()
+                .map_err(|_| ParserError::ReplayEncodingError)?;
+            self.writer.seek(SeekFrom::Start(position))?;
+            self.writer.write_all(&offset.to_le_bytes())?;
+        }
         self.writer.seek(SeekFrom::End(0))?;
         Ok(())
     }
