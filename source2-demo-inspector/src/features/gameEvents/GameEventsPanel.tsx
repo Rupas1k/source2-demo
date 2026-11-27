@@ -201,11 +201,6 @@ export default function GameEventsPanel() {
                 Source message
               </button>
             )}
-            {!definitions && event && (
-              <span className="event-detail-tick">
-                Tick {event.tick.toLocaleString()}
-              </span>
-            )}
             <FilterToggle
               pressed={definitions}
               onClick={() => {

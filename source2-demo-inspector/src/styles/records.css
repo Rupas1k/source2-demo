@@ -397,15 +397,6 @@ button.sort-label {
   font-size: 12px;
 }
 
-.event-detail-tick {
-  color: rgb(var(--fg-subtle));
-  font-variant-numeric: tabular-nums;
-}
-.event-detail-tick {
-  margin-inline-start: auto;
-  white-space: nowrap;
-}
-
 .match-count {
   flex: none;
   color: rgb(var(--fg-subtle));
