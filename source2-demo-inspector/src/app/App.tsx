@@ -14,6 +14,9 @@ import { useReplaySession } from "../replay/useReplaySession";
 import { useInspectorPreferences } from "./preferences";
 import { views } from "./views";
 
+const sampleReplayUrl =
+  "https://raw.githubusercontent.com/Rupas1k/source2-demo/inspector-sample/demo_anon.dem";
+
 export default function App() {
   const { file, session: parser, loadingStage, initError } = useReplaySession();
   const setFile = useReplayStore((state) => state.openFile);
@@ -31,6 +34,7 @@ export default function App() {
     error: unknown;
   }>();
   const fileVersion = useRef(0);
+  const sampleRequest = useRef<AbortController>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const dragDepth = useRef(0);
   const [isDragActive, setDragActive] = useState(false);
@@ -40,10 +44,36 @@ export default function App() {
       setError("Choose one Source 2 replay with a .dem extension.");
       return;
     }
+    sampleRequest.current?.abort();
     setError("");
     fileVersion.current++;
     setFile(files[0]);
   }
+
+  useEffect(() => {
+    if (!/\/sample(?:\/index\.html|\/)?$/.test(location.pathname)) return;
+    const controller = new AbortController();
+    sampleRequest.current = controller;
+    const { signal } = controller;
+
+    void (async () => {
+      try {
+        const response = await fetch(sampleReplayUrl, { signal });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const contents = await response.arrayBuffer();
+        if (signal.aborted) return;
+        fileVersion.current++;
+        setFile(new File([contents], "demo_anon.dem"));
+      } catch (error) {
+        if (!signal.aborted)
+          setError(`Unable to load sample replay. ${String(error)}`);
+      } finally {
+        if (sampleRequest.current === controller) sampleRequest.current = null;
+      }
+    })();
+
+    return () => controller.abort();
+  }, [setFile]);
 
   useLayoutEffect(() => {
     const media = matchMedia("(prefers-color-scheme: dark)");
