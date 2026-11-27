@@ -1,4 +1,4 @@
-import { nextRecordIndex } from "./recordNavigation";
+import { keepRecordListFocus, nextRecordIndex } from "./recordNavigation";
 import { VirtualRecordList } from "./VirtualRecordList";
 import { SortLabel } from "./FieldColumnHeader";
 import { sortRows, useTableSort, type TableSort } from "./tableSort";
@@ -89,9 +89,13 @@ export function RecordIndex<K extends string | number>({
     handled.current = reveal;
   }, [rows, records, list, query, reveal]);
 
-  function navigate(event: React.KeyboardEvent) {
-    if (event.defaultPrevented || event.altKey || !rows.length) return;
-    if (event.key === "Enter" && event.target === event.currentTarget) {
+  function navigate(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.defaultPrevented || event.altKey) return;
+    if (
+      event.key === "Enter" &&
+      event.target === event.currentTarget &&
+      rows.length
+    ) {
       event.preventDefault();
       const key = rows.find((row) => row.key === selected)?.key ?? rows[0].key;
       (onActivate ?? onSelect)(key);
@@ -99,6 +103,8 @@ export function RecordIndex<K extends string | number>({
     }
     if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
     event.preventDefault();
+    keepRecordListFocus(event, viewport.current);
+    if (!rows.length) return;
     const current = rows.findIndex((row) => row.key === selected);
     const next = nextRecordIndex(
       rows.length,

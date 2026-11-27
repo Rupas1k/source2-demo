@@ -1,5 +1,8 @@
 import { branchKind } from "./messageBranches";
-import { nextRecordIndex } from "../../workbench/recordNavigation";
+import {
+  keepRecordListFocus,
+  nextRecordIndex,
+} from "../../workbench/recordNavigation";
 import { SortLabel } from "../../workbench/FieldColumnHeader";
 import { MessageBranchRows } from "./MessageBranchRows";
 import { ChevronDown, ChevronRight } from "../../shared/components/Icons";
@@ -103,12 +106,10 @@ export function MessageList({
           activateMessage(selected);
           return;
         }
-        if (
-          !(wide ? results?.rows : localRows.length) ||
-          (event.key !== "ArrowUp" && event.key !== "ArrowDown")
-        )
-          return;
+        if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
         event.preventDefault();
+        keepRecordListFocus(event, viewport.current);
+        if (!(wide ? results?.rows : localRows.length)) return;
         if (wide) {
           void navigateWide(event.key === "ArrowDown");
           return;
