@@ -210,7 +210,7 @@ impl MessageInspector {
         let table = changes::table_changes(&self.file, command, child)
             .map_err(|error| JsError::new(&error))?;
         Ok(serde_json::to_string(
-            &(!table.rows.is_empty()).then_some((table.id, table.name)),
+            &(table.created || !table.rows.is_empty()).then_some((table.id, table.name)),
         )?)
     }
 

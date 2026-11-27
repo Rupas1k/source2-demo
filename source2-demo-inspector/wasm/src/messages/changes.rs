@@ -26,6 +26,7 @@ struct FieldChange {
 pub struct TableChange {
     pub id: i32,
     pub name: String,
+    pub created: bool,
     pub rows: Vec<StringTableRow>,
 }
 
@@ -150,6 +151,7 @@ impl EntityChanges {
 #[derive(Default)]
 struct StringTableChanges {
     packet: PacketTarget,
+    creating: bool,
     table: Option<TableChange>,
 }
 
@@ -162,6 +164,7 @@ impl StringTableChanges {
 
     #[on_message]
     fn track_packet_message(&mut self, id: u32) -> ObserverResult {
+        self.creating = id == SvcMessages::SvcCreateStringTable as u32;
         self.packet.track_message(matches!(
             SvcMessages::try_from(id as i32),
             Ok(SvcMessages::SvcCreateStringTable | SvcMessages::SvcUpdateStringTable)
@@ -180,6 +183,7 @@ impl StringTableChanges {
             self.table = Some(TableChange {
                 id: table.index(),
                 name: table.name().to_owned(),
+                created: self.creating,
                 rows: modified
                     .iter()
                     .map(|&index| table.get_row(index as usize).cloned())
