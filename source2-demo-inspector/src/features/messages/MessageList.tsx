@@ -132,9 +132,7 @@ export function MessageList({
         label={wide ? "Search replay messages" : "Filter messages at this tick"}
         placeholder={wide ? "Search replay…" : "Filter this tick…"}
         value={query}
-        matchCount={
-          wide ? results?.matches : term ? matchedCommands.hits.size : undefined
-        }
+        matchCount={!wide && term ? matchedCommands.hits.size : undefined}
         onChange={setQuery}
       >
         <FilterToggle
