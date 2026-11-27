@@ -25,8 +25,7 @@ export interface Query {
   term: string;
   wide: boolean;
   sort?: TableSort<"name" | "id" | "tick">;
-  packetsOpen: boolean;
-  fullPacketsOpen: boolean;
+  collapsedPackets: ReadonlySet<number>;
   revealedPacket?: number;
 }
 

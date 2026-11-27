@@ -14,10 +14,7 @@ type TableId =
 export type NestedMessageBranchKind =
   "entities" | "stringTables" | "gameEvents";
 export type MessageBranchKind =
-  | "packets"
-  | "fullPackets"
-  | NestedMessageBranchKind
-  | `full:${NestedMessageBranchKind}`;
+  NestedMessageBranchKind | `full:${NestedMessageBranchKind}`;
 
 interface InspectorPreferences {
   lastTab: ViewTab;

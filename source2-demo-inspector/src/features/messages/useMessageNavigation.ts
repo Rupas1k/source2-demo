@@ -55,13 +55,12 @@ export function useMessageNavigation({
   const setExpanded = useInspectorPreferences(
     (state) => state.setMessageExpanded,
   );
-  const packetsOpen = expansion.packets ?? true;
-  const fullPacketsOpen = expansion.fullPackets ?? true;
+  const [collapsedPackets, setCollapsedPackets] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
   const [revealedParent, setRevealedParent] = useState<number>();
   const revealedPacket =
-    (!packetsOpen || !fullPacketsOpen) && selected?.command === revealedParent
-      ? revealedParent
-      : undefined;
+    selected?.command === revealedParent ? revealedParent : undefined;
   const [reveal, setReveal] = useState<Entry>();
   const [query, setQuery] = useState("");
   const [fieldQuery, setFieldQuery] = useState("");
@@ -133,11 +132,10 @@ export function useMessageNavigation({
       term,
       wide,
       sort: messageSort,
-      packetsOpen,
-      fullPacketsOpen,
+      collapsedPackets,
       revealedPacket,
     }),
-    [term, wide, messageSort, packetsOpen, fullPacketsOpen, revealedPacket],
+    [term, wide, messageSort, collapsedPackets, revealedPacket],
   );
   const { results, updateVisible, wideEntry, start, end } = useMessageSearch(
     messageIndex,
@@ -200,12 +198,12 @@ export function useMessageNavigation({
             (entry) =>
               entry.child === null &&
               packets.has(entry.command) &&
-              ((isFullPacket(entry) ? fullPacketsOpen : packetsOpen) ||
+              (!collapsedPackets.has(entry.command) ||
                 entry.command === revealedPacket),
           )
           .map((entry) => entry.command),
       ),
-    [data.value, packets, packetsOpen, fullPacketsOpen, revealedPacket],
+    [data.value, packets, collapsedPackets, revealedPacket],
   );
 
   const localRows = useMemo(() => {
@@ -593,8 +591,7 @@ export function useMessageNavigation({
   }, [sourceJump, inspector]);
   function isPacketOpen(entry: Entry) {
     return (
-      (isFullPacket(entry) ? fullPacketsOpen : packetsOpen) ||
-      entry.command === revealedPacket
+      !collapsedPackets.has(entry.command) || entry.command === revealedPacket
     );
   }
 
@@ -605,11 +602,16 @@ export function useMessageNavigation({
   }
 
   function togglePacket(entry: Entry) {
-    const full = isFullPacket(entry);
-    const open = !isPacketOpen(entry);
-    setRevealedParent(undefined);
-    setExpanded(full ? "fullPackets" : "packets", open);
-    if (full && !open && selected && isFullPacket(selected))
+    const { command } = entry;
+    const closing = isPacketOpen(entry);
+    if (revealedParent === command) setRevealedParent(undefined);
+    setCollapsedPackets((previous) => {
+      const next = new Set(previous);
+      if (closing) next.add(command);
+      else next.delete(command);
+      return next;
+    });
+    if (closing && isFullPacket(entry) && selected?.command === command)
       selectPacketTable(undefined);
   }
   function revealBranch(entry: Entry, kind: NestedMessageBranchKind) {

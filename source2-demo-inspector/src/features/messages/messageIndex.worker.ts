@@ -111,14 +111,7 @@ function groupMatches() {
   return result;
 }
 
-function query({
-  term,
-  wide,
-  sort,
-  packetsOpen,
-  fullPacketsOpen,
-  revealedPacket,
-}: Query) {
+function query({ term, wide, sort, collapsedPackets, revealedPacket }: Query) {
   if (lastTerm !== term) indexMatches(term);
   rows = new Uint32Array();
   parents = [];
@@ -131,7 +124,7 @@ function query({
       (group, column) => group.parent[column],
     );
     const isOpen = ({ parent }: PacketGroup) =>
-      (isFullPacket(parent) ? fullPacketsOpen : packetsOpen) ||
+      !collapsedPackets.has(parent.command) ||
       parent.command === revealedPacket;
     const count = parents.reduce(
       (total, group) =>
