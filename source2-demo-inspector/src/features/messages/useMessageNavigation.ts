@@ -49,9 +49,9 @@ export function useMessageNavigation({
   const [manualPacketExpansion, setPacketExpansion] = useState<
     ReadonlyMap<number, boolean>
   >(() => new Map());
-  const [openBranches, setOpenBranches] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
+  const [branchExpansion, setBranchExpansion] = useState<
+    ReadonlyMap<string, boolean>
+  >(() => new Map());
   const [revealedParent, setRevealedParent] = useState<number>();
   const revealedPacket =
     selected?.command === revealedParent ? revealedParent : undefined;
@@ -407,6 +407,36 @@ export function useMessageNavigation({
     return () => cancelAnimationFrame(frame);
   });
 
+  function canExpandBranch(entry: Entry) {
+    const kind = branchKind(entry);
+    if (!kind) return false;
+    const key = messageKey(entry);
+    const branch =
+      kind === "entities"
+        ? entityChanges.results.get(key)
+        : kind === "stringTables"
+          ? stringTables.results.get(key)
+          : gameEvents.results.get(key);
+    if (branch) return branch.changes.length > 0 || !!branch.error;
+    if (key !== selectedKey) return true;
+    if (kind === "entities") return !selectedHasNoEntityEntries;
+    if (kind === "stringTables" && entry.child === null)
+      return snapshotTables(entry.name, details.value).length > 0;
+    return true;
+  }
+
+  const expandableMessages =
+    wide || term
+      ? []
+      : localRows.filter(
+          (entry) => entry.child !== null && canExpandBranch(entry),
+        );
+  const defaultEntityBranch =
+    expandableMessages.length === 1 &&
+    branchKind(expandableMessages[0]) === "entities"
+      ? messageKey(expandableMessages[0])
+      : undefined;
+
   function isBranchOpen(entry: Entry) {
     const key = messageKey(entry);
     if (isFullPacket(entry)) {
@@ -417,7 +447,7 @@ export function useMessageNavigation({
       return snapshotVisible && isPacketOpen(entry);
     }
     return (
-      openBranches.has(key) ||
+      (branchExpansion.get(key) ?? key === defaultEntityBranch) ||
       (selectedKey === key && revealedBranchKey === key)
     );
   }
@@ -650,12 +680,7 @@ export function useMessageNavigation({
   function toggleBranch(entry: Entry, kind: NestedMessageBranchKind) {
     const key = messageKey(entry);
     const open = !isBranchOpen(entry);
-    setOpenBranches((previous) => {
-      const next = new Set(previous);
-      if (open) next.add(key);
-      else next.delete(key);
-      return next;
-    });
+    setBranchExpansion((previous) => new Map(previous).set(key, open));
     if (open) {
       if (kind === "entities") entityChanges.load(entry);
       else if (kind === "stringTables") stringTables.load(entry);
@@ -746,8 +771,8 @@ export function useMessageNavigation({
       stringTables,
       gameEvents,
       isBranchOpen,
+      canExpandBranch,
       selectedKey,
-      selectedHasNoEntityEntries,
       details,
       entityFocus,
       tableFocus,

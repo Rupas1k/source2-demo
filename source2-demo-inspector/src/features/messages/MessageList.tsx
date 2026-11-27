@@ -10,7 +10,6 @@ import { VirtualRecordList } from "../../workbench/VirtualRecordList";
 import { FilterToggle, SearchBar } from "../../workbench/PaneControls";
 import { IndexHeading } from "../../workbench/SheetTable";
 import { messageKey } from "./useMessageBranch";
-import { snapshotTables } from "./packetStringTables";
 
 import { isFullPacket } from "./messageIndex";
 
@@ -63,8 +62,8 @@ export function MessageList({
   stringTables,
   gameEvents,
   isBranchOpen,
+  canExpandBranch,
   selectedKey,
-  selectedHasNoEntityEntries,
   details,
   entityFocus,
   tableFocus,
@@ -170,23 +169,7 @@ export function MessageList({
               : kind === "stringTables"
                 ? "Toggle string table changes"
                 : "Toggle game events";
-          const branch =
-            kind === "entities"
-              ? entityBranch
-              : kind === "stringTables"
-                ? tables
-                : events;
-          const canOpenBranch =
-            kind !== undefined &&
-            (branch
-              ? !!(branch.changes.length || branch.error)
-              : kind === "entities" && selectedKey === key
-                ? !selectedHasNoEntityEntries
-                : kind === "stringTables" &&
-                    entry.child === null &&
-                    selectedKey === key
-                  ? !!snapshotTables(entry.name, details.value).length
-                  : true);
+          const canOpenBranch = canExpandBranch(entry);
           const isSelected =
             selectedKey === key && !entityFocus && !tableFocus && !eventFocus;
           return (
