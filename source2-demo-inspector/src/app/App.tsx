@@ -1,4 +1,4 @@
-import { ArrowLeft, FolderOpen, X } from "../shared/components/Icons";
+import { ArrowLeft, FolderOpen, GitHub, X } from "../shared/components/Icons";
 import {
   useCallback,
   useEffect,
@@ -225,6 +225,16 @@ export default function App() {
                 <X size={14} />
               </button>
             )}
+            <a
+              className="header-icon-button"
+              href="https://github.com/Rupas1k/source2-demo"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="View source on GitHub"
+              title="View source on GitHub"
+            >
+              <GitHub size={15} />
+            </a>
           </div>
         </div>
         {headerError && (

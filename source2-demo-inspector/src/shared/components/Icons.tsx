@@ -28,6 +28,9 @@ export const FolderOpen = icon(
   "M3 19V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2M3 19l3-8h16l-3 8Z",
 );
 export const X = icon("m6 6 12 12M18 6 6 18");
+export const GitHub = icon(
+  "M9 19c-4.3 1.4-4.3-2.5-6-3m12 6v-3.9a3.4 3.4 0 0 0-.9-2.6c3-.3 6.2-1.5 6.2-6.8a5.3 5.3 0 0 0-1.4-3.7 4.9 4.9 0 0 0-.1-3.7s-1.1-.3-3.8 1.4a13 13 0 0 0-6.8 0C5.5 1 4.4 1.3 4.4 1.3a4.9 4.9 0 0 0-.1 3.7 5.3 5.3 0 0 0-1.4 3.7c0 5.3 3.2 6.5 6.2 6.8a3.4 3.4 0 0 0-.9 2.6V22",
+);
 export const ChevronLeft = icon("m15 6-6 6 6 6");
 export const ChevronRight = icon("m9 6 6 6-6 6");
 export const ChevronDown = icon("m6 9 6 6 6-6");
