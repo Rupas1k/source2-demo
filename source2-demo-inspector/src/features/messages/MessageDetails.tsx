@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PacketGameEventFields } from "./PacketGameEventFields";
 import { useTableSort } from "../../workbench/tableSort";
 import { SearchBar } from "../../workbench/PaneControls";
 import { SheetTable } from "../../workbench/SheetTable";
 import {
+  fieldExpansionDefaults,
   FieldRows,
   filterMessageFields,
   sortMessageFields,
@@ -32,11 +33,25 @@ export function MessageDetails({
   details,
 }: ReturnType<typeof useMessageNavigation>["detailsProps"]) {
   const fieldSort = useTableSort();
-  const [expandedFields, setExpandedFields] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
+  const [fieldExpansion, setFieldExpansion] = useState<
+    ReadonlyMap<string, boolean>
+  >(() => new Map());
   const fieldKey = (path: string) =>
     `${selected?.command}/${selected?.child}/${path}`;
+  const { expandablePaths, openByDefault } = useMemo(
+    () => fieldExpansionDefaults(details.value),
+    [details.value],
+  );
+  const isFieldOpen = (path: string) =>
+    fieldExpansion.get(fieldKey(path)) ?? openByDefault.has(path);
+  const allExpanded = expandablePaths.every(isFieldOpen);
+  function setFieldsOpen(paths: string[], open: boolean) {
+    setFieldExpansion((previous) => {
+      const next = new Map(previous);
+      for (const path of paths) next.set(fieldKey(path), open);
+      return next;
+    });
+  }
   return eventFocus ? (
     <PacketGameEventFields
       key={eventFocus.key + "/" + eventFocus.id}
@@ -75,7 +90,16 @@ export function MessageDetails({
         label="Filter fields"
         value={fieldQuery}
         onChange={setFieldQuery}
-      />
+      >
+        {expandablePaths.length > 0 && !fieldQuery.trim() && (
+          <button
+            type="button"
+            onClick={() => setFieldsOpen(expandablePaths, !allExpanded)}
+          >
+            {allExpanded ? "Collapse all" : "Expand all"}
+          </button>
+        )}
+      </SearchBar>
       <SheetTable
         tableId="message-fields"
         className="field-tree"
@@ -102,14 +126,8 @@ export function MessageDetails({
               fieldSort.sort?.direction
             }
             expansion={{
-              isOpen: (path) => expandedFields.has(fieldKey(path)),
-              setOpen: (path, open) =>
-                setExpandedFields((previous) => {
-                  const next = new Set(previous);
-                  if (open) next.add(fieldKey(path));
-                  else next.delete(fieldKey(path));
-                  return next;
-                }),
+              isOpen: isFieldOpen,
+              setOpen: (path, open) => setFieldsOpen([path], open),
             }}
             fields={sortMessageFields(
               filterMessageFields(details.value, fieldQuery),

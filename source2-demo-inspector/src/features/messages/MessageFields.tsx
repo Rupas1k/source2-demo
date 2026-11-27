@@ -10,6 +10,28 @@ export interface Field {
   openByDefault?: boolean;
 }
 
+function fieldPath(name: string, parent?: string) {
+  return parent ? `${parent}.${name}` : name;
+}
+
+export function fieldExpansionDefaults(fields: Field[]) {
+  const expandablePaths: string[] = [];
+  const openByDefault = new Set<string>();
+
+  function visit(siblings: Field[], parent?: string) {
+    const groups = siblings.filter((field) => field.children?.length);
+    for (const { name, children } of groups) {
+      const path = fieldPath(name, parent);
+      expandablePaths.push(path);
+      if (groups.length === 1) openByDefault.add(path);
+      if (children) visit(children, path);
+    }
+  }
+
+  visit(fields);
+  return { expandablePaths, openByDefault };
+}
+
 export function filterMessageFields(fields: Field[], query: string): Field[] {
   const term = query.trim().toLowerCase();
   if (!term) return fields;
@@ -139,15 +161,18 @@ export function FieldRows({
   const [limit, setLimit] = useState(128);
   return (
     <>
-      {fields.slice(0, limit).map((field, i) => (
-        <FieldRow
-          key={i}
-          field={field}
-          depth={depth}
-          expansion={expansion}
-          path={parentPath ? `${parentPath}.${field.name}` : field.name}
-        />
-      ))}
+      {fields.slice(0, limit).map((field) => {
+        const path = fieldPath(field.name, parentPath);
+        return (
+          <FieldRow
+            key={path}
+            field={field}
+            depth={depth}
+            expansion={expansion}
+            path={path}
+          />
+        );
+      })}
       {fields.length > limit && (
         <button className="record-row" onClick={() => setLimit(limit + 128)}>
           Show more fields
