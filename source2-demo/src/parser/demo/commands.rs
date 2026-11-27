@@ -5,8 +5,9 @@ use crate::parser::demo::DemoMessages;
 use crate::parser::Parser;
 use crate::proto::*;
 use crate::reader::*;
-use crate::HashMap;
+use crate::try_observers;
 use crate::StringTableRow;
+use crate::{HashMap, Interests};
 use std::rc::Rc;
 
 pub trait DemoCommands {
@@ -159,11 +160,15 @@ where
     }
 
     fn dem_packet(&mut self, packet: CDemoPacket) -> Result<(), ParserError> {
-        let mut packet_reader = SliceReader::new(packet.data());
-        while packet_reader.remaining_bytes() != 0 {
-            let msg_type = packet_reader.read_ubit_var() as i32;
-            let size = packet_reader.read_var_u32();
-            let msg_buf = packet_reader.read_bytes(size);
+        for frame in packet_messages(packet.data()) {
+            let frame = frame?;
+            let msg_type = frame.id as i32;
+            let msg_buf = frame.payload;
+            try_observers!(
+                self,
+                RAW_PACKET_MESSAGE,
+                on_raw_packet_message(&self.context, frame.id, &msg_buf)
+            )?;
 
             #[cfg(feature = "dota")]
             if let Ok(msg) = EDotaUserMessages::try_from(msg_type) {
@@ -204,9 +209,26 @@ where
     }
 
     fn dem_full_packet(&mut self, full_packet: CDemoFullPacket) -> Result<(), ParserError> {
-        if self.context.last_full_packet_tick == u32::MAX || self.skip_deltas {
-            self.dem_string_tables(full_packet.string_table.unwrap())?;
-            self.dem_packet(full_packet.packet.unwrap())?;
+        let inspect_snapshot = self.anyone_interested(Interests::FULL_PACKET_SNAPSHOTS)
+            && self
+                .observers
+                .iter()
+                .zip(&self.observer_masks)
+                .any(|(observer, mask)| {
+                    mask.contains(Interests::FULL_PACKET_SNAPSHOTS)
+                        && observer.wants_full_packet_snapshot(&self.context)
+                });
+        if inspect_snapshot {
+            self.context.entities = Default::default();
+            self.context.baselines.states.clear();
+        }
+        if inspect_snapshot || self.context.last_full_packet_tick == u32::MAX || self.skip_deltas {
+            if let Some(string_tables) = full_packet.string_table {
+                self.dem_string_tables(string_tables)?;
+            }
+            if let Some(packet) = full_packet.packet {
+                self.dem_packet(packet)?;
+            }
         }
 
         self.context.last_full_packet_tick = self.context.tick;

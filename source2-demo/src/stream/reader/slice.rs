@@ -1,3 +1,4 @@
+use crate::error::ParserError;
 use crate::stream::bits::BitsReader;
 use bitter::BitReader;
 
@@ -22,6 +23,23 @@ impl<'a> SliceReader<'a> {
             string_buffer: [0; 1024],
             source_offset: 0,
         }
+    }
+
+    pub(crate) fn read_packet_message_into(
+        &mut self,
+        payload: &mut Vec<u8>,
+    ) -> Result<Option<u32>, ParserError> {
+        if self.remaining_bytes() == 0 {
+            return Ok(None);
+        }
+
+        let id = self.read_ubit_var();
+        let size = self.read_var_u32();
+        if size as usize > self.remaining_bytes() {
+            return Err(ParserError::InvalidFrame("truncated packet message"));
+        }
+        self.read_bytes_into(size, payload);
+        Ok(Some(id))
     }
 
     #[inline]
@@ -62,20 +80,8 @@ impl<'a> SliceReader<'a> {
 
 impl<'a> BitsReader for SliceReader<'a> {
     #[inline]
-    #[cfg(not(feature = "unsafe"))]
     fn refill(&mut self) {
         self.bit_reader.refill_lookahead();
-    }
-
-    #[inline]
-    #[cfg(feature = "unsafe")]
-    fn refill(&mut self) {
-        #[cfg(debug_assertions)]
-        self.bit_reader.refill_lookahead();
-        #[cfg(not(debug_assertions))]
-        unsafe {
-            self.bit_reader.refill_lookahead_unchecked();
-        }
     }
 
     #[inline]
@@ -300,6 +306,11 @@ impl<'a> BitsReader for SliceReader<'a> {
     #[inline]
     fn remaining_bytes(&self) -> usize {
         self.bit_reader.bytes_remaining()
+    }
+
+    #[inline]
+    fn position(&self) -> usize {
+        self.source_buffer.len() - self.remaining_bytes()
     }
 
     #[inline]

@@ -399,6 +399,11 @@ impl<R: Read + Seek> BitsReader for SeekableReader<R> {
     }
 
     #[inline]
+    fn position(&self) -> usize {
+        self.bytes_read_total - self.lookahead_bit_count as usize / 8
+    }
+
+    #[inline]
     fn seek(&mut self, offset: usize) {
         if self
             .underlying_stream

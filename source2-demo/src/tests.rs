@@ -154,7 +154,8 @@ use crate::CombatLogEntry;
 use crate::{Entity, EntityEvents, FieldValue, GameEvent, StringTable};
 use bitter::{BitReader, LittleEndianReader};
 use source2_demo_macros::{
-    observer, on_message, rewrite_demo_message, rewrite_field, rewrite_packet_message, rewriter,
+    observer, on_game_event, on_message, rewrite_demo_message, rewrite_field,
+    rewrite_packet_message, rewriter, wants_full_packet_snapshot,
 };
 use std::io::Cursor;
 
@@ -347,6 +348,86 @@ fn normal_sign_bit_matches_reader_encoding() {
     }
 }
 
+// CS2 CBeam m_fWidth. Truncating kept a RoundUp marker bit the server never wrote.
+#[test]
+fn round_up_dropped_when_high_quantizes_exactly() {
+    use crate::entity::field::{Decode, FieldProperties, QuantizedFloatDecoder};
+
+    let decoder = QuantizedFloatDecoder::new(&FieldProperties {
+        encoder: None,
+        encoder_flags: 1 << 1, // RoundUp
+        bit_count: 10,
+        low_value: 0.0,
+        high_value: 102.3,
+    });
+
+    let mut bytes = Vec::new();
+    let mut writer = BitstreamWriter::new(&mut bytes);
+    writer.write_bits(10, 1023).unwrap();
+    writer.write_bits(6, 0b101010).unwrap();
+    writer.flush().unwrap();
+    drop(writer);
+
+    let mut reader = SliceReader::new(&bytes);
+    assert_eq!(decoder.decode(&mut reader), FieldValue::Float(102.3));
+    assert_eq!(reader.read_bits(6), 0b101010);
+}
+
+#[test]
+fn indexes_unknown_and_compressed_commands_without_decoding() {
+    use crate::reader::commands;
+    use std::borrow::Cow;
+
+    let mut file = b"PBDEMS2\0\0\0\0\0\0\0\0\0".to_vec();
+    file.extend([31, 4, 1, 42, 65, 5, 1, 255]);
+    let records = commands(&file).unwrap();
+    assert_eq!((records[0].id, records[0].tick), (31, 4));
+    assert!(matches!(records[0].payload(&file), Ok(Cow::Borrowed([42]))));
+    assert!(records[1].compressed);
+    assert_eq!(records[1].range, 23..24);
+    assert!(records[1].payload(&file).is_err());
+    assert!(commands(&file[..23]).is_err());
+}
+
+#[test]
+fn rejects_short_payloads() {
+    use crate::reader::packet_messages;
+
+    let mut bytes = Vec::new();
+    let mut writer = BitstreamWriter::new(&mut bytes);
+    writer.write_ubit_var(0).unwrap();
+    writer.write_bytes(&[2]).unwrap();
+    writer.flush().unwrap();
+    drop(writer);
+
+    let mut messages = packet_messages(&bytes);
+    assert!(matches!(
+        messages.next(),
+        Some(Err(ParserError::InvalidFrame("truncated packet message")))
+    ));
+    assert!(messages.next().is_none());
+}
+
+#[cfg(feature = "reflection")]
+#[test]
+fn namespaces_and_game_directories_select_the_field_schema() {
+    use crate::metadata::{MessageFamily, MessageSchema};
+
+    let schema = MessageSchema::new("/game/dota/").unwrap();
+    let command = schema.descriptor(MessageFamily::Command, 4).unwrap();
+    let packet = schema.descriptor(MessageFamily::Packet, 4).unwrap();
+    assert_eq!(command.name(), "CDemoSendTables");
+    assert!(packet.get_field_by_name("tick").is_some());
+    assert_eq!(
+        schema
+            .descriptor(MessageFamily::Packet, 554)
+            .unwrap()
+            .name(),
+        "CMsgDOTACombatLogEntry"
+    );
+    assert!(schema.descriptor(MessageFamily::Packet, u32::MAX).is_none());
+}
+
 #[test]
 fn demo_message_writer_emits_header_and_payload() {
     let payload = [0xAA, 0xBB, 0xCC];
@@ -484,6 +565,80 @@ fn demo_writer_demo_message_rewriter_can_drop_outer_messages() {
     );
 }
 
+struct DropDemoSyncTick;
+
+impl DemoRewriter for DropDemoSyncTick {
+    fn interests(&self) -> RewriteInterests {
+        RewriteInterests::DEMO_MESSAGE
+    }
+
+    fn rewrite_demo_message(
+        &mut self,
+        _ctx: &Context,
+        _tick: u32,
+        msg_type: EDemoCommands,
+        _payload: &[u8],
+    ) -> Result<MessageRewrite, ParserError> {
+        if msg_type == EDemoCommands::DemSyncTick {
+            Ok(MessageRewrite::Drop)
+        } else {
+            Ok(MessageRewrite::Keep)
+        }
+    }
+}
+
+#[test]
+fn demo_writer_updates_spawn_groups_header_offset() {
+    let replay = replay_with_messages(&[
+        (
+            EDemoCommands::DemFileInfo,
+            0,
+            CDemoFileInfo::default().encode_to_vec(),
+        ),
+        (EDemoCommands::DemSyncTick, 1, sync_payload()),
+        (EDemoCommands::DemSpawnGroups, 2, Vec::new()),
+    ]);
+    let mut replay = replay;
+    replay[12..16].copy_from_slice(&23_062_185_u32.to_le_bytes());
+    let parser = Parser::from_slice(&replay).unwrap();
+    let output = Cursor::new(Vec::new());
+    let mut writer = DemoWriter::new(parser, output);
+    writer.add_rewriter(DropDemoSyncTick);
+
+    writer.run().unwrap();
+    let (_, output) = writer.into_parts();
+    let output = output.into_inner();
+
+    let mut file_info_command = Vec::new();
+    write_demo_message(
+        &mut file_info_command,
+        EDemoCommands::DemFileInfo,
+        0,
+        &CDemoFileInfo::default().encode_to_vec(),
+    )
+    .unwrap();
+    let expected_offset = (16 + file_info_command.len()) as u32;
+    assert_eq!(
+        u32::from_le_bytes(output[12..16].try_into().unwrap()),
+        expected_offset
+    );
+    assert_ne!(expected_offset, 23_062_185);
+}
+
+#[test]
+fn demo_writer_clears_spawn_groups_header_offset_when_absent() {
+    let mut replay = minimal_replay();
+    replay[12..16].copy_from_slice(&23_062_185_u32.to_le_bytes());
+    let parser = Parser::from_slice(&replay).unwrap();
+    let output = Cursor::new(Vec::new());
+    let mut writer = DemoWriter::new(parser, output);
+
+    writer.run().unwrap();
+    let (_, output) = writer.into_parts();
+
+    assert_eq!(&output.into_inner()[12..16], &[0; 4]);
+}
+
 #[derive(Default)]
 struct TypedDemoMessageRewriter {
     file_info_seen: bool,
@@ -560,6 +715,31 @@ impl Observer for DemoLifecycleObserver {
         self.stops += 1;
         Ok(())
     }
+}
+
+#[test]
+fn parser_jump_to_zero_keeps_first_gameplay_tick_available() {
+    let replay = replay_with_playback_ticks(
+        20,
+        &[
+            (EDemoCommands::DemSyncTick, u32::MAX, sync_payload()),
+            (EDemoCommands::DemPacket, 2, demo_packet_payload(&[])),
+            (EDemoCommands::DemStop, 20, Vec::new()),
+        ],
+    );
+    let mut parser = Parser::from_reader(std::io::Cursor::new(replay)).unwrap();
+
+    parser.jump_to_tick(0).unwrap();
+    assert_eq!(parser.context().tick(), 0);
+    let start = parser.replay_position();
+
+    parser.run_to_tick(2).unwrap();
+    assert_eq!(parser.context().tick(), 2);
+    assert!(parser.replay_position() > start);
+
+    parser.jump_to_tick(0).unwrap();
+    assert_eq!(parser.context().tick(), 0);
+    assert_eq!(parser.replay_position(), start);
 }
 
 #[test]
@@ -759,11 +939,18 @@ fn parser_dispatches_packet_net_svc_base_and_dota_messages() {
 
 #[derive(Default)]
 struct RawMessageMacroObserver {
+    packet_ids: Vec<u32>,
     svc_messages: Vec<(SvcMessages, usize)>,
 }
 
 #[observer]
 impl RawMessageMacroObserver {
+    #[on_message]
+    fn raw_packet(&mut self, id: u32, _payload: &[u8]) -> ObserverResult {
+        self.packet_ids.push(id);
+        Ok(())
+    }
+
     #[on_message]
     fn raw_svc(&mut self, _ctx: &Context, msg_type: SvcMessages, payload: &[u8]) -> ObserverResult {
         self.svc_messages.push((msg_type, payload.len()));
@@ -783,7 +970,9 @@ fn observer_macro_can_receive_raw_message_payloads() {
 
     let packet_messages = vec![
         (SvcMessages::SvcServerInfo as i32, server_info.as_slice()),
+        (4095, &[1, 2][..]),
         (NetMessages::NetTick as i32, net_tick.as_slice()),
+        (4095, &[][..]),
     ];
     let replay = replay_with_playback_ticks(
         20,
@@ -801,10 +990,199 @@ fn observer_macro_can_receive_raw_message_payloads() {
 
     parser.run_to_end().unwrap();
 
+    let commands = crate::metadata::commands(&replay).unwrap();
+    let packet = commands.last().unwrap();
+    let data = crate::metadata::packet_data(packet.id, &packet.payload(&replay).unwrap())
+        .unwrap()
+        .unwrap();
+    let frames: Vec<_> = crate::metadata::packet_messages(&data)
+        .map(Result::unwrap)
+        .collect();
+    assert_eq!(
+        frames
+            .iter()
+            .map(|f| (f.id as i32, f.payload.as_slice()))
+            .collect::<Vec<_>>(),
+        packet_messages
+    );
+    assert_eq!(
+        observer.borrow().packet_ids,
+        frames.iter().map(|f| f.id).collect::<Vec<_>>()
+    );
     assert_eq!(
         observer.borrow().svc_messages,
         vec![(SvcMessages::SvcServerInfo, server_info.len())]
     );
+}
+
+#[cfg(feature = "entity-field-updates")]
+#[test]
+fn observer_macro_supports_gated_field_updates() {
+    struct CaptureFields(bool);
+
+    #[observer]
+    impl CaptureFields {
+        #[crate::wants_entity_field_updates]
+        fn capture(&self) -> bool {
+            self.0
+        }
+
+        #[crate::on_field_update]
+        fn record_writes(&mut self, _: &[crate::metadata::EntityFieldUpdate]) -> ObserverResult {
+            Ok(())
+        }
+    }
+
+    assert_eq!(
+        CaptureFields(false).interests(),
+        Interests::ENTITY_STATE | Interests::ENTITY_FIELD_UPDATES
+    );
+    assert!(!CaptureFields(false).wants_entity_field_updates());
+    assert!(CaptureFields(true).wants_entity_field_updates());
+}
+
+#[cfg(feature = "entity-field-updates")]
+#[test]
+fn observer_macro_filters_individual_field_updates() {
+    use crate::metadata::EntityFieldUpdate;
+    use crate::Class;
+
+    #[derive(Default)]
+    struct FieldObserver {
+        batch_sizes: Vec<usize>,
+        selected: Vec<String>,
+    }
+
+    #[observer]
+    impl FieldObserver {
+        #[crate::on_field_update]
+        fn batch(&mut self, writes: &[EntityFieldUpdate]) -> ObserverResult {
+            self.batch_sizes.push(writes.len());
+            Ok(())
+        }
+
+        #[crate::on_field_update(
+            class = starts_with("CPlayer"),
+            field = all(ends_with("Health"), not(contains("Max")))
+        )]
+        fn single(&mut self, write: &EntityFieldUpdate, _: &Entity) -> ObserverResult {
+            self.selected.push(write.name.clone());
+            Ok(())
+        }
+    }
+
+    let record = |name: &str| EntityFieldUpdate {
+        path: vec![0],
+        name: name.into(),
+        field_type: "int32".into(),
+        before: None,
+        after: FieldValue::Signed32(5),
+    };
+    let writes = [
+        record("m_iHealth"),
+        record("m_iMaxHealth"),
+        record("m_iMana"),
+        record("m_stats.m_iHealth"),
+    ];
+    let ctx = Context::new(CDemoFileInfo::default());
+    let entity = Entity {
+        class: Class::new(0, "CPlayerPawn".into(), Default::default()).into(),
+        ..Default::default()
+    };
+    let mut observer = FieldObserver::default();
+    observer
+        .on_entity_field_updates(&ctx, &Entity::default(), &writes)
+        .unwrap();
+    assert!(observer.selected.is_empty());
+    observer
+        .on_entity_field_updates(&ctx, &entity, &writes)
+        .unwrap();
+    assert_eq!(observer.batch_sizes, [4, 4]);
+    assert_eq!(observer.selected, ["m_iHealth", "m_stats.m_iHealth"]);
+}
+
+#[test]
+fn observer_macro_supports_custom_interests() {
+    struct SelectiveObserver(bool);
+
+    #[observer]
+    impl SelectiveObserver {
+        #[crate::observer_interests]
+        fn selected_interests(&self) -> Interests {
+            if self.0 {
+                Interests::RAW_PACKET_MESSAGE
+            } else {
+                Interests::empty()
+            }
+        }
+
+        #[on_message]
+        fn record_packet(&mut self, _: u32) -> ObserverResult {
+            Ok(())
+        }
+    }
+
+    assert!(SelectiveObserver(false).interests().is_empty());
+    assert_eq!(
+        SelectiveObserver(true).interests(),
+        Interests::RAW_PACKET_MESSAGE
+    );
+}
+
+#[test]
+fn selected_full_packet_snapshot_dispatches_embedded_messages() {
+    #[derive(Default)]
+    struct SnapshotObserver {
+        inspect_tick: Option<u32>,
+        message_ids: Vec<u32>,
+    }
+
+    #[observer]
+    impl SnapshotObserver {
+        #[wants_full_packet_snapshot]
+        fn inspect_snapshot(&self, ctx: &Context) -> bool {
+            self.inspect_tick == Some(ctx.tick())
+        }
+
+        #[on_message]
+        fn record_packet_message(&mut self, id: u32) -> ObserverResult {
+            self.message_ids.push(id);
+            Ok(())
+        }
+    }
+
+    let full_packet = |id| {
+        crate::proto::CDemoFullPacket {
+            string_table: None,
+            packet: Some(CDemoPacket {
+                data: Some(packet_data(&[(id, &[])])),
+            }),
+        }
+        .encode_to_vec()
+    };
+    let replay = replay_with_playback_ticks(
+        20,
+        &[
+            (EDemoCommands::DemSyncTick, 0, sync_payload()),
+            (EDemoCommands::DemFullPacket, 5, full_packet(4094)),
+            (EDemoCommands::DemFullPacket, 10, full_packet(4095)),
+        ],
+    );
+
+    for inspect_tick in [None, Some(10)] {
+        let mut parser = Parser::from_slice(&replay).unwrap();
+        let observer = parser.add_observer(SnapshotObserver {
+            inspect_tick,
+            ..Default::default()
+        });
+        parser.run_to_end().unwrap();
+        let expected: &[u32] = if inspect_tick.is_some() {
+            &[4094, 4095]
+        } else {
+            &[4094]
+        };
+        assert_eq!(observer.borrow().message_ids, expected);
+    }
 }
 
 #[derive(Default)]
@@ -926,12 +1304,10 @@ struct StringGameEventObserver {
     values: Vec<String>,
 }
 
-impl Observer for StringGameEventObserver {
-    fn interests(&self) -> Interests {
-        Interests::BASE_GAME_EVENT
-    }
-
-    fn on_game_event(&mut self, _ctx: &Context, ge: &GameEvent) -> ObserverResult {
+#[observer]
+impl StringGameEventObserver {
+    #[on_game_event]
+    fn record_reason(&mut self, ge: &GameEvent) -> ObserverResult {
         let value: String = ge.get_value("reason")?.try_into()?;
         self.values.push(value);
         Ok(())

@@ -8,7 +8,7 @@ use crate::proto::{
 use crate::reader::{BitsReader, MessageReader};
 use crate::string_table::{
     rewrite_create_string_table, rewrite_demo_string_table_items, rewrite_update_string_table,
-    PackedStringTableFormat, PackedStringTableState, StringTableEntryUpdate,
+    PackedStringTableFormat, PackedStringTableState, StringTableEntryUpdate, DECAL_PRECACHE_TABLE,
 };
 use std::io::{Seek, Write};
 
@@ -59,6 +59,11 @@ where
         }
 
         let table_id = self.string_table_rewrite.len();
+        if table_name == DECAL_PRECACHE_TABLE {
+            // Keep table IDs aligned while leaving the packed entries untouched.
+            self.ensure_string_table_rewrite_state(table_id);
+            return Ok(false);
+        }
         let mut state =
             PackedStringTableState::new(PackedStringTableFormat::from_create_message(msg));
 
@@ -86,6 +91,9 @@ where
         let Some(table) = self.parser.context.string_tables.tables.get(table_id) else {
             return Ok(false);
         };
+        if table.name() == DECAL_PRECACHE_TABLE {
+            return Ok(false);
+        }
         let table_name = table.name().to_string();
         let rewrite_baselines =
             table_name == INSTANCE_BASELINE_TABLE && self.rewrites_entity_fields();

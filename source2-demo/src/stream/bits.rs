@@ -22,6 +22,7 @@ pub trait BitsReader {
     fn read_angle(&mut self, n: u32) -> f32;
     fn read_bits_as_bytes(&mut self, n: u32) -> Vec<u8>;
     fn remaining_bytes(&self) -> usize;
+    fn position(&self) -> usize;
     fn seek(&mut self, offset: usize);
 }
 

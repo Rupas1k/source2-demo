@@ -1716,6 +1716,11 @@ pub struct CMsgSortItems {
     pub sort_type: ::core::option::Option<u32>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CMsgDeleteItem {
+    #[prost(uint64, optional, tag = "1")]
+    pub item_id: ::core::option::Option<u64>,
+}
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CMsgItemAcknowledged {
     #[prost(uint32, optional, tag = "1")]
     pub account_id: ::core::option::Option<u32>,
@@ -2459,6 +2464,7 @@ pub enum ENetworkDisconnectionReason {
     NetworkDisconnectRemoteCertnottrusted = 83,
     NetworkDisconnectUnusual = 84,
     NetworkDisconnectInternalError = 85,
+    NetworkDisconnectSteamGroupmembership = 86,
     NetworkDisconnectRejectBadchallenge = 128,
     NetworkDisconnectRejectNolobby = 129,
     NetworkDisconnectRejectBackgroundMap = 130,
@@ -2888,6 +2894,7 @@ pub enum SpawnGroupFlagsT {
     SpawnGroupBlockUntilLoaded = 64,
     SpawnGroupLoadStreamingData = 128,
     SpawnGroupCreateNewSceneWorld = 256,
+    SpawnGroupDontSaveRestore = 512,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CMsgVDebugGameSessionIdEvent {
@@ -2933,6 +2940,15 @@ pub struct CMsgPlaceDecalEvent {
 pub struct CMsgClearWorldDecalsEvent {
     #[prost(uint32, optional, tag = "1")]
     pub flagstoclear: ::core::option::Option<u32>,
+}
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CMsgMoveWorldDecalsEvent {
+    #[prost(message, optional, tag = "1")]
+    pub mins: ::core::option::Option<CMsgVector>,
+    #[prost(message, optional, tag = "2")]
+    pub maxs: ::core::option::Option<CMsgVector>,
+    #[prost(message, optional, tag = "3")]
+    pub offset: ::core::option::Option<CMsgVector>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CMsgClearEntityDecalsEvent {
@@ -3099,6 +3115,7 @@ pub enum EBaseGameEvents {
     GeSosStopSoundEventHash = 212,
     GeClothStiffenAnimEvent = 213,
     GeClothEffectAnimEvent = 214,
+    GeMoveWorldDecalsEvent = 215,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CMsgSource2SystemSpecs {
@@ -3110,6 +3127,12 @@ pub struct CMsgSource2SystemSpecs {
     pub cpu_model: ::core::option::Option<u32>,
     #[prost(uint32, optional, tag = "4")]
     pub cpu_num_physical: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "5")]
+    pub cpu_num_logical: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "6")]
+    pub cpu_num_performance: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "7")]
+    pub cpu_num_efficiency: ::core::option::Option<u32>,
     #[prost(uint32, optional, tag = "21")]
     pub ram_physical_total_mb: ::core::option::Option<u32>,
     #[prost(string, optional, tag = "41")]
@@ -3130,6 +3153,8 @@ pub struct CMsgSource2SystemSpecs {
     pub backbuffer_width: ::core::option::Option<u32>,
     #[prost(uint32, optional, tag = "52")]
     pub backbuffer_height: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "61")]
+    pub thread_pool_workers: ::core::option::Option<u32>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CMsgSource2VProfLiteReportItem {
@@ -3976,8 +4001,6 @@ pub struct CSvcMsgCreateStringTable {
     pub flags: ::core::option::Option<i32>,
     #[prost(bytes = "vec", optional, tag = "7")]
     pub string_data: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
-    #[prost(int32, optional, tag = "8")]
-    pub uncompressed_size: ::core::option::Option<i32>,
     #[prost(bool, optional, tag = "9")]
     pub data_compressed: ::core::option::Option<bool>,
     #[prost(bool, optional, tag = "10")]
@@ -4907,6 +4930,8 @@ pub struct CUserMsgParticleManager {
     pub create_smoke_grid: ::core::option::Option<c_user_msg_particle_manager::CreateSmokeGrid>,
     #[prost(message, optional, tag = "44")]
     pub set_override_texture: ::core::option::Option<c_user_msg_particle_manager::SetOverrideTexture>,
+    #[prost(message, optional, tag = "45")]
+    pub set_control_point_client_snapshot: ::core::option::Option<c_user_msg_particle_manager::SetControlPointClientSnapshot>,
 }
 pub mod c_user_msg_particle_manager {
     #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
@@ -5105,6 +5130,13 @@ pub mod c_user_msg_particle_manager {
         #[prost(string, optional, tag = "1")]
         pub texture_name: ::core::option::Option<::prost::alloc::string::String>,
     }
+    #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
+    pub struct SetControlPointClientSnapshot {
+        #[prost(int32, optional, tag = "1")]
+        pub control_point: ::core::option::Option<i32>,
+        #[prost(string, optional, tag = "2")]
+        pub snapshot_name: ::core::option::Option<::prost::alloc::string::String>,
+    }
     #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
     pub struct SetSceneObjectGenericFlag {
         #[prost(bool, optional, tag = "1")]
@@ -5206,6 +5238,8 @@ pub mod c_user_msg_particle_manager {
         pub use_high_quality_simulation: ::core::option::Option<bool>,
         #[prost(uint32, optional, tag = "3")]
         pub max_particle_count: ::core::option::Option<u32>,
+        #[prost(bool, optional, tag = "4")]
+        pub reuse_existing_sims: ::core::option::Option<bool>,
     }
     #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
     pub struct DestroyPhysicsSim {}
@@ -5722,6 +5756,13 @@ pub mod c_user_message_remote_server_response {
         EResultCommandNotAllowed = 5,
     }
 }
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CUserMessageEntitySpawnGroupChanged {
+    #[prost(uint32, optional, tag = "1")]
+    pub spawn_group_handle: ::core::option::Option<u32>,
+    #[prost(uint32, repeated, packed = "false", tag = "2")]
+    pub entity_handles: ::prost::alloc::vec::Vec<u32>,
+}
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum EBaseUserMessages {
@@ -5777,6 +5818,7 @@ pub enum EBaseUserMessages {
     UmUsageReport = 168,
     UmRemoteServerCommand = 169,
     UmRemoteServerResponse = 170,
+    UmEntitySpawnGroupChanged = 171,
     UmMaxBase = 200,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -5842,6 +5884,7 @@ pub enum ParticleMessage {
     GameParticleManagerEventRemoveFan = 39,
     GameParticleManagerEventCreateSmokeGrid = 40,
     GameParticleManagerEventSetOverrideTexture = 41,
+    GameParticleManagerEventSetControlPointClientSnapshot = 42,
 }
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]

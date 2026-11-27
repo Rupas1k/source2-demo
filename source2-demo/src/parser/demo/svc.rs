@@ -1,8 +1,12 @@
 use crate::entity::field::*;
 use crate::entity::*;
 use crate::error::ParserError;
+#[cfg(feature = "entity-field-updates")]
+use crate::metadata::EntityFieldUpdate;
 use crate::proto::*;
 use crate::reader::*;
+#[cfg(feature = "entity-field-updates")]
+use crate::Interests;
 use crate::{try_observers, Parser, StringTable};
 use std::cell::RefCell;
 
@@ -205,6 +209,9 @@ where
         entity.class = class.clone();
         entity.state = entity_baseline;
 
+        #[cfg(feature = "entity-field-updates")]
+        self.read_entity_fields(reader, index)?;
+        #[cfg(not(feature = "entity-field-updates"))]
         self.field_reader
             .read_fields(reader, &entity.class.serializer, &mut entity.state);
 
@@ -226,10 +233,14 @@ where
         reader: &mut SliceReader,
         index: usize,
     ) -> Result<(), ParserError> {
-        let entity = &mut self.context.entities.entities_vec[index];
-
-        self.field_reader
-            .read_fields(reader, &entity.class.serializer, &mut entity.state);
+        #[cfg(feature = "entity-field-updates")]
+        self.read_entity_fields(reader, index)?;
+        #[cfg(not(feature = "entity-field-updates"))]
+        {
+            let entity = &mut self.context.entities.entities_vec[index];
+            self.field_reader
+                .read_fields(reader, &entity.class.serializer, &mut entity.state);
+        }
 
         try_observers!(
             self,
@@ -257,6 +268,63 @@ where
 
         self.context.entities.entities_vec[index].index = u32::MAX;
 
+        Ok(())
+    }
+}
+
+#[cfg(feature = "entity-field-updates")]
+impl<'a, R> Parser<'a, R>
+where
+    R: BitsReader + MessageReader,
+{
+    fn read_entity_fields(
+        &mut self,
+        reader: &mut SliceReader,
+        index: usize,
+    ) -> Result<(), ParserError> {
+        let capture = self.anyone_interested(Interests::ENTITY_FIELD_UPDATES)
+            && self
+                .observers
+                .iter()
+                .zip(&self.observer_masks)
+                .any(|(observer, mask)| {
+                    mask.contains(Interests::ENTITY_FIELD_UPDATES)
+                        && observer.wants_entity_field_updates()
+                });
+        let entity = &mut self.context.entities.entities_vec[index];
+        let serializer = &entity.class.serializer;
+        if !capture {
+            self.field_reader
+                .read_fields(reader, serializer, &mut entity.state);
+            return Ok(());
+        }
+
+        let mut updates = Vec::new();
+        self.field_reader.read_fields_with(
+            reader,
+            serializer,
+            &mut entity.state,
+            |path, state, value| {
+                updates.push(EntityFieldUpdate {
+                    path: path.path[..=path.last].to_vec(),
+                    name: serializer.get_name(path).to_string(),
+                    field_type: serializer.get_type(path).to_string(),
+                    before: state.get_value(path).cloned(),
+                    after: value.clone(),
+                });
+            },
+        );
+        for (observer, mask) in self.observers.iter_mut().zip(&self.observer_masks) {
+            if mask.contains(Interests::ENTITY_FIELD_UPDATES)
+                && observer.wants_entity_field_updates()
+            {
+                observer.on_entity_field_updates(
+                    &self.context,
+                    &self.context.entities.entities_vec[index],
+                    &updates,
+                )?;
+            }
+        }
         Ok(())
     }
 }

@@ -1,4 +1,5 @@
 pub(crate) mod field;
+mod framing;
 mod msg;
 mod seekable;
 mod slice;
@@ -13,3 +14,6 @@ pub use seekable::SeekableReader;
 pub use slice::SliceReader;
 
 pub(crate) use field::*;
+
+pub use framing::{commands, packet_data, packet_messages, Command, PacketMessage};
+pub(crate) use msg::{read_raw_command, RawDemoMessage};

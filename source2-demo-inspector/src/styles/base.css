@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+:root {
+  --field-disclosure-width: 16px;
+  --activity-created: light-dark(#2f7855, #7cd2a5);
+  --activity-deleted: light-dark(#a44747, #ffa2a2);
+  --hover: rgb(var(--fg) / 0.08);
+  --active-hover: color-mix(in srgb, var(--active), rgb(var(--fg)) 6%);
+}
+.light {
+  color-scheme: light;
+  --bg: 255 255 255;
+  --fg: 35 40 47;
+  --fg-subtle: 85 94 104;
+  --chrome: #eff1f3;
+  --rail: #f6f7f8;
+  --line: #cfd4da;
+  --active: #e0eafb;
+  --accent: #305c99;
+}
+.dark {
+  color-scheme: dark;
+  --bg: 27 30 35;
+  --fg: 223 226 231;
+  --fg-subtle: 163 172 181;
+  --chrome: #292d33;
+  --rail: #22262b;
+  --line: #40464e;
+  --active: #304057;
+  --accent: #abcafa;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: rgb(var(--bg));
+  color: rgb(var(--fg));
+  font:
+    14px/1.4 system-ui,
+    sans-serif;
+}
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+button:where(:enabled) {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+button:not(:disabled):hover,
+.record-row__selectable:hover {
+  background-color: var(--hover);
+}
+input,
+select,
+button,
+textarea,
+code,
+kbd {
+  font-family: inherit;
+}

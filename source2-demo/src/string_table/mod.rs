@@ -82,6 +82,8 @@ use crate::reader::{BitsReader, SliceReader};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+pub(crate) const DECAL_PRECACHE_TABLE: &str = "decalprecache";
+
 /// A string table containing key-value pairs.
 ///
 /// String tables store game data in a table format where each row has a key
@@ -228,7 +230,7 @@ impl StringTable {
 
         let mut modified = vec![];
 
-        if self.name == "decalprecache" {
+        if self.name == DECAL_PRECACHE_TABLE {
             return Ok(modified);
         }
 

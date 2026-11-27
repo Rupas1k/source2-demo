@@ -42,6 +42,10 @@ pub enum ParserError {
     #[error(transparent)]
     ProtobufDecode(#[from] crate::proto::prost::DecodeError),
 
+    /// An outer command or inner packet frame is malformed.
+    #[error("Invalid replay frame: {0}")]
+    InvalidFrame(&'static str),
+
     /// Unknown enum value in protobuf
     #[error(transparent)]
     UnknownEnumValue(#[from] crate::proto::prost::UnknownEnumValue),

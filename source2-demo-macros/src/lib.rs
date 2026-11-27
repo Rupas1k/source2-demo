@@ -215,6 +215,7 @@
 //! - **Game-Specific Messages**: Use `#[on_message]` with Dota 2, Deadlock, or
 //!   CS2 protobuf message types
 
+mod field_filter;
 mod observer_impl;
 mod protobuf_map;
 mod rewriter_impl;
@@ -591,6 +592,10 @@ pub fn rewriter(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// ```
 ///
 /// ## Handle raw messages
+///
+/// Use a `u32` message type to observe every processed packet
+/// message before typed dispatch, including unknown numeric IDs. Take `&[u8]`
+/// when the handler needs the payload.
 ///
 /// ```no_run
 /// # use source2_demo::prelude::*;
@@ -1024,6 +1029,44 @@ pub fn on_tick_end(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_attribute]
 pub fn on_entity(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+/// Receives decoded entity field writes when `entity-field-updates` is enabled.
+///
+/// Use `&[EntityFieldUpdate]` for an unfiltered batch or `&EntityFieldUpdate` for one call per write.
+/// Both forms may take `&Context` and `&Entity` and return `ObserverResult`.
+///
+/// The per-write form accepts `class` and `field` filters with the same string
+/// literals and predicates as [`rewrite_field`]. The filters match the class name
+/// and dotted field name. They apply to callbacks after field writes are captured.
+#[cfg(feature = "entity-field-updates")]
+#[proc_macro_attribute]
+pub fn on_field_update(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+/// Selects which full packets to decode as fresh entity snapshots.
+/// The predicate takes `&self` and optionally `&Context`, and returns `bool`.
+/// Adds the full packet snapshot interest. Use a dedicated parser for snapshots.
+#[proc_macro_attribute]
+pub fn wants_full_packet_snapshot(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+/// Controls when to capture field writes for `#[on_field_update]`.
+/// The predicate takes `&self` and returns `bool`. Capture defaults to enabled.
+#[cfg(feature = "entity-field-updates")]
+#[proc_macro_attribute]
+pub fn wants_entity_field_updates(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+/// Supplies the observer's complete interest mask from a method taking `&self`
+/// and returning `Interests`. This replaces the mask inferred by `#[observer]`.
+/// The parser reads the mask when the observer is added.
+#[proc_macro_attribute]
+pub fn observer_interests(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 

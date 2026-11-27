@@ -157,6 +157,7 @@ enum ECitadelGameMode {
 	k_ECitadelGameMode_StreetBrawl = 4;
 	k_ECitadelGameMode_ExploreNYC = 5;
 	k_ECitadelGameMode_Internal = 6;
+	k_ECitadelGameMode_Internal02 = 7;
 }
 
 enum ELobbyServerState {
@@ -263,6 +264,7 @@ message CSOCitadelHideoutLobby {
 		optional uint32 account_id = 1;
 		optional bool hideout_holiday_award_2024 = 30;
 		optional bool hideout_holiday_award_2025 = 32;
+		optional uint32 ranked_season_1_season_rank = 33 [boxed_type = "PackedRank_t"];
 	}
 
 	enum EServerStatus {
@@ -380,6 +382,7 @@ message CSOCitadelParty {
 		optional uint32 rank_display_badge = 3 [boxed_type = "PackedRank_t"];
 		repeated uint32 unlocked_heroes = 5 [boxed_type = "HeroID_t"];
 		optional bool in_calibration = 6;
+		optional uint32 max_rank_display_badge = 7 [boxed_type = "PackedRank_t"];
 	}
 
 	message Member {
@@ -439,7 +442,6 @@ message CSOCitadelParty {
 	optional .ECitadelGameMode game_mode = 10 [default = k_ECitadelGameMode_Invalid];
 	optional uint32 match_making_start_time = 11;
 	optional string server_search_key = 12;
-	optional bool is_high_skill_range_party = 13;
 	optional .CSOCitadelParty.EChatMode chat_mode = 14 [default = k_eNone];
 	optional .ECitadelRegionMode region_mode = 15 [default = k_ECitadelRegionMode_ROW];
 	optional bool is_private_lobby = 16;
@@ -523,6 +525,8 @@ message CMsgMatchPlayerDamageMatrix {
 		k_eType_Mitigated = 3;
 		k_eType_LethalDamage = 4;
 		k_eType_Regen = 5;
+		k_eType_CrowdControl = 6;
+		k_eType_MitigatedBySource = 7;
 	}
 
 	repeated .CMsgMatchPlayerDamageMatrix.DamageDealer damage_dealers = 1;

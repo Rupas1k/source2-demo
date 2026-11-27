@@ -1,3 +1,4 @@
+use crate::field_filter::{parse_field_filters, string_predicate};
 use crate::protobuf_map::get_enum_from_struct;
 #[cfg(any(feature = "dota", feature = "citadel"))]
 use crate::type_utils::is_combat_log_type;
@@ -53,6 +54,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     }
 
     let mut has_demo = false;
+    let mut has_raw_packet = false;
     let mut has_net = false;
     let mut has_svc = false;
     let mut has_base_um = false;
@@ -61,6 +63,8 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     let mut has_tick_end = false;
     let mut has_entity = false;
     let mut has_entity_track = false;
+    let mut has_entity_field_updates = false;
+    let mut has_game_event = false;
     let mut has_string_table = false;
     let mut has_string_table_track = false;
     let mut has_stop = false;
@@ -100,6 +104,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     let mut on_cs2_game_event_body = quote!();
 
     let mut on_svc_message_body = quote!();
+    let mut on_raw_packet_body = quote!();
     let mut on_net_message_body = quote!();
     let mut on_base_game_event_body = quote!();
     let mut on_demo_command_body = quote!();
@@ -107,6 +112,10 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     let mut on_tick_start_body = quote!();
     let mut on_tick_end_body = quote!();
     let mut on_entity_body = quote!();
+    let mut on_entity_field_updates_body = quote!();
+    let mut full_packet_snapshot = None;
+    let mut entity_field_updates = None;
+    let mut interests_override = None;
     let mut on_game_event_body = quote!();
     let mut on_string_table_body = quote!();
     let mut on_stop_body = quote!();
@@ -216,22 +225,54 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
                                 Err(error) => errors.extend(error.to_compile_error()),
                             }
                         }
-                        "on_game_event" => match observer_game_event_args(method) {
-                            Ok(args) => {
-                                on_game_event_body.extend(if let Ok(event_name) = attr.parse_args::<syn::LitStr>() {
-                                    quote! {
-                                        if ge.name() == #event_name {
+                        "on_field_update" | "wants_entity_field_updates" if !cfg!(feature = "entity-field-updates") => {
+                            errors.extend(
+                                syn::Error::new_spanned(attr, "field update observers require the entity-field-updates feature").to_compile_error(),
+                            );
+                        }
+                        "observer_interests" | "wants_full_packet_snapshot" | "wants_entity_field_updates" => {
+                            let name = segment.ident.to_string();
+                            let (handler, args) = match name.as_str() {
+                                "observer_interests" => (&mut interests_override, observer_no_args(method, &name)),
+                                "wants_full_packet_snapshot" => {
+                                    (&mut full_packet_snapshot, observer_context_args(method, "#[wants_full_packet_snapshot]"))
+                                }
+                                _ => (&mut entity_field_updates, observer_no_args(method, &name)),
+                            };
+                            match args {
+                                Ok(args) if handler.is_none() => *handler = Some(quote! { self.#method_name(#args) }),
+                                Ok(_) => {
+                                    errors.extend(syn::Error::new_spanned(attr, format!("only one #[{name}] handler is allowed")).to_compile_error())
+                                }
+                                Err(error) => errors.extend(error.to_compile_error()),
+                            }
+                        }
+                        "on_field_update" => {
+                            has_entity_field_updates = true;
+                            match observer_field_update_body(attr, method) {
+                                Ok(body) => on_entity_field_updates_body.extend(body),
+                                Err(error) => errors.extend(error.to_compile_error()),
+                            }
+                        }
+                        "on_game_event" => {
+                            has_game_event = true;
+                            match observer_game_event_args(method) {
+                                Ok(args) => {
+                                    on_game_event_body.extend(if let Ok(event_name) = attr.parse_args::<syn::LitStr>() {
+                                        quote! {
+                                            if ge.name() == #event_name {
+                                                self.#method_name(#args)?;
+                                            }
+                                        }
+                                    } else {
+                                        quote! {
                                             self.#method_name(#args)?;
                                         }
-                                    }
-                                } else {
-                                    quote! {
-                                        self.#method_name(#args)?;
-                                    }
-                                });
+                                    });
+                                }
+                                Err(error) => errors.extend(error.to_compile_error()),
                             }
-                            Err(error) => errors.extend(error.to_compile_error()),
-                        },
+                        }
                         "on_string_table" => {
                             has_string_table = true;
                             has_string_table_track = true;
@@ -327,6 +368,10 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
                                 }
 
                                 let known_message_root = match root.as_str() {
+                                    "u32" => {
+                                        has_raw_packet = true;
+                                        true
+                                    }
                                     "EDemoCommands" => {
                                         has_demo = true;
                                         true
@@ -380,6 +425,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
                                 }
 
                                 match root.as_str() {
+                                    "u32" => extend!(on_raw_packet_body),
                                     "EDemoCommands" => extend!(on_demo_command_body),
                                     "EBaseUserMessages" => extend!(on_base_user_message_body),
                                     "EBaseGameEvents" => extend!(on_base_game_event_body),
@@ -428,6 +474,11 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
             msg: &[u8],
         ) -> ObserverResult {
             #on_svc_message_body
+            Ok(())
+        }
+
+        fn on_raw_packet_message(&mut self, ctx: &Context, msg_type: u32, msg: &[u8]) -> ObserverResult {
+            #on_raw_packet_body
             Ok(())
         }
 
@@ -592,6 +643,34 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
         }
     });
 
+    if let Some(handler) = &full_packet_snapshot {
+        obs_body.extend(quote! {
+            fn wants_full_packet_snapshot(&self, ctx: &::source2_demo::Context) -> bool {
+                #handler
+            }
+        });
+    }
+    if let Some(handler) = entity_field_updates {
+        obs_body.extend(quote! {
+            fn wants_entity_field_updates(&self) -> bool {
+                #handler
+            }
+        });
+    }
+    if has_entity_field_updates {
+        obs_body.extend(quote! {
+            fn on_entity_field_updates(
+                &mut self,
+                ctx: &::source2_demo::Context,
+                entity: &::source2_demo::Entity,
+                updates: &[::source2_demo::metadata::EntityFieldUpdate],
+            ) -> ::source2_demo::ObserverResult {
+                #on_entity_field_updates_body
+                Ok(())
+            }
+        });
+    }
+
     macro_rules! add_if { ($cond:expr, $flag:ident) => {
         if $cond { interests = quote!(#interests | ::source2_demo::Interests::$flag); }
     }}
@@ -600,14 +679,17 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
         interests = quote!(::source2_demo::Interests::all());
     }
 
+    add_if!(has_raw_packet, RAW_PACKET_MESSAGE);
     add_if!(has_demo, DEMO_MESSAGE);
     add_if!(has_net, NET_MESSAGE);
     add_if!(has_svc, SVC_MESSAGE);
     add_if!(has_base_um, BASE_USER_MESSAGE);
-    add_if!(has_base_ge, BASE_GAME_EVENT);
+    add_if!(has_base_ge || has_game_event, BASE_GAME_EVENT);
     add_if!(has_tick_start, TICK_START);
     add_if!(has_tick_end, TICK_END);
-    add_if!(has_entity, ENTITY_STATE);
+    add_if!(has_entity || has_entity_field_updates, ENTITY_STATE);
+    add_if!(has_entity_field_updates, ENTITY_FIELD_UPDATES);
+    add_if!(full_packet_snapshot.is_some(), FULL_PACKET_SNAPSHOTS);
     add_if!(has_entity_track, ENTITY_EVENTS);
     add_if!(has_string_table, STRING_TABLE_STATE);
     add_if!(has_string_table_track, STRING_TABLE_ENTRIES);
@@ -630,6 +712,7 @@ pub(crate) fn expand_observer(attr: TokenStream, item: TokenStream) -> TokenStre
     #[cfg(feature = "cs2")]
     add_if!(has_cs2_ge, CS2_GAME_EVENT);
 
+    let interests = interests_override.unwrap_or(interests);
     let ret = quote! {
         impl Observer for #struct_name {
             fn interests(&self) -> ::source2_demo::Interests { #interests }
@@ -695,6 +778,91 @@ fn observer_context_args(method: &syn::ImplItemFn, attr_name: &str) -> syn::Resu
         }
     }
     Ok(quote! { #(#args),* })
+}
+
+fn observer_no_args(method: &syn::ImplItemFn, attr_name: &str) -> syn::Result<proc_macro2::TokenStream> {
+    if let Some(arg) = method.sig.inputs.iter().nth(1) {
+        return Err(syn::Error::new_spanned(arg, format!("#[{attr_name}] takes only `&self`")));
+    }
+    Ok(quote! {})
+}
+
+fn observer_field_update_body(attr: &syn::Attribute, method: &syn::ImplItemFn) -> syn::Result<proc_macro2::TokenStream> {
+    let (class, field) = parse_field_filters(attr)?;
+    let mut args = Vec::new();
+    let mut per_write = None;
+    for input in method.sig.inputs.iter().skip(1) {
+        let FnArg::Typed(pat_type) = input else {
+            continue;
+        };
+        let type_string = stringify_type(pat_type.ty.as_ref());
+        let arg = if is_context_type(&type_string) {
+            quote! { ctx }
+        } else if is_entity_type(&type_string) {
+            quote! { entity }
+        } else if let Some(single) = field_update_arg(&pat_type.ty) {
+            if per_write.replace(single).is_some() {
+                return Err(syn::Error::new_spanned(pat_type, "expected one field update parameter"));
+            }
+            if single {
+                quote! { update }
+            } else {
+                quote! { updates }
+            }
+        } else {
+            return Err(syn::Error::new_spanned(
+                pat_type,
+                "expected `&Context`, `&Entity`, `&EntityFieldUpdate`, or `&[EntityFieldUpdate]`",
+            ));
+        };
+        args.push(arg);
+    }
+
+    let method_name = &method.sig.ident;
+    let call = quote! { self.#method_name(#(#args),*)?; };
+    if per_write != Some(true) {
+        if class.is_some() || field.is_some() {
+            return Err(syn::Error::new_spanned(
+                attr,
+                "field update filters require an `&EntityFieldUpdate` parameter",
+            ));
+        }
+        return Ok(call);
+    }
+
+    let class_matches = match class {
+        Some(class) => string_predicate(&quote! { entity.class().name() }, &class)?,
+        None => quote! { true },
+    };
+    let field_matches = match field {
+        Some(field) => string_predicate(&quote! { update.name.as_str() }, &field)?,
+        None => quote! { true },
+    };
+    Ok(quote! {
+        if #class_matches {
+            for update in updates {
+                if #field_matches {
+                    #call
+                }
+            }
+        }
+    })
+}
+
+fn field_update_arg(ty: &Type) -> Option<bool> {
+    let Type::Reference(reference) = ty else {
+        return None;
+    };
+    if reference.mutability.is_some() {
+        return None;
+    }
+    let (element, single) = match reference.elem.as_ref() {
+        Type::Slice(slice) => (slice.elem.as_ref(), false),
+        element => (element, true),
+    };
+    matches!(element, Type::Path(path)
+        if path.path.segments.last().is_some_and(|segment| segment.ident == "EntityFieldUpdate"))
+    .then_some(single)
 }
 
 fn observer_entity_args(method: &syn::ImplItemFn) -> syn::Result<proc_macro2::TokenStream> {
@@ -839,7 +1007,7 @@ fn observer_message_args(method: &syn::ImplItemFn) -> syn::Result<(ObserverMessa
 
     match (message, message_type, payload) {
         (Some((arg_type, is_ref)), None, false) => Ok((ObserverMessageKind::Decoded { arg_type, is_ref }, args)),
-        (None, Some((enum_type, is_ref)), true) => Ok((ObserverMessageKind::Raw { enum_type, is_ref }, args)),
+        (None, Some((enum_type, is_ref)), _) => Ok((ObserverMessageKind::Raw { enum_type, is_ref }, args)),
         (Some(_), Some(_), _) => Err(syn::Error::new_spanned(
             &method.sig,
             "#[on_message] cannot mix protobuf and raw message arguments",
@@ -848,13 +1016,9 @@ fn observer_message_args(method: &syn::ImplItemFn) -> syn::Result<(ObserverMessa
             &method.sig,
             "#[on_message] raw payload handlers need a message type argument",
         )),
-        (None, Some(_), false) => Err(syn::Error::new_spanned(
-            &method.sig,
-            "#[on_message] raw handlers need a `&[u8]` payload argument",
-        )),
         (None, None, _) => Err(syn::Error::new_spanned(
             &method.sig,
-            "#[on_message] needs a protobuf message argument or raw message type plus `&[u8]`",
+            "#[on_message] needs a protobuf message argument or a raw message type",
         )),
     }
 }

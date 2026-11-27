@@ -4,6 +4,9 @@ use std::fs;
 
 const GITHUB_RAW_URL: &str = "https://raw.githubusercontent.com/SteamDatabase/Protobufs/master";
 
+#[cfg(feature = "reflection")]
+mod descriptors;
+
 fn main() -> std::io::Result<()> {
     let update = std::env::var_os("UPDATE_PROTOBUFS").map(|v| v == "1").unwrap_or(false);
     let fetch_from_github = std::env::var_os("FETCH_PROTOBUFS_FROM_GITHUB").map(|v| v == "1").unwrap_or(false);
@@ -84,6 +87,8 @@ fn main() -> std::io::Result<()> {
         format_rust_file("citadel.rs")?;
         format_rust_file("cs2.rs")?;
     }
+    #[cfg(feature = "reflection")]
+    descriptors::generate().map_err(|e| std::io::Error::other(e.to_string()))?;
     Ok(())
 }
 

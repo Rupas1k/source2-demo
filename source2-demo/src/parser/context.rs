@@ -7,8 +7,9 @@
 use crate::entity::field::*;
 use crate::entity::*;
 use crate::event::*;
+use crate::metadata::inspect_fields;
 use crate::string_table::*;
-use crate::{FieldValue, HashMap};
+use crate::HashMap;
 use source2_demo_protobufs::CDemoFileInfo;
 use std::rc::Rc;
 
@@ -243,21 +244,6 @@ impl Context {
     pub fn baseline_fields(&self, class_id: i32) -> Option<Vec<EntityField<'_>>> {
         let state = self.baselines.states.get(&class_id)?;
         let class = self.classes.get_by_id(class_id as usize).ok()?;
-        class
-            .serializer
-            .get_paths(&mut FieldPath::default(), state)
-            .into_iter()
-            .map(|fp| {
-                let value = state.get_value(&fp);
-                EntityField {
-                    path: (0..=fp.last).map(|idx| fp.path[idx]).collect(),
-                    name: class.serializer.get_name(&fp).to_string(),
-                    field_type: class.serializer.get_type(&fp).to_string(),
-                    decoded_type: value.map(FieldValue::type_name),
-                    value,
-                }
-            })
-            .collect::<Vec<_>>()
-            .into()
+        Some(inspect_fields(&class.serializer, state))
     }
 }

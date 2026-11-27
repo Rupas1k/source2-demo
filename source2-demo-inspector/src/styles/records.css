@@ -1,0 +1,479 @@
+.record-pane h2 {
+  height: 32px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
+}
+.panel-host {
+  flex: 1;
+  min-height: 0;
+}
+.record-split {
+  display: grid;
+  grid-template-columns: minmax(0, var(--records-width)) 1px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-width: 0;
+}
+.record-pane {
+  --record-gutter-start: 2px;
+  --message-disclosure-slot: 18px;
+  --record-label-gutter: calc(
+    var(--record-gutter-start) + var(--message-disclosure-slot)
+  );
+  --record-gutter-end: 9px;
+  --detail-gutter-start: var(--record-label-gutter);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+.record-pane h2 {
+  background: var(--rail);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+  padding: 6px 9px;
+  height: 26px;
+  padding-block: 4px;
+}
+.pane-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  font:
+    13px/1.4 system-ui,
+    sans-serif;
+}
+.resize-grip {
+  position: relative;
+  background: var(--line);
+  cursor: col-resize;
+  touch-action: none;
+}
+.resize-grip::after {
+  content: "";
+  position: absolute;
+  inset: 0 -3px;
+  z-index: 1;
+}
+.resize-grip:hover,
+.resize-grip:active,
+.resize-grip:focus-visible {
+  background: var(--accent);
+}
+.record-row {
+  width: 100%;
+  padding-inline: 8px;
+  color: rgb(var(--fg-subtle));
+}
+.virtual-record-viewport {
+  contain: paint;
+  overflow-anchor: none;
+}
+.record-row__selectable {
+  cursor: pointer;
+}
+.record-pane:has(.record-row__selectable) .record-row__selectable {
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  padding-inline: var(--record-row-start, var(--record-gutter-start))
+    var(--record-gutter-end);
+}
+.record-index-row {
+  --record-row-start: var(--record-label-gutter);
+}
+.sheet {
+  --cell-inline-start: 6px;
+  --cell-inline-end: 9px;
+  --heading-gutter-start: var(--detail-gutter-start);
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+.sheet:has(> .index-heading) {
+  --heading-gutter-start: var(--record-label-gutter);
+}
+.sheet:is(.field-tree, :has(> .field-tree)) {
+  --tree-cell-start: 2px;
+  --field-gap: 2px;
+  --field-label-inset: calc(var(--field-disclosure-width) + var(--field-gap));
+}
+.sheet:has(> .field-tree) {
+  --heading-gutter-start: calc(
+    var(--tree-cell-start) + var(--field-label-inset)
+  );
+}
+.table-header {
+  flex: none;
+  overflow: hidden;
+  padding-inline-end: var(--body-scrollbar-width, 0px);
+  background: var(--rail);
+  border-block: 1px solid var(--line);
+}
+.record-pane .table-header .sheet-heading {
+  height: 24px;
+  border-block: 0;
+}
+.entity-fields .field-type {
+  font: 13px/17px system-ui;
+  white-space: pre-wrap;
+}
+.sheet-grid {
+  display: grid;
+  grid-template-columns: var(--columns);
+}
+.sheet-heading {
+  flex: none;
+  border-block: 1px solid var(--line);
+  background: var(--rail);
+  font:
+    600 12px/1.4 system-ui,
+    sans-serif;
+  color: rgb(var(--fg-subtle));
+}
+.sheet-grid > * {
+  padding-block: 4px;
+  padding-inline: var(--cell-inline-start) var(--cell-inline-end);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sheet-grid > * + * {
+  border-inline-start: 1px solid var(--line);
+}
+.sheet-grid > :first-child {
+  --cell-inline-start: var(--detail-gutter-start);
+}
+.sheet-scroll {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+.sheet-row,
+.message-field {
+  min-height: 26px;
+  border-bottom: 1px solid rgb(var(--fg) / 0.09);
+}
+.sheet-row[data-stripe] {
+  background: rgb(var(--fg) / 0.024);
+}
+.field-tree {
+  --field-indent-step: 10px;
+}
+.field-tree .sheet-grid > :first-child {
+  --cell-inline-start: var(--tree-cell-start);
+}
+.field-tree .sheet-heading > :first-child .sort-label {
+  margin-inline-start: var(--field-label-inset);
+  min-width: 0;
+}
+.field-path,
+.protobuf-field-name {
+  --field-indent: calc(min(var(--field-depth), 6) * var(--field-indent-step));
+  gap: var(--field-gap);
+}
+.protobuf-field-name {
+  display: flex;
+  align-items: center;
+  padding-inline-start: calc(var(--cell-inline-start) + var(--field-indent));
+}
+.field-path {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: var(--field-disclosure-width) minmax(0, 1fr) 32px;
+  align-items: start;
+  padding-inline-start: var(--field-indent);
+}
+.field-path-text {
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.field-path .path-parent {
+  font-size: 12px;
+}
+.field-path .path-leaf {
+  color: rgb(var(--fg));
+}
+.field-path button {
+  display: grid;
+  place-items: center;
+  height: 18px;
+}
+.field-path {
+  position: relative;
+}
+.entity-fields .scalar-field-row > .field-type,
+.entity-fields .scalar-field-row > .field-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sheet-row small {
+  display: block;
+  color: rgb(var(--fg-subtle));
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.field-value {
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  white-space: pre-wrap;
+}
+.field-value button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+  text-decoration: underline;
+}
+.field-value svg {
+  display: inline;
+}
+.field-type {
+  color: rgb(var(--fg-subtle));
+}
+.resizable-sheet {
+  min-width: var(--sheet-min-width);
+}
+.field-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 2rem;
+  flex-shrink: 0;
+  margin: 0;
+  padding-inline: var(--heading-gutter-start, 6px) 8px;
+}
+.pane-search-field {
+  min-width: 0;
+  flex: 1;
+  height: 100%;
+  background: transparent;
+}
+.field-tools button {
+  flex: none;
+  white-space: nowrap;
+  padding: 2px 5px;
+}
+.field-tools .filter-toggle {
+  min-height: 24px;
+  padding: 1px 7px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: rgb(var(--fg-subtle));
+}
+.field-tools .filter-toggle[aria-pressed="true"] {
+  border-color: var(--line);
+  background: var(--active);
+  color: rgb(var(--fg));
+}
+.field-tools .filter-toggle[aria-pressed="true"]:not(:disabled):hover {
+  background-color: var(--active-hover);
+}
+
+.path-parent,
+.prior-value {
+  color: rgb(var(--fg-subtle));
+}
+.record-pane h2.sr-only {
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+}
+.entity-id {
+  flex: none;
+  margin-left: auto;
+  padding-left: 6px;
+  color: rgb(var(--fg-subtle));
+  font-variant-numeric: tabular-nums;
+}
+.sheet-row > span:first-child,
+.entry-columns .message-field > :first-child {
+  font-variant-numeric: tabular-nums;
+}
+.index-heading,
+.record-pane .sheet-heading {
+  height: 26px;
+  flex-shrink: 0;
+  align-items: center;
+  background: var(--rail);
+  color: rgb(var(--fg-subtle));
+  border-block: 1px solid var(--line);
+  font:
+    600 12px/16px system-ui,
+    sans-serif;
+}
+.index-heading {
+  position: relative;
+  display: flex;
+  gap: 4px;
+  justify-content: space-between;
+  padding-inline: var(--heading-gutter-start)
+    calc(var(--record-gutter-end) + var(--body-scrollbar-width, 0px));
+  overflow: hidden;
+}
+.index-heading > [data-align-end] {
+  flex: none;
+}
+.sheet-row,
+.message-field {
+  line-height: 17px;
+}
+
+.column-label {
+  --resize-handle-width: 8px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-inline-end: max(var(--cell-inline-end), var(--resize-handle-width));
+}
+.column-label .resize-column {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: var(--resize-handle-width);
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+.column-label .resize-column:focus-visible {
+  border-right: 2px solid var(--accent);
+}
+
+.sort-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+.sort-label[data-align-end] {
+  flex-direction: row-reverse;
+}
+.sort-label-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+button.sort-label {
+  cursor: pointer;
+}
+.sort-arrow {
+  flex: none;
+  color: rgb(var(--fg-subtle));
+}
+
+.record-row__selectable > button:not(:disabled):hover,
+.column-label .resize-column:not(:disabled):hover,
+.sort-label:not(:disabled):hover {
+  background-color: transparent;
+}
+.message-select {
+  display: flex;
+  gap: 4px;
+  text-align: left;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+.pane-layout:not([hidden]) {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.record-status {
+  flex: none;
+  margin-inline-start: 6px;
+  color: rgb(var(--fg-subtle));
+  font-size: 12px;
+}
+
+.match-count {
+  flex: none;
+  color: rgb(var(--fg-subtle));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.field-path-actions {
+  display: flex;
+  opacity: 0;
+}
+.field-path:hover .field-path-actions,
+.field-path:focus-within .field-path-actions {
+  opacity: 1;
+}
+
+.entry-columns .sheet-row {
+  cursor: pointer;
+}
+.entry-columns .sheet-row:hover {
+  background-color: var(--hover);
+}
+:is(.record-row__selected, .sheet-row[data-selected]) {
+  background-color: var(--active);
+  color: rgb(var(--fg));
+}
+:is(.record-row__selected, .sheet-row[data-selected]):hover {
+  background-color: var(--active-hover);
+}
+
+.table-change-value {
+  color: rgb(var(--fg));
+}
+
+.message-list-item {
+  width: 100%;
+}
+.message-list-row {
+  display: flex;
+  align-items: center;
+  height: 26px;
+}
+.message-disclosures {
+  display: flex;
+  flex: 0 0 var(--message-disclosure-slot);
+  align-items: center;
+}
+.message-list-row[data-depth="1"] .message-disclosures {
+  margin-inline-start: 14px;
+}
+.message-list-row[data-depth="2"] .message-disclosures {
+  margin-inline-start: 28px;
+}
+.field-disclosure {
+  display: grid;
+  place-items: center;
+  width: var(--field-disclosure-width);
+  height: 18px;
+  flex: none;
+  cursor: pointer;
+}
+.tree-toggle {
+  position: absolute;
+  inset-inline-start: 2px;
+  inset-block: 0;
+  margin-block: auto;
+}
+.message-list-row .record-status {
+  margin-inline-start: auto;
+}
+.message-list-row .record-status + .entity-id {
+  margin-inline-start: 4px;
+}
+.message-entity-status {
+  padding-inline-start: 49px;
+}
+
+.field-disclosure-space {
+  width: var(--field-disclosure-width);
+  flex: none;
+}

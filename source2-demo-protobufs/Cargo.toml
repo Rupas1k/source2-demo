@@ -4,7 +4,7 @@ description = "Dota 2, Deadlock, and CS2 Protobufs"
 categories = ["parsing"]
 keywords = ["dota", "deadlock", "cs2", "replay", "demo"]
 readme = "README.md"
-exclude = ["protos/*", "build.rs", "update_protos.sh"]
+exclude = ["update-protobufs.sh"]
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -16,15 +16,18 @@ rust-version.workspace = true
 path = "./lib.rs"
 
 [build-dependencies]
+protox = { version = "0.10", optional = true }
 prost-build = "0.14"
-itertools = "0.14"
-ureq = "3.1"
+itertools = "0.15"
+ureq = "3.5"
 
 [dependencies]
+prost-reflect = { version = "0.16", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 prost = "0.14"
 
 [features]
+reflection = ["dep:protox", "dep:prost-reflect"]
 dota = []
 citadel = []
 cs2 = []

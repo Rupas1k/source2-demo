@@ -9,34 +9,56 @@ use crate::stream::msg::{MessageReader, OuterMessage, ReplayInfoReader};
 use crate::stream::reader::{SeekableReader, SliceReader};
 use std::io::{Read, Seek};
 
+pub(crate) struct RawDemoMessage {
+    pub(crate) msg_type: EDemoCommands,
+    pub(crate) tick: u32,
+    pub(crate) raw_payload: Vec<u8>,
+    pub(crate) compressed: bool,
+}
+
+pub(crate) fn read_raw_command(
+    reader: &mut impl BitsReader,
+) -> Result<Option<RawDemoMessage>, ParserError> {
+    reader.refill();
+    if reader.remaining_bytes() == 0 {
+        return Ok(None);
+    }
+    let header = super::framing::CommandHeader::read(reader);
+    let msg_type = EDemoCommands::try_from(header.id as i32)?;
+    Ok(Some(RawDemoMessage {
+        msg_type,
+        tick: header.tick,
+        compressed: header.compressed,
+        raw_payload: reader.read_bytes(header.size),
+    }))
+}
+
+fn read_outer_message(reader: &mut impl BitsReader) -> Result<Option<OuterMessage>, ParserError> {
+    let Some(RawDemoMessage {
+        msg_type,
+        tick,
+        compressed,
+        raw_payload,
+    }) = read_raw_command(reader)?
+    else {
+        return Ok(None);
+    };
+    let buf = if compressed {
+        snap::raw::Decoder::new().decompress_vec(&raw_payload)?
+    } else {
+        raw_payload
+    };
+    Ok(Some(OuterMessage {
+        msg_type,
+        tick,
+        buf,
+        compressed,
+    }))
+}
+
 impl MessageReader for SliceReader<'_> {
-    #[inline]
     fn read_next_message(&mut self) -> Result<Option<OuterMessage>, ParserError> {
-        if self.remaining_bytes() == 0 {
-            return Ok(None);
-        }
-
-        let cmd = self.read_var_u32() as i32;
-        let tick = self.read_var_u32();
-        let size = self.read_var_u32();
-
-        let msg_type = EDemoCommands::try_from(cmd & !(EDemoCommands::DemIsCompressed as i32))?;
-        let msg_compressed = cmd & EDemoCommands::DemIsCompressed as i32 != 0;
-
-        let buf = if msg_compressed {
-            let buf = self.read_bytes(size);
-            let mut decoder = snap::raw::Decoder::new();
-            decoder.decompress_vec(&buf)?
-        } else {
-            self.read_bytes(size)
-        };
-
-        Ok(Some(OuterMessage {
-            msg_type,
-            tick,
-            buf,
-            compressed: msg_compressed,
-        }))
+        read_outer_message(self)
     }
 }
 
@@ -72,12 +94,9 @@ impl<R: Read + Seek> ReplayInfoReader for SeekableReader<R> {
             let packet = CDemoPacket::decode(message.buf.as_slice())?;
             let mut packet_reader = SliceReader::new(packet.data());
 
-            while packet_reader.remaining_bytes() != 0 {
-                let msg_type = packet_reader.read_ubit_var() as i32;
-                let size = packet_reader.read_var_u32();
-                let packet_buf = packet_reader.read_bytes(size);
-
-                if msg_type == CitadelUserMessageIds::KEUserMsgPostMatchDetails as i32 {
+            let mut packet_buf = Vec::new();
+            while let Some(msg_type) = packet_reader.read_packet_message_into(&mut packet_buf)? {
+                if msg_type == CitadelUserMessageIds::KEUserMsgPostMatchDetails as u32 {
                     return Ok(CMsgMatchMetaDataContents::decode(
                         CCitadelUserMsgPostMatchDetails::decode(packet_buf.as_slice())?
                             .match_details(),
@@ -117,12 +136,9 @@ impl<'a> ReplayInfoReader for SliceReader<'a> {
 
             let packet = CDemoPacket::decode(message.buf.as_slice())?;
             let mut packet_reader = SliceReader::new(packet.data());
-            while packet_reader.remaining_bytes() != 0 {
-                let msg_type = packet_reader.read_ubit_var() as i32;
-                let size = packet_reader.read_var_u32();
-                let packet_buf = packet_reader.read_bytes(size);
-
-                if msg_type == CitadelUserMessageIds::KEUserMsgPostMatchDetails as i32 {
+            let mut packet_buf = Vec::new();
+            while let Some(msg_type) = packet_reader.read_packet_message_into(&mut packet_buf)? {
+                if msg_type == CitadelUserMessageIds::KEUserMsgPostMatchDetails as u32 {
                     return Ok(CMsgMatchMetaDataContents::decode(
                         CCitadelUserMsgPostMatchDetails::decode(packet_buf.as_slice())?
                             .match_details(),
@@ -138,32 +154,6 @@ impl<'a> ReplayInfoReader for SliceReader<'a> {
 impl<R: Read + Seek> MessageReader for SeekableReader<R> {
     #[inline]
     fn read_next_message(&mut self) -> Result<Option<OuterMessage>, ParserError> {
-        self.refill();
-        if self.remaining_bytes() == 0 {
-            return Ok(None);
-        }
-
-        let cmd = self.read_var_u32() as i32;
-        let tick = self.read_var_u32();
-        let size = self.read_var_u32();
-
-        let msg_type = EDemoCommands::try_from(cmd & !(EDemoCommands::DemIsCompressed as i32))?;
-        let msg_compressed = cmd & EDemoCommands::DemIsCompressed as i32 != 0;
-
-        let raw_bytes = self.read_bytes(size);
-
-        let buf = if msg_compressed {
-            let mut decoder = snap::raw::Decoder::new();
-            decoder.decompress_vec(&raw_bytes)?
-        } else {
-            raw_bytes
-        };
-
-        Ok(Some(OuterMessage {
-            msg_type,
-            tick,
-            buf,
-            compressed: msg_compressed,
-        }))
+        read_outer_message(self)
     }
 }

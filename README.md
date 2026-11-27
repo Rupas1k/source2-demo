@@ -4,7 +4,7 @@
 [![Documentation](https://img.shields.io/docsrs/source2-demo)](https://docs.rs/source2-demo)
 [![License](https://img.shields.io/crates/l/source2-demo)](https://github.com/Rupas1k/source2-demo)
 
-`source2-demo` is a Rust library for parsing Source 2 engine demo files.
+`source2-demo` is a Rust library for parsing and modifying Source 2 demo files.
 
 ## Supported Games
 
@@ -19,13 +19,13 @@ Add the following to your `Cargo.toml` and enable the feature for the game you w
 ```toml
 [dependencies]
 # For Dota 2
-source2-demo = { version = "0.5", features = ["dota"] }
+source2-demo = { version = "0.6", features = ["dota"] }
 
 # For Deadlock
-# source2-demo = { version = "0.5", features = ["deadlock"] }
+# source2-demo = { version = "0.6", features = ["deadlock"] }
 
 # For Counter-Strike 2
-# source2-demo = { version = "0.5", features = ["cs2"] }
+# source2-demo = { version = "0.6", features = ["cs2"] }
 ```
 
 ## Quick Start: Parsing Chat Messages
@@ -203,6 +203,12 @@ cargo run --release -p example input.dem
 cargo run --release -p example input.dem output.dem
 ```
 
+## Demo Inspector
+
+The [Source 2 Demo Inspector](https://inspector.rupasov.dev/) is a browser-based
+tool for inspecting packets, protobuf messages, entity changes, string tables,
+and game events by tick. Replays are processed locally in your browser.
+
 ## Projects Using source2-demo
 
 - [dota2-replay-anonymizer](https://github.com/Rupas1k/dota2-replay-anonymizer) - CLI and browser app for anonymizing Dota 2 replays.
@@ -218,7 +224,8 @@ The crate supports the following cargo features:
 - **`dota`** - Enable Dota 2 replay parsing (includes Dota 2 protobufs)
 - **`deadlock`** - Enable Deadlock replay parsing (includes Citadel protobufs)
 - **`cs2`** - Enable Counter-Strike 2 replay parsing (includes CS2 protobufs)
-- **`unsafe`** - Disable bounds checking in the reader for improved performance.
+- **`entity-field-updates`** - Enable observer callbacks for entity field writes
+- **`reflection`** - Look up protobuf message and field descriptors at runtime
 - **`mimalloc`** (default) - Use mimalloc as the global allocator for improved performance
 
 You can enable multiple game features if needed:

@@ -19,7 +19,7 @@ use std::cell::RefCell;
 use std::io::{Seek, Write};
 use std::rc::Rc;
 
-pub(crate) use input::RawDemoMessage;
+pub(crate) use crate::reader::RawDemoMessage;
 pub use rewriter::{
     rewrite_protobuf_message, DemoRewriter, MessageRewrite, PacketMessage, RewriteInterests,
 };
@@ -108,6 +108,7 @@ where
     entity_rewrite: EntityRewriteState,
     bytes_written: u64,
     file_info_offset: Option<u64>,
+    spawn_groups_offset: Option<u64>,
 }
 
 impl<'a, R, W> DemoWriter<'a, R, W>
@@ -126,6 +127,7 @@ where
             entity_rewrite: EntityRewriteState::new(),
             bytes_written: 0,
             file_info_offset: None,
+            spawn_groups_offset: None,
         }
     }
 
