@@ -728,7 +728,7 @@ checksum = "199905e6153d6405f9728fe44daace35f8f837bbf830bb6e85fbd5828709a886"
 
 [[package]]
 name = "source2-demo"
-version = "0.5.11"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bitflags",
@@ -744,7 +744,7 @@ dependencies = [
 
 [[package]]
 name = "source2-demo-macros"
-version = "0.5.11"
+version = "0.6.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -753,7 +753,7 @@ dependencies = [
 
 [[package]]
 name = "source2-demo-protobufs"
-version = "0.5.11"
+version = "0.6.0"
 dependencies = [
  "itertools",
  "prost",
