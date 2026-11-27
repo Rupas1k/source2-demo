@@ -48,16 +48,29 @@ export function sortMessageFields(
   );
 }
 
+interface FieldExpansion {
+  isOpen: (path: string) => boolean;
+  setOpen: (path: string, open: boolean) => void;
+}
+
 function FieldRow({
   field,
   depth,
   path,
+  expansion,
 }: {
   field: Field;
   depth: number;
   path: string;
+  expansion: FieldExpansion;
 }) {
-  const [open, setOpen] = useState(field.openByDefault ?? false);
+  const [filterOverride, setFilterOverride] = useState<boolean>();
+  const open =
+    filterOverride ?? (field.openByDefault || expansion.isOpen(path));
+  function setOpen(value: boolean) {
+    if (field.openByDefault) setFilterOverride(value);
+    expansion.setOpen(path, value);
+  }
   const expandable = !!field.children?.length;
   const DisclosureIcon = open ? ChevronDown : ChevronRight;
   return (
@@ -105,6 +118,7 @@ function FieldRow({
           fields={field.children}
           depth={depth + 1}
           parentPath={path}
+          expansion={expansion}
         />
       )}
     </>
@@ -115,10 +129,12 @@ export function FieldRows({
   fields,
   depth = 0,
   parentPath,
+  expansion,
 }: {
   fields: Field[];
   depth?: number;
   parentPath?: string;
+  expansion: FieldExpansion;
 }) {
   const [limit, setLimit] = useState(128);
   return (
@@ -128,6 +144,7 @@ export function FieldRows({
           key={i}
           field={field}
           depth={depth}
+          expansion={expansion}
           path={parentPath ? `${parentPath}.${field.name}` : field.name}
         />
       ))}

@@ -1,6 +1,5 @@
 import { readReplayInput } from "../../replay/readReplayInput";
 import { expose, transfer } from "comlink";
-import { isFullPacket } from "./messageIndex";
 import { gameEventDefinitions } from "./packetGameEvents";
 import type { FiredEvent } from "../../replay/readGameEvents";
 import { packetTableRecords, snapshotTables } from "./packetStringTables";
@@ -111,7 +110,7 @@ function groupMatches() {
   return result;
 }
 
-function query({ term, wide, sort, collapsedPackets, revealedPacket }: Query) {
+function query({ term, wide, sort, packetExpansion, revealedPacket }: Query) {
   if (lastTerm !== term) indexMatches(term);
   rows = new Uint32Array();
   parents = [];
@@ -123,9 +122,10 @@ function query({ term, wide, sort, collapsedPackets, revealedPacket }: Query) {
       order,
       (group, column) => group.parent[column],
     );
-    const isOpen = ({ parent }: PacketGroup) =>
-      !collapsedPackets.has(parent.command) ||
-      parent.command === revealedPacket;
+    const isOpen = (group: PacketGroup) =>
+      group.parent.command === revealedPacket ||
+      (packetExpansion.get(group.parent.command) ??
+        revealsChildren(group, term));
     const count = parents.reduce(
       (total, group) =>
         total +
@@ -163,18 +163,22 @@ function query({ term, wide, sort, collapsedPackets, revealedPacket }: Query) {
   };
 }
 
+function revealsChildren(group: PacketGroup, term: string | undefined) {
+  return !!term && group.childStart < group.childEnd;
+}
+
 function rowEntry(row: number): IndexedEntry {
   if (row >= parentRow) {
     const group = parents[row - parentRow];
-    return { ...group.parent, hasChildren: group.childStart < group.childEnd };
+    return {
+      ...group.parent,
+      hasChildren: group.childStart < group.childEnd,
+      ...(revealsChildren(group, lastTerm)
+        ? { revealChildren: true }
+        : undefined),
+    };
   }
-  const entry = matchEntry(row);
-  const parent = groups?.get(entry.command)?.parent;
-  return {
-    ...entry,
-    hasChildren: false,
-    ...(parent && isFullPacket(parent) ? { inFullPacket: true } : undefined),
-  };
+  return { ...matchEntry(row), hasChildren: false };
 }
 
 const api: MessageIndexApi = {

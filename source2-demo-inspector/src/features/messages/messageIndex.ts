@@ -18,14 +18,14 @@ export function isFullPacket(entry: Entry) {
 
 export interface IndexedEntry extends Entry {
   hasChildren: boolean;
-  inFullPacket?: true;
+  revealChildren?: true;
 }
 
 export interface Query {
   term: string;
   wide: boolean;
   sort?: TableSort<"name" | "id" | "tick">;
-  collapsedPackets: ReadonlySet<number>;
+  packetExpansion: ReadonlyMap<number, boolean>;
   revealedPacket?: number;
 }
 

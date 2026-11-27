@@ -11,18 +11,10 @@ type TableId =
   | "string-tables"
   | "packet-string-tables";
 
-export type NestedMessageBranchKind =
-  "entities" | "stringTables" | "gameEvents";
-type SharedMessageBranchKind = Exclude<NestedMessageBranchKind, "stringTables">;
-export type MessageBranchKind =
-  SharedMessageBranchKind | `full:${SharedMessageBranchKind}`;
-
 interface InspectorPreferences {
   lastTab: ViewTab;
   recordsWidth: number;
   setRecordsWidth: (width: number) => void;
-  messageExpansion: Partial<Record<MessageBranchKind, boolean>>;
-  setMessageExpanded: (kind: MessageBranchKind, expanded: boolean) => void;
   widths: Partial<Record<TableId, Record<string, number>>>;
   setLastTab: (tab: ViewTab) => void;
   setColumnWidth: (table: TableId, column: string, width?: number) => void;
@@ -35,11 +27,6 @@ export const useInspectorPreferences = create<InspectorPreferences>()(
       recordsWidth: 23,
       setRecordsWidth: (recordsWidth) => set({ recordsWidth }),
       widths: {},
-      messageExpansion: {},
-      setMessageExpanded: (kind, expanded) =>
-        set(({ messageExpansion }) => ({
-          messageExpansion: { ...messageExpansion, [kind]: expanded },
-        })),
       setLastTab: (lastTab) => set({ lastTab }),
       setColumnWidth: (table, column, width) =>
         set(({ widths }) => {
@@ -74,10 +61,9 @@ export const useInspectorPreferences = create<InspectorPreferences>()(
           }
         },
       })),
-      partialize: ({ lastTab, widths, messageExpansion, recordsWidth }) => ({
+      partialize: ({ lastTab, widths, recordsWidth }) => ({
         lastTab,
         widths,
-        messageExpansion,
         recordsWidth,
       }),
     },

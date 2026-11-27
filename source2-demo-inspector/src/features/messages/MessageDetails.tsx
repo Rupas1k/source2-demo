@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PacketGameEventFields } from "./PacketGameEventFields";
 import { useTableSort } from "../../workbench/tableSort";
 import { SearchBar } from "../../workbench/PaneControls";
@@ -31,6 +32,11 @@ export function MessageDetails({
   details,
 }: ReturnType<typeof useMessageNavigation>["detailsProps"]) {
   const fieldSort = useTableSort();
+  const [expandedFields, setExpandedFields] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const fieldKey = (path: string) =>
+    `${selected?.command}/${selected?.child}/${path}`;
   return eventFocus ? (
     <PacketGameEventFields
       key={eventFocus.key + "/" + eventFocus.id}
@@ -95,6 +101,16 @@ export function MessageDetails({
               "/" +
               fieldSort.sort?.direction
             }
+            expansion={{
+              isOpen: (path) => expandedFields.has(fieldKey(path)),
+              setOpen: (path, open) =>
+                setExpandedFields((previous) => {
+                  const next = new Set(previous);
+                  if (open) next.add(fieldKey(path));
+                  else next.delete(fieldKey(path));
+                  return next;
+                }),
+            }}
             fields={sortMessageFields(
               filterMessageFields(details.value, fieldQuery),
               fieldSort.sort,

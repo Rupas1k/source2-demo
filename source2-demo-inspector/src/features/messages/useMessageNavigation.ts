@@ -3,11 +3,6 @@ import { readFields } from "../../replay/readFields";
 import { seekReplay } from "../../replay/seekReplay";
 import { useMessageSearch } from "./useMessageSearch";
 import { readMessageData as read } from "./readMessageData";
-import {
-  useInspectorPreferences,
-  type MessageBranchKind,
-  type NestedMessageBranchKind,
-} from "../../app/preferences";
 import { sortRows, useTableSort } from "../../workbench/tableSort";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MessageInspector } from "../../generated/wasm/inspector";
@@ -21,7 +16,7 @@ import { snapshotTables } from "./packetStringTables";
 import { isFullPacket, type Entry, type Query } from "./messageIndex";
 import { useMessageIndex } from "./useMessageIndex";
 
-import { branchKind } from "./messageBranches";
+import { branchKind, type NestedMessageBranchKind } from "./messageBranches";
 function matchesMessage(entry: Entry, term: string) {
   return entry.name.toLowerCase().includes(term) || String(entry.id) === term;
 }
@@ -51,16 +46,12 @@ export function useMessageNavigation({
   const session = useReplayStore((state) => state.replaySession);
   const [picked, pick] = useState<Entry>();
   const selected = picked?.tick === tick ? picked : undefined;
-  const expansion = useInspectorPreferences((state) => state.messageExpansion);
-  const setExpanded = useInspectorPreferences(
-    (state) => state.setMessageExpanded,
-  );
-  const [collapsedPackets, setCollapsedPackets] = useState<ReadonlySet<number>>(
+  const [manualPacketExpansion, setPacketExpansion] = useState<
+    ReadonlyMap<number, boolean>
+  >(() => new Map());
+  const [openBranches, setOpenBranches] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  const [openTableBranches, setOpenTableBranches] = useState<
-    ReadonlySet<string>
-  >(() => new Set());
   const [revealedParent, setRevealedParent] = useState<number>();
   const revealedPacket =
     selected?.command === revealedParent ? revealedParent : undefined;
@@ -130,15 +121,28 @@ export function useMessageNavigation({
   const indexSort = useTableSort<"name" | "id" | "tick">();
   const { sort: messageSort } = indexSort;
   const term = query.trim().toLowerCase();
+  const [searchClosedPackets, setSearchClosedPackets] =
+    useState<ReadonlySet<number>>();
+  useEffect(() => setSearchClosedPackets(undefined), [term]);
+  const packetExpansion = useMemo(() => {
+    if (!term) return manualPacketExpansion;
+    const effective = new Map<number, boolean>();
+    for (const [command, expanded] of manualPacketExpansion) {
+      if (expanded || searchClosedPackets?.has(command))
+        effective.set(command, expanded);
+    }
+    return effective;
+  }, [term, manualPacketExpansion, searchClosedPackets]);
+
   const indexQuery = useMemo<Query>(
     () => ({
       term,
       wide,
       sort: messageSort,
-      collapsedPackets,
+      packetExpansion,
       revealedPacket,
     }),
-    [term, wide, messageSort, collapsedPackets, revealedPacket],
+    [term, wide, messageSort, packetExpansion, revealedPacket],
   );
   const { results, updateVisible, wideEntry, start, end } = useMessageSearch(
     messageIndex,
@@ -188,25 +192,39 @@ export function useMessageNavigation({
     }
     return { parents, children, hits };
   }, [data, term]);
-  const fullPacketCommands = useMemo(
+  const expandablePackets = useMemo(
     () =>
-      new Set(data.value.filter(isFullPacket).map((entry) => entry.command)),
-    [data.value],
+      data.value.filter(
+        (entry) =>
+          entry.child === null &&
+          (packets.has(entry.command) || isFullPacket(entry)),
+      ),
+    [data.value, packets],
   );
+  const defaultPacket =
+    !wide && !term && expandablePackets.length === 1
+      ? expandablePackets[0].command
+      : undefined;
   const openPackets = useMemo(
     () =>
       new Set(
-        data.value
+        expandablePackets
           .filter(
-            (entry) =>
-              entry.child === null &&
-              packets.has(entry.command) &&
-              (!collapsedPackets.has(entry.command) ||
-                entry.command === revealedPacket),
+            ({ command }) =>
+              command === revealedPacket ||
+              (packetExpansion.get(command) ??
+                (command === defaultPacket ||
+                  matchedCommands.children.has(command))),
           )
-          .map((entry) => entry.command),
+          .map(({ command }) => command),
       ),
-    [data.value, packets, collapsedPackets, revealedPacket],
+    [
+      expandablePackets,
+      revealedPacket,
+      packetExpansion,
+      defaultPacket,
+      matchedCommands.children,
+    ],
   );
 
   const localRows = useMemo(() => {
@@ -217,10 +235,16 @@ export function useMessageNavigation({
     const rows = data.value.filter((entry) => {
       const parentMatches = !term || matchedCommands.parents.has(entry.command);
       if (entry.child === null)
-        return parentMatches || matchedCommands.children.has(entry.command);
+        return (
+          parentMatches ||
+          matchedCommands.children.has(entry.command) ||
+          entry.command === revealedPacket
+        );
       return (
         openPackets.has(entry.command) &&
-        (parentMatches || matchedCommands.hits.has(entry))
+        (parentMatches ||
+          matchedCommands.hits.has(entry) ||
+          (entry.command === revealedPacket && entry.child === selected?.child))
       );
     });
     if (!sort) return rows;
@@ -233,7 +257,16 @@ export function useMessageNavigation({
     return order(Array.from(groups.values(), (group) => group.parent)).flatMap(
       (parent) => [parent, ...order(groups.get(parent.command)!.children)],
     );
-  }, [data, term, matchedCommands, openPackets, wide, messageSort]);
+  }, [
+    data,
+    term,
+    matchedCommands,
+    openPackets,
+    wide,
+    messageSort,
+    revealedPacket,
+    selected?.child,
+  ]);
 
   const details = useMemo(
     () =>
@@ -374,18 +407,7 @@ export function useMessageNavigation({
     return () => cancelAnimationFrame(frame);
   });
 
-  function branchPreference(
-    entry: Entry,
-    kind: Exclude<NestedMessageBranchKind, "stringTables">,
-  ): MessageBranchKind {
-    const fromFullPacket =
-      entry.child !== null &&
-      (("inFullPacket" in entry && entry.inFullPacket === true) ||
-        fullPacketCommands.has(entry.command));
-    return fromFullPacket ? `full:${kind}` : kind;
-  }
-
-  function isBranchOpen(entry: Entry, kind: NestedMessageBranchKind) {
+  function isBranchOpen(entry: Entry) {
     const key = messageKey(entry);
     if (isFullPacket(entry)) {
       const snapshotVisible =
@@ -395,9 +417,7 @@ export function useMessageNavigation({
       return snapshotVisible && isPacketOpen(entry);
     }
     return (
-      (kind === "stringTables"
-        ? openTableBranches.has(key)
-        : !!expansion[branchPreference(entry, kind)]) ||
+      openBranches.has(key) ||
       (selectedKey === key && revealedBranchKey === key)
     );
   }
@@ -409,7 +429,7 @@ export function useMessageNavigation({
       const entry = wide ? wideEntry(index) : localRows[index];
       if (!entry) continue;
       const kind = branchKind(entry);
-      if (!kind || !isBranchOpen(entry, kind)) continue;
+      if (!kind || !isBranchOpen(entry)) continue;
       if (kind === "entities") {
         if (messageKey(entry) !== selectedKey || !selectedHasNoEntityEntries)
           entityChanges.loadNext(entry);
@@ -595,8 +615,11 @@ export function useMessageNavigation({
     clearSourceJump();
   }, [sourceJump, inspector]);
   function isPacketOpen(entry: Entry) {
+    if (!wide) return openPackets.has(entry.command);
     return (
-      !collapsedPackets.has(entry.command) || entry.command === revealedPacket
+      entry.command === revealedPacket ||
+      (packetExpansion.get(entry.command) ??
+        ("revealChildren" in entry && entry.revealChildren === true))
     );
   }
 
@@ -610,12 +633,9 @@ export function useMessageNavigation({
     const { command } = entry;
     const closing = isPacketOpen(entry);
     if (revealedParent === command) setRevealedParent(undefined);
-    setCollapsedPackets((previous) => {
-      const next = new Set(previous);
-      if (closing) next.add(command);
-      else next.delete(command);
-      return next;
-    });
+    setPacketExpansion((previous) => new Map(previous).set(command, !closing));
+    if (term && closing)
+      setSearchClosedPackets((previous) => new Set(previous).add(command));
     if (closing && isFullPacket(entry) && selected?.command === command)
       selectPacketTable(undefined);
   }
@@ -629,35 +649,21 @@ export function useMessageNavigation({
 
   function toggleBranch(entry: Entry, kind: NestedMessageBranchKind) {
     const key = messageKey(entry);
-    const open = !isBranchOpen(entry, kind);
-    if (kind === "stringTables") {
-      setOpenTableBranches((previous) => {
-        const next = new Set(previous);
-        if (open) next.add(key);
-        else next.delete(key);
-        return next;
-      });
-      if (open) stringTables.load(entry);
-      else if (selectedKey === key) {
-        setRevealedBranchKey(undefined);
-        selectPacketTable(undefined);
-      }
-      return;
-    }
-
-    const preference = branchPreference(entry, kind);
-    setExpanded(preference, open);
+    const open = !isBranchOpen(entry);
+    setOpenBranches((previous) => {
+      const next = new Set(previous);
+      if (open) next.add(key);
+      else next.delete(key);
+      return next;
+    });
     if (open) {
       if (kind === "entities") entityChanges.load(entry);
+      else if (kind === "stringTables") stringTables.load(entry);
       else gameEvents.load(entry);
-    } else if (
-      selected &&
-      !isFullPacket(selected) &&
-      branchKind(selected) === kind &&
-      branchPreference(selected, kind) === preference
-    ) {
+    } else if (selectedKey === key) {
       setRevealedBranchKey(undefined);
       if (kind === "entities") selectChangedEntity(undefined);
+      else if (kind === "stringTables") selectPacketTable(undefined);
       else selectPacketEvent(undefined);
     }
   }

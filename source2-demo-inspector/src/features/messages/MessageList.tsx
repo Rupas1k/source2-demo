@@ -163,7 +163,7 @@ export function MessageList({
           const entityBranch = entityChanges.results.get(key);
           const tables = stringTables.results.get(key);
           const events = gameEvents.results.get(key);
-          const branchOpen = kind !== undefined && isBranchOpen(entry, kind);
+          const branchOpen = kind !== undefined && isBranchOpen(entry);
           const branchLabel =
             kind === "entities"
               ? "Toggle entity changes"

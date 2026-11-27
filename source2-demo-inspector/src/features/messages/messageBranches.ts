@@ -1,5 +1,7 @@
-import type { NestedMessageBranchKind } from "../../app/preferences";
 import type { Entry } from "./messageIndex";
+
+export type NestedMessageBranchKind =
+  "entities" | "stringTables" | "gameEvents";
 
 export function branchKind(entry: Entry): NestedMessageBranchKind | undefined {
   if (entry.child === null) {
