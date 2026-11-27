@@ -116,6 +116,8 @@ pub struct CDotaModifierBuffTableEntry {
     pub custom_int_values: ::prost::alloc::vec::Vec<i32>,
     #[prost(float, repeated, packed = "false", tag = "44")]
     pub custom_float_values: ::prost::alloc::vec::Vec<f32>,
+    #[prost(float, optional, tag = "45")]
+    pub effectiveness: ::core::option::Option<f32>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -2767,6 +2769,7 @@ pub enum DotaChatMessage {
     ChatMessageStoneOfRecallUsed = 124,
     ChatMessageDeityBlessing = 125,
     ChatMessageSmokeActivated = 126,
+    ChatMessageHornOfBattleUsed = 128,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -3164,6 +3167,7 @@ pub enum DotaunitorderT {
     DotaUnitOrderCastToggleAlt = 40,
     DotaUnitOrderConsumeItem = 41,
     DotaUnitOrderSetItemMarkForSell = 42,
+    DotaUnitOrderInteractWithTarget = 43,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]

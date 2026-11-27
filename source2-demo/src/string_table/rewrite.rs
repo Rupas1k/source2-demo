@@ -258,7 +258,6 @@ where
         return Ok(false);
     };
 
-    msg.uncompressed_size = Some(rewritten.len() as i32);
     if msg.data_compressed() {
         msg.string_data = Some(snap::raw::Encoder::new().compress_vec(&rewritten)?);
         msg.data_compressed = Some(true);
